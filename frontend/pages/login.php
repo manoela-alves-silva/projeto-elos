@@ -129,6 +129,11 @@ $emailInformado = escapar(
 
     <link
         rel="stylesheet"
+        href="../assets/css/base.css"
+    >
+
+    <link
+        rel="stylesheet"
         href="../assets/css/login.css"
     >
 </head>
@@ -159,144 +164,10 @@ $emailInformado = escapar(
             </a>
         </div>
 
-        <nav
-            class="sidebar-navigation"
-            aria-label="Navegação principal"
-        >
-
-            <a
-                href="#"
-                class="sidebar-item active"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">⌂</span>
-                <span>Início</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">▣</span>
-                <span>Eventos</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">◷</span>
-                <span>Agenda</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">✓</span>
-                <span>Tarefas</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">▤</span>
-                <span>Formulários</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">▱</span>
-                <span>Transportes</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">♧</span>
-                <span>Visitas</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">▧</span>
-                <span>Anexos</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">▥</span>
-                <span>Relatórios</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">♙</span>
-                <span>Usuários</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">⌖</span>
-                <span>Locais</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">◈</span>
-                <span>Tipo de evento</span>
-            </a>
-
-            <a
-                href="#"
-                class="sidebar-item"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">◎</span>
-                <span>Responsáveis</span>
-            </a>
-
-        </nav>
-
-        <div class="sidebar-footer">
-
-            <div class="sidebar-divider"></div>
-
-            <a
-                href="#"
-                class="sidebar-logout"
-                data-disabled-link
-            >
-                <span class="sidebar-icon">↪</span>
-                <span>Sair</span>
-            </a>
-
-        </div>
+        <p class="login-tagline">
+            Eventos que conectam pessoas,
+            ideias e oportunidades.
+        </p>
 
         <div class="sidebar-decoration sidebar-decoration-bottom">
             <span class="shape-yellow"></span>
@@ -533,11 +404,6 @@ $emailInformado = escapar(
             </p>
 
 
-            <p class="login-footer">
-                Eventos que conectam pessoas,
-                ideias e oportunidades.
-            </p>
-
         </section>
 
     </main>
@@ -581,17 +447,6 @@ document.addEventListener('DOMContentLoaded', function () {
             );
         });
     }
-
-
-    const linksDesativados = document.querySelectorAll(
-        '[data-disabled-link]'
-    );
-
-    linksDesativados.forEach(function (link) {
-        link.addEventListener('click', function (event) {
-            event.preventDefault();
-        });
-    });
 
 
     const forgotPassword = document.getElementById(
