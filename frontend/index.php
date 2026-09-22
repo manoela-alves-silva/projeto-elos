@@ -9,7 +9,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 $usuario = $_SESSION['usuario'] ?? null;
 
 if (!is_array($usuario) || empty($usuario['id'])) {
-    header('Location: login.php');
+    header('Location: pages/login.php');
     exit();
 }
 
@@ -125,6 +125,8 @@ function traduzirStatusTarefa(string $status): string
 
 $eventos = buscarApi('/api/eventos');
 
+$apiIndisponivel = $eventos === null;
+
 if (!is_array($eventos)) {
     $eventos = [];
 }
@@ -222,6 +224,13 @@ $alertasCriticos = array_values(
     )
 );
 
+$alertas = array_values(
+    array_unique(
+        array_merge($alertasCriticos, $tarefasAtrasadas),
+        SORT_REGULAR
+    )
+);
+
 usort(
     $eventos,
     static function (array $a, array $b): int {
@@ -246,9 +255,31 @@ usort(
 
 $tarefasExibidas = array_slice($tarefasAtivas, 0, 5);
 
-$mensagemEventos = $eventos === []
-    ? 'Ainda não existem eventos cadastrados.'
-    : 'Acompanhe os eventos e tudo o que precisa acontecer para que eles ganhem vida.';
+$rotaAtual = 'inicio';
+
+$menuLateral = [
+    ['rota' => 'inicio', 'titulo' => 'Início', 'icone' => '⌂', 'href' => 'index.php'],
+    ['rota' => 'eventos', 'titulo' => 'Eventos', 'icone' => '▣', 'href' => '#'],
+    ['rota' => 'agenda', 'titulo' => 'Agenda', 'icone' => '◷', 'href' => '#'],
+    ['rota' => 'tarefas', 'titulo' => 'Tarefas', 'icone' => '✓', 'href' => '#'],
+    ['rota' => 'formularios', 'titulo' => 'Formulários', 'icone' => '▤', 'href' => '#'],
+    ['rota' => 'transportes', 'titulo' => 'Transportes', 'icone' => '▱', 'href' => '#'],
+    ['rota' => 'visitas', 'titulo' => 'Visitas', 'icone' => '♧', 'href' => '#'],
+    ['rota' => 'anexos', 'titulo' => 'Anexos', 'icone' => '▧', 'href' => '#'],
+    ['rota' => 'relatorios', 'titulo' => 'Relatórios', 'icone' => '▥', 'href' => '#'],
+    ['rota' => 'usuarios', 'titulo' => 'Usuários', 'icone' => '♙', 'href' => '#'],
+    ['rota' => 'locais', 'titulo' => 'Locais', 'icone' => '⌖', 'href' => '#'],
+    ['rota' => 'tipos-evento', 'titulo' => 'Tipo de evento', 'icone' => '◈', 'href' => '#'],
+    ['rota' => 'responsaveis', 'titulo' => 'Responsáveis', 'icone' => '◎', 'href' => '#'],
+];
+
+if ($apiIndisponivel) {
+    $mensagemEventos = 'Não foi possível carregar os eventos agora.';
+} elseif ($eventos === []) {
+    $mensagemEventos = 'Ainda não existem eventos cadastrados.';
+} else {
+    $mensagemEventos = 'Acompanhe os eventos e tudo o que precisa acontecer para que eles ganhem vida.';
+}
 
 ?>
 <!DOCTYPE html>
@@ -262,6 +293,23 @@ $mensagemEventos = $eventos === []
 
     <title>Dashboard | ELOS</title>
 
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/dashboard.css">
 </head>
 
@@ -271,68 +319,73 @@ $mensagemEventos = $eventos === []
 
     <aside class="sidebar">
 
+        <div class="sidebar-decoration sidebar-decoration-top"></div>
+
         <div class="sidebar-top">
 
-            <a href="index.php" class="brand">
-                <span class="brand-mark">E</span>
+            <a href="index.php" class="sidebar-logo" aria-label="ELOS">
 
-                <span class="brand-text">
-                    <strong>ELOS</strong>
-                    <small>Eventos que conectam</small>
-                </span>
+                <strong class="sidebar-logo-text">
+                    EL<span>O</span>S
+                </strong>
+
+                <small>
+                    EVENTOS QUE<br>
+                    CONECTAM
+                </small>
+
             </a>
 
-            <nav class="main-navigation" aria-label="Navegação principal">
+            <nav class="sidebar-navigation" aria-label="Navegação principal">
 
-                <a href="index.php" class="nav-item active">
-                    <span class="nav-icon">⌂</span>
-                    <span>Dashboard</span>
-                </a>
+                <?php foreach ($menuLateral as $item): ?>
 
-                <a href="#" class="nav-item">
-                    <span class="nav-icon">◫</span>
-                    <span>Eventos</span>
-                </a>
+                    <a
+                        href="<?= escapar($item['href']) ?>"
+                        class="sidebar-item<?= $item['rota'] === $rotaAtual ? ' active' : '' ?>"
+                        <?= $item['rota'] === $rotaAtual ? 'aria-current="page"' : '' ?>
+                    >
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <?= $item['icone'] ?>
+                        </span>
 
-                <a href="#" class="nav-item">
-                    <span class="nav-icon">✓</span>
-                    <span>Tarefas</span>
-                </a>
+                        <span><?= escapar($item['titulo']) ?></span>
+                    </a>
 
-                <a href="#" class="nav-item">
-                    <span class="nav-icon">▣</span>
-                    <span>Agenda</span>
-                </a>
-
-                <a href="#" class="nav-item">
-                    <span class="nav-icon">⚙</span>
-                    <span>Configurações</span>
-                </a>
+                <?php endforeach; ?>
 
             </nav>
 
         </div>
 
-        <div class="sidebar-bottom">
+        <div class="sidebar-footer">
+
+            <div class="sidebar-divider"></div>
 
             <div class="sidebar-user">
 
-                <div class="user-avatar">
-                    <?= escapar(mb_strtoupper(mb_substr($nomeUsuario, 0, 1))) ?>
-                </div>
+                <span class="user-avatar">
+                    <?= escapar(mb_substr($nomeUsuario, 0, 1)) ?>
+                </span>
 
-                <div class="user-data">
-                    <strong><?= escapar($nomeUsuario) ?></strong>
-                    <span><?= escapar($perfilUsuario) ?></span>
-                </div>
+                <span>
+                    <strong><?= escapar($primeiroNome) ?></strong>
+                    <small><?= escapar($perfilUsuario) ?></small>
+                </span>
 
             </div>
 
-            <a href="logout.php" class="logout-link">
-                <span>↪</span>
+            <a href="pages/logout.php" class="sidebar-logout">
+                <span class="sidebar-icon" aria-hidden="true">↪</span>
                 <span>Sair</span>
             </a>
 
+        </div>
+
+        <div class="sidebar-decoration sidebar-decoration-bottom">
+            <span class="shape-yellow"></span>
+            <span class="shape-blue"></span>
+            <span class="shape-cream"></span>
         </div>
 
     </aside>
@@ -340,11 +393,6 @@ $mensagemEventos = $eventos === []
     <main class="main-content">
 
         <header class="topbar">
-
-            <div class="mobile-brand">
-                <strong>ELOS</strong>
-                <span>Eventos que conectam</span>
-            </div>
 
             <div class="topbar-search">
 
@@ -367,7 +415,7 @@ $mensagemEventos = $eventos === []
                     aria-label="Notificações"
                 >
                     ♢
-                    <?php if ($alertasCriticos !== []): ?>
+                    <?php if ($alertas !== []): ?>
                         <span class="notification-dot"></span>
                     <?php endif; ?>
                 </button>
@@ -390,6 +438,25 @@ $mensagemEventos = $eventos === []
         </header>
 
         <div class="content-wrapper">
+
+            <?php if ($apiIndisponivel): ?>
+
+                <div class="system-message" role="alert">
+
+                    <span class="system-message-icon" aria-hidden="true">!</span>
+
+                    <div class="system-message-body">
+                        <strong>Não foi possível falar com a API do ELOS.</strong>
+
+                        <p>
+                            Os números desta tela podem estar desatualizados.
+                            Verifique se o serviço está no ar e recarregue a página.
+                        </p>
+                    </div>
+
+                </div>
+
+            <?php endif; ?>
 
             <section class="welcome-section">
 
@@ -421,7 +488,7 @@ $mensagemEventos = $eventos === []
 
                     <div class="metric-icon">◫</div>
 
-                    <div>
+                    <div class="metric-content">
                         <span class="metric-label">Total de eventos</span>
                         <strong><?= $totalEventos ?></strong>
                     </div>
@@ -430,11 +497,11 @@ $mensagemEventos = $eventos === []
 
                 </article>
 
-                <article class="metric-card teal">
+                <article class="metric-card turquoise">
 
                     <div class="metric-icon">◌</div>
 
-                    <div>
+                    <div class="metric-content">
                         <span class="metric-label">Em andamento</span>
                         <strong><?= count($eventosAndamento) ?></strong>
                     </div>
@@ -447,7 +514,7 @@ $mensagemEventos = $eventos === []
 
                     <div class="metric-icon">✓</div>
 
-                    <div>
+                    <div class="metric-content">
                         <span class="metric-label">Em planejamento</span>
                         <strong><?= count($eventosPlanejamento) ?></strong>
                     </div>
@@ -460,9 +527,9 @@ $mensagemEventos = $eventos === []
 
                     <div class="metric-icon">!</div>
 
-                    <div>
+                    <div class="metric-content">
                         <span class="metric-label">Alertas</span>
-                        <strong><?= count($alertasCriticos) + count($tarefasAtrasadas) ?></strong>
+                        <strong><?= count($alertas) ?></strong>
                     </div>
 
                     <span class="metric-decoration">04</span>
@@ -592,16 +659,29 @@ $mensagemEventos = $eventos === []
 
                                 <div class="empty-icon">◫</div>
 
-                                <h2>Nenhum evento cadastrado</h2>
+                                <?php if ($apiIndisponivel): ?>
 
-                                <p>
-                                    Quando um evento for criado, ele aparecerá aqui.
-                                </p>
+                                    <h2>Não foi possível carregar os eventos</h2>
 
-                                <a href="#" class="primary-button">
-                                    <span>+</span>
-                                    Criar primeiro evento
-                                </a>
+                                    <p>
+                                        Assim que a conexão com a API for
+                                        restabelecida, os eventos aparecem aqui.
+                                    </p>
+
+                                <?php else: ?>
+
+                                    <h2>Nenhum evento cadastrado</h2>
+
+                                    <p>
+                                        Quando um evento for criado, ele aparecerá aqui.
+                                    </p>
+
+                                    <a href="#" class="primary-button">
+                                        <span>+</span>
+                                        Criar primeiro evento
+                                    </a>
+
+                                <?php endif; ?>
 
                             </div>
 
@@ -789,25 +869,11 @@ $mensagemEventos = $eventos === []
 
                         </div>
 
-                        <?php if ($alertasCriticos !== [] || $tarefasAtrasadas !== []): ?>
+                        <?php if ($alertas !== []): ?>
 
                             <div class="alert-list">
 
-                                <?php
-                                $alertasExibidos = array_slice(
-                                    array_unique(
-                                        array_merge(
-                                            $alertasCriticos,
-                                            $tarefasAtrasadas
-                                        ),
-                                        SORT_REGULAR
-                                    ),
-                                    0,
-                                    3
-                                );
-                                ?>
-
-                                <?php foreach ($alertasExibidos as $alerta): ?>
+                                <?php foreach (array_slice($alertas, 0, 3) as $alerta): ?>
 
                                     <div class="alert-card">
 

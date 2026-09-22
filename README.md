@@ -266,15 +266,15 @@ projeto-elos/
 ├── frontend/
 │   ├── assets/
 │   │   ├── css/
+│   │   │   ├── base.css
 │   │   │   ├── dashboard.css
-│   │   │   ├── login.css
-│   │   │   └── style.css
+│   │   │   └── login.css
 │   │   │
-│   │   ├── images/
-│   │   └── js/
+│   │   └── images/
 │   │
 │   ├── pages/
-│   │   └── login.php
+│   │   ├── login.php
+│   │   └── logout.php
 │   │
 │   └── index.php
 │
@@ -1379,10 +1379,14 @@ frontend/assets/css/
 Arquivos atuais:
 
 ```text
+base.css
 dashboard.css
 login.css
-style.css
 ```
+
+`base.css` concentra os tokens (cor, escala tipográfica, espaçamento, raio
+e profundidade), o reset e a navegação lateral compartilhada. Ele deve ser
+carregado antes do CSS específico de cada tela.
 
 O desenvolvimento atual está concentrado na interface do gestor.
 
