@@ -77,6 +77,9 @@ final class EventoController
             return null;
         }
 
+        // Só "cancelado" é guardado; o resto o sistema calcula pelas datas.
+        $status = $status === 'CANCELADO' ? 'CANCELADO' : 'PLANEJAMENTO';
+
         if ($descricao !== null) {
             $descricao = trim($descricao);
 
@@ -137,6 +140,9 @@ final class EventoController
             return null;
         }
 
+        // Só "cancelado" é guardado; o resto o sistema calcula pelas datas.
+        $status = $status === 'CANCELADO' ? 'CANCELADO' : 'PLANEJAMENTO';
+
         if ($descricao !== null) {
             $descricao = trim($descricao);
 
@@ -164,6 +170,18 @@ final class EventoController
             $status,
             $observacoes
         );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function conflitos(int $localId, string $inicio, string $fim, ?int $excetoId): array
+    {
+        if ($fim < $inicio) {
+            [$inicio, $fim] = [$fim, $inicio];
+        }
+
+        return $this->repository->findConflitos($localId, $inicio, $fim, $excetoId);
     }
 
     /**

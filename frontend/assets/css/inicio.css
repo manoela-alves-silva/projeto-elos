@@ -1,0 +1,364 @@
+/* =========================================================
+   ELOS — INÍCIO (index.php)
+
+   Depende de base.css, dashboard.css e planejamento.css.
+   Só usa os tokens de cor de base.css.
+   ========================================================= */
+
+
+/* ---------- escolher a exposição acompanhada ---------- */
+
+.seletor-exposicao {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    margin-bottom: var(--sp-20);
+}
+
+.seletor-exposicao > span {
+    margin-right: var(--sp-4);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+}
+
+.seletor-exposicao a {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 34px;
+
+    padding: 0 var(--sp-16);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+
+    background: var(--white);
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+}
+
+.seletor-exposicao a:hover {
+    border-color: var(--turquoise);
+    color: var(--navy);
+}
+
+.seletor-exposicao a.ativa {
+    border-color: var(--navy);
+
+    background: var(--navy);
+    color: var(--white);
+}
+
+
+/* ---------- grade ---------- */
+
+.inicio-grade {
+    display: grid;
+
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    align-items: start;
+
+    gap: var(--sp-24);
+}
+
+.inicio-principal,
+.inicio-lateral {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-24);
+
+    min-width: 0;
+}
+
+
+/* ---------- a exposição em foco ---------- */
+
+.foco {
+    position: relative;
+
+    overflow: hidden;
+
+    padding: var(--sp-28);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    background: var(--white);
+
+    box-shadow: var(--shadow-soft);
+}
+
+/* detalhe decorativo da identidade (mesmos círculos do destaque antigo) */
+.foco::before {
+    content: "";
+
+    position: absolute;
+    top: -70px;
+    right: -60px;
+
+    width: 190px;
+    height: 190px;
+
+    border-radius: 50%;
+
+    background: var(--turquoise-light);
+
+    opacity: 0.7;
+}
+
+.foco > * {
+    position: relative;
+}
+
+.foco-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: var(--sp-20);
+}
+
+.foco-cabecalho .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-12);
+}
+
+.foco-cabecalho h2 {
+    color: var(--navy);
+
+    font-size: clamp(1.5rem, 2.2vw, 2rem);
+    font-weight: 750;
+
+    line-height: 1.15;
+    letter-spacing: -0.6px;
+}
+
+.foco-cabecalho h2 a:hover {
+    color: var(--blue);
+}
+
+.foco-fatos {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-4) var(--sp-20);
+
+    margin-top: var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+}
+
+.foco-numeros {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-12);
+
+    margin-top: var(--sp-24);
+}
+
+.numero {
+    display: flex;
+    flex-direction: column;
+
+    gap: 2px;
+
+    min-width: 130px;
+
+    padding: var(--sp-12) var(--sp-16);
+
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: var(--radius-sm);
+
+    background: var(--cream-light);
+
+    transition: transform 0.2s ease;
+}
+
+.numero:hover {
+    transform: translateY(-2px);
+}
+
+.numero strong {
+    color: var(--navy);
+
+    font-size: var(--fs-24);
+    font-weight: 800;
+
+    line-height: 1.1;
+}
+
+.numero span {
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+}
+
+.numero.pendentes { border-left-color: var(--yellow); }
+.numero.atrasadas { border-left-color: var(--red); background: var(--red-surface); }
+.numero.atrasadas strong { color: var(--red-dark); }
+.numero.concluidas { border-left-color: var(--green-soft); }
+.numero.marco { margin-left: auto; border-left-color: var(--turquoise); }
+.numero.marco.grupo-montagem { border-left-color: var(--yellow); }
+.numero.marco.grupo-permanencia { border-left-color: var(--blue); }
+.numero.marco.grupo-desmontagem { border-left-color: var(--sand); }
+
+.numero-vazio {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-12);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+}
+
+.foco-progresso {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-12);
+
+    margin-top: var(--sp-20);
+}
+
+.foco-progresso .progresso {
+    flex: 1;
+}
+
+.foco-progresso span {
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+
+/* ---------- lateral ---------- */
+
+a.alert-card {
+    display: block;
+
+    transition: transform 0.2s ease;
+}
+
+a.alert-card:hover {
+    transform: translateX(2px);
+}
+
+.alert-card small {
+    display: block;
+
+    margin-top: var(--sp-4);
+
+    color: var(--navy);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+}
+
+.alert-list .mais {
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+
+    text-align: center;
+}
+
+.lista-minhas,
+.lista-outras {
+    list-style: none;
+}
+
+.lista-minhas li + li,
+.lista-outras li + li {
+    border-top: 1px solid var(--border);
+}
+
+.lista-minhas a,
+.lista-outras a {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-4);
+
+    padding: var(--sp-12) var(--sp-24);
+
+    transition: background 0.2s ease;
+}
+
+.lista-minhas a:hover,
+.lista-outras a:hover {
+    background: var(--cream-light);
+}
+
+.lista-minhas strong,
+.lista-outras strong {
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
+}
+
+.lista-minhas span,
+.lista-outras span,
+.lista-outras small {
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+}
+
+.lista-outras .progresso {
+    display: block;
+
+    height: 6px;
+}
+
+
+/* ---------- responsivo ---------- */
+
+@media (max-width: 1180px) {
+    .inicio-grade {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .foco {
+        padding: var(--sp-20);
+    }
+
+    .foco-cabecalho .primary-button {
+        width: 100%;
+    }
+
+    .numero {
+        flex: 1 1 40%;
+        min-width: 0;
+    }
+
+    .numero.marco {
+        margin-left: 0;
+    }
+}

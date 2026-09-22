@@ -749,6 +749,46 @@
 
 
 /* =========================================================
+   CRIAR CONTA
+   ========================================================= */
+
+.login-signup {
+    margin-top: var(--sp-20);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+
+    text-align: center;
+}
+
+
+.login-signup a {
+    color: var(--navy);
+
+    font-weight: 700;
+}
+
+
+.login-signup a:hover {
+    color: var(--turquoise);
+
+    text-decoration: underline;
+}
+
+
+.login-submit-link {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    text-decoration: none;
+}
+
+
+/* =========================================================
    RODAPÉ
    ========================================================= */
 

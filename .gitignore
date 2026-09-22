@@ -52,3 +52,6 @@ sessions/
 # Uploads locais
 # =========================
 uploads/
+backend/storage/anexos/*
+!backend/storage/anexos/.gitkeep
+backend/storage/limite_login/

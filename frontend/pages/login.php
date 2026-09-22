@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+use Elos\Frontend\Api;
+use Elos\Frontend\ApiException;
+
+require_once __DIR__ . '/../src/Api.php';
+
+\Elos\Frontend\iniciarSessao();
 
 $usuario = $_SESSION['usuario'] ?? null;
 
@@ -25,44 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $mensagemErro = 'Digite um e-mail válido.';
     } else {
-        $payload = json_encode(
-            [
+        try {
+            $dados = Api::post('/api/login', [
                 'email' => $email,
                 'senha' => $senha,
-            ],
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        );
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => implode("\r\n", [
-                    'Content-Type: application/json',
-                    'Accept: application/json',
-                ]),
-                'content' => $payload,
-                'timeout' => 5,
-                'ignore_errors' => true,
-            ],
-        ]);
-
-        $resposta = @file_get_contents(
-            'http://127.0.0.1:8000/api/login',
-            false,
-            $context
-        );
-
-        if ($resposta === false) {
-            $mensagemErro = 'Não foi possível conectar ao servidor do ELOS.';
-        } else {
-            $dados = json_decode($resposta, true);
+            ]);
 
             if (
-                is_array($dados)
-                && isset($dados['usuario'])
+                isset($dados['usuario'])
                 && is_array($dados['usuario'])
                 && !empty($dados['usuario']['id'])
             ) {
+                // Sessão nova a cada login: um ID de sessão plantado antes
+                // do login não serve para entrar na conta de ninguém.
+                session_regenerate_id(true);
+
                 $_SESSION['usuario'] = [
                     'id' => $dados['usuario']['id'] ?? null,
                     'nome' => $dados['usuario']['nome'] ?? null,
@@ -74,12 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
             }
 
-            $mensagemErro = (
-                is_array($dados)
-                && !empty($dados['erro'])
-            )
-                ? (string) $dados['erro']
-                : 'E-mail ou senha inválidos.';
+            $mensagemErro = 'E-mail ou senha inválidos.';
+        } catch (ApiException $e) {
+            $mensagemErro = $e->statusCode === 401
+                ? 'E-mail ou senha inválidos.'
+                : $e->getMessage();
         }
     }
 }
@@ -254,6 +233,7 @@ $emailInformado = escapar(
                 method="post"
                 action=""
             >
+                <?= \Elos\Frontend\campoCsrf() ?>
 
                 <div class="form-group">
 
@@ -401,6 +381,12 @@ $emailInformado = escapar(
                 O login com Google será habilitado
                 quando a autenticação OAuth do projeto
                 estiver configurada.
+            </p>
+
+
+            <p class="login-signup">
+                Ainda não tem conta?
+                <a href="cadastro.php">Criar conta</a>
             </p>
 
 

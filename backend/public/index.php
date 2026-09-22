@@ -39,6 +39,11 @@ use Elos\Services\AuthService;
 use Elos\Services\AuthorizationService;
 use Elos\Services\SessionService;
 
+// Detalhes de erro só na tela com ELOS_DEBUG=1 (desenvolvimento).
+// Sem isso eles vão para o log/terminal, nunca para quem usa o site.
+ini_set('display_errors', getenv('ELOS_DEBUG') === '1' ? '1' : '0');
+ini_set('log_errors', '1');
+
 require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $database = Database::fromEnvironment();
@@ -149,6 +154,10 @@ $historicoControllerFactory = static function () use ($pdo): HistoricoController
 $authorizationFactory = static function () use ($sessionService): AuthorizationService {
     return new AuthorizationService($sessionService);
 };
+
+// Perfil e situação da conta sempre conforme o banco (uma troca feita
+// na tela Equipe vale sem precisar sair e entrar de novo).
+$usuarioControllerFactory()->sincronizarSessao();
 
 require dirname(__DIR__) . '/routes/api.php';
 

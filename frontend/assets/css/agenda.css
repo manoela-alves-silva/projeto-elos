@@ -1,0 +1,376 @@
+/* =========================================================
+   ELOS — CALENDÁRIO (pages/agenda.php)
+
+   Depende de base.css, dashboard.css e planejamento.css.
+   Só usa os tokens de cor de base.css.
+   ========================================================= */
+
+
+/* ---------- filtro de exposição (topo) ---------- */
+
+.filtro-exposicao select {
+    min-width: 280px;
+    max-width: 420px;
+}
+
+
+/* ---------- barra do mês + legenda ---------- */
+
+.calendario-topo {
+    flex-wrap: wrap;
+}
+
+.calendar-nav {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+}
+
+.calendar-nav h2 {
+    margin-left: var(--sp-12);
+
+    color: var(--navy);
+
+    font-size: var(--fs-20);
+    font-weight: 750;
+}
+
+.botao-hoje {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 38px;
+
+    padding: 0 var(--sp-12);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--navy);
+
+    font-size: var(--fs-12);
+    font-weight: 800;
+}
+
+.botao-hoje:hover {
+    border-color: var(--turquoise);
+}
+
+.legenda {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-4) var(--sp-12);
+
+    list-style: none;
+}
+
+.legenda li {
+    display: inline-flex;
+    align-items: center;
+
+    gap: var(--sp-4);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
+}
+
+.legenda li::before {
+    content: "";
+
+    width: 10px;
+    height: 10px;
+
+    border-radius: 3px;
+
+    background: var(--cor-legenda, var(--border));
+}
+
+
+/* ---------- cores: fases da agenda e estados ---------- */
+
+.fase-montagem { --cor-legenda: var(--yellow); }
+.fase-abertura { --cor-legenda: var(--turquoise); }
+.fase-permanencia { --cor-legenda: var(--blue); }
+.fase-desmontagem { --cor-legenda: var(--sand); }
+.estado-pendente { --cor-legenda: var(--yellow); }
+.estado-atrasado { --cor-legenda: var(--red); }
+.estado-agendado { --cor-legenda: var(--blue); }
+.estado-concluido { --cor-legenda: var(--green-soft); }
+
+
+/* ---------- grade ---------- */
+
+.calendar-weekdays {
+    display: grid;
+
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+
+    border-bottom: 1px solid var(--border);
+}
+
+.calendar-weekdays span {
+    padding: var(--sp-12) var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.calendar-grid {
+    display: grid;
+
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-day {
+    position: relative;
+
+    min-width: 0;
+    min-height: 118px;
+
+    padding: var(--sp-8);
+
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.calendar-day:nth-child(7n) {
+    border-right: 0;
+}
+
+.calendar-day.outside {
+    background: var(--cream-light);
+}
+
+.calendar-day.today {
+    background: var(--turquoise-light);
+}
+
+.calendar-day.selected {
+    outline: 2px solid var(--turquoise);
+    outline-offset: -2px;
+}
+
+/* faixa fina no topo: a exposição está em cartaz neste dia */
+.calendar-day.em-cartaz::before {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 3px;
+
+    background: var(--blue);
+
+    opacity: 0.55;
+}
+
+.day-number {
+    display: inline-grid;
+    place-items: center;
+
+    min-width: 26px;
+    height: 26px;
+
+    margin-bottom: var(--sp-4);
+
+    border-radius: 50%;
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 750;
+}
+
+.day-number:hover {
+    background: var(--cream);
+}
+
+.calendar-day.today .day-number {
+    background: var(--turquoise);
+    color: var(--white);
+}
+
+.day-markers {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+.marker-pill {
+    display: block;
+
+    overflow: hidden;
+
+    padding: 2px var(--sp-8);
+
+    border-left: 3px solid var(--cor-legenda, var(--border));
+    border-radius: var(--radius-xs);
+
+    background: var(--cream-light);
+    color: var(--navy);
+
+    font-size: var(--fs-10);
+    font-weight: 700;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.marker-pill:hover {
+    background: var(--cream);
+}
+
+.marker-pill.fase-montagem { background: var(--yellow-light); color: var(--on-yellow); }
+.marker-pill.fase-abertura { background: var(--turquoise-light); color: var(--on-turquoise); }
+.marker-pill.fase-permanencia { background: var(--blue-light); color: var(--navy); }
+.marker-pill.fase-desmontagem { background: var(--cream-dark); color: var(--navy); }
+.marker-pill.estado-atrasado { background: var(--red-light); color: var(--red-dark); }
+.marker-pill.estado-concluido { color: var(--text-soft); text-decoration: line-through; }
+
+.marker-more {
+    color: var(--blue);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+}
+
+
+/* ---------- dia selecionado ---------- */
+
+.dia-selecionado {
+    margin-top: var(--sp-24);
+
+    scroll-margin-top: 100px;
+}
+
+.em-cartaz-texto {
+    padding: var(--sp-12) var(--sp-24) 0;
+
+    color: var(--blue);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+}
+
+.lateral-vazio {
+    padding: var(--sp-20) var(--sp-24);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+}
+
+.lista-dia {
+    list-style: none;
+
+    padding: var(--sp-8) 0;
+}
+
+.lista-dia li {
+    display: grid;
+
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    align-items: center;
+
+    gap: var(--sp-12);
+
+    padding: var(--sp-12) var(--sp-24);
+}
+
+.lista-dia li + li {
+    border-top: 1px solid var(--border);
+}
+
+.bolinha {
+    width: 12px;
+    height: 12px;
+
+    border-radius: 50%;
+
+    background: var(--cor-legenda, var(--border));
+}
+
+.lista-dia a {
+    display: flex;
+    flex-direction: column;
+
+    gap: 2px;
+
+    min-width: 0;
+}
+
+.lista-dia small {
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
+}
+
+.lista-dia strong {
+    color: var(--navy);
+
+    font-size: var(--fs-14);
+}
+
+.lista-dia a:hover strong {
+    color: var(--blue);
+
+    text-decoration: underline;
+}
+
+
+/* ---------- responsivo ---------- */
+
+@media (max-width: 900px) {
+    .calendar-day {
+        min-height: 84px;
+
+        padding: var(--sp-4);
+    }
+
+    .marker-pill {
+        padding: 1px var(--sp-4);
+
+        font-size: var(--fs-8);
+    }
+}
+
+@media (max-width: 700px) {
+    .filtro-exposicao {
+        flex: 1;
+    }
+
+    .filtro-exposicao select {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .calendar-nav h2 {
+        width: 100%;
+
+        margin: var(--sp-8) 0 0;
+    }
+
+    /* no celular a grade fica compacta: só a marca de que há algo */
+    .marker-pill {
+        height: 6px;
+
+        padding: 0;
+
+        font-size: 0;
+    }
+}

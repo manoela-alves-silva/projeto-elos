@@ -291,3 +291,46 @@ function handleEventoByIdRequest(
         'erro' => 'Método não permitido.',
     ]);
 }
+
+/**
+ * Exposições que já ocupam um local num período:
+ * GET /api/eventos/conflitos?local_id=1&inicio=2026-10-01&fim=2026-10-30[&exceto=5]
+ *
+ * @param callable(): EventoController $eventoControllerFactory
+ * @param callable(): AuthorizationService $authorizationFactory
+ */
+function handleEventoConflitosRequest(
+    string $method,
+    callable $eventoControllerFactory,
+    callable $authorizationFactory
+): never {
+    if ($method !== 'GET') {
+        sendJsonResponse(405, ['erro' => 'Método não permitido.']);
+    }
+
+    requireRole($authorizationFactory, 'COLABORADOR');
+
+    $localId = filter_var($_GET['local_id'] ?? null, FILTER_VALIDATE_INT);
+    $inicio = (string) ($_GET['inicio'] ?? '');
+    $fim = (string) ($_GET['fim'] ?? '');
+    $exceto = filter_var($_GET['exceto'] ?? null, FILTER_VALIDATE_INT);
+
+    $dataValida = static function (string $data): bool {
+        $lida = DateTimeImmutable::createFromFormat('!Y-m-d', $data);
+
+        return $lida !== false && $lida->format('Y-m-d') === $data;
+    };
+
+    if ($localId === false || $localId < 1 || !$dataValida($inicio) || !$dataValida($fim)) {
+        sendJsonResponse(400, ['erro' => 'Informe local_id, inicio e fim (AAAA-MM-DD).']);
+    }
+
+    sendJsonResponse(200, [
+        'conflitos' => $eventoControllerFactory()->conflitos(
+            $localId,
+            $inicio,
+            $fim,
+            $exceto === false ? null : $exceto
+        ),
+    ]);
+}

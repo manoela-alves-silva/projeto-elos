@@ -60,7 +60,33 @@ function handleApiRequest(
     }
 
     if ($path === '/api/usuarios') {
-        handleUserRegistrationRequest($method, $controllerFactory);
+        if ($method === 'GET') {
+            handleUserIndexRequest($controllerFactory, $authorizationFactory);
+        } else {
+            handleUserRegistrationRequest($method, $controllerFactory);
+        }
+    }
+
+    if ($path === '/api/usuarios/pendentes') {
+        handleUserPendingIndexRequest($method, $controllerFactory, $authorizationFactory);
+    }
+
+    if (preg_match('#^/api/usuarios/pendentes/(\d+)$#', $path, $matches)) {
+        handleUserApprovalRequest(
+            $method,
+            (int) $matches[1],
+            $controllerFactory,
+            $authorizationFactory
+        );
+    }
+
+    if (preg_match('#^/api/usuarios/(\d+)$#', $path, $matches)) {
+        handleUserProfileRequest(
+            $method,
+            (int) $matches[1],
+            $controllerFactory,
+            $authorizationFactory
+        );
     }
 
     if ($path === '/api/tipos-evento') {
@@ -135,6 +161,7 @@ function handleApiRequest(
         str_starts_with($path, '/api/eventos')
         && (
             $path === '/api/eventos'
+            || $path === '/api/eventos/conflitos'
             || preg_match('#^/api/eventos/(\d+)($|/.*)$#', $path)
         )
     ) {

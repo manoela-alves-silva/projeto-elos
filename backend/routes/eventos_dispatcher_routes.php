@@ -49,6 +49,14 @@ function handleEventosDispatcherRequest(
         );
     }
 
+    if ($path === '/api/eventos/conflitos') {
+        handleEventoConflitosRequest(
+            $method,
+            $eventoControllerFactory,
+            $authorizationFactory
+        );
+    }
+
     if (preg_match('#^/api/eventos/(\d+)$#', $path, $matches)) {
         handleEventoByIdRequest(
             $method,
@@ -97,6 +105,16 @@ function handleEventosDispatcherRequest(
 
     if (preg_match('#^/api/eventos/(\d+)/tarefas/(\d+)$#', $path, $matches)) {
         handleTarefaByIdRequest(
+            $method,
+            (int) $matches[1],
+            (int) $matches[2],
+            $tarefaControllerFactory,
+            $authorizationFactory
+        );
+    }
+
+    if (preg_match('#^/api/eventos/(\d+)/tarefas/(\d+)/status$#', $path, $matches)) {
+        handleTarefaStatusRequest(
             $method,
             (int) $matches[1],
             (int) $matches[2],

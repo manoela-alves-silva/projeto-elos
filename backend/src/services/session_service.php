@@ -14,6 +14,16 @@ final class SessionService
     public function start(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
+            // Só o frontend (servidor) usa este cookie; nenhum navegador
+            // deveria enviá-lo nem lê-lo.
+            session_set_cookie_params([
+                'lifetime' => 0,
+                'path' => '/',
+                'httponly' => true,
+                'samesite' => 'Strict',
+            ]);
+            ini_set('session.use_strict_mode', '1');
+
             session_start();
         }
     }
@@ -29,6 +39,13 @@ final class SessionService
             'email' => $usuario['email'] ?? null,
             'perfil' => $usuario['perfil'] ?? null,
         ];
+    }
+
+    public function atualizarPerfil(string $perfil): void
+    {
+        if ($this->isAuthenticated()) {
+            $_SESSION[self::USER_SESSION_KEY]['perfil'] = $perfil;
+        }
     }
 
     public function logout(): void

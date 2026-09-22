@@ -11,6 +11,17 @@ final class AuthorizationService
     ) {
     }
 
+    /**
+     * Retorna os dados do usuário autenticado na sessão atual,
+     * ou null se não houver usuário autenticado.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function currentUser(): ?array
+    {
+        return $this->sessionService->user();
+    }
+
     public function hasRole(string $perfil): bool
     {
         if (!$this->sessionService->isAuthenticated()) {

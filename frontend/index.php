@@ -2,283 +2,96 @@
 
 declare(strict_types=1);
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+/*
+ * INÍCIO — a professora entende a situação sem abrir nenhuma aba.
+ *
+ * Mostra a exposição em acompanhamento (a que está em cartaz ou a
+ * próxima), com as próximas atividades, pendências e concluídas. Tudo
+ * vem do que foi cadastrado na exposição; nada de cartões fixos por
+ * categoria: o que não existe não aparece.
+ */
 
-$usuario = $_SESSION['usuario'] ?? null;
+use Elos\Frontend\MenuLateral;
+use Elos\Frontend\Planejamento;
 
-if (!is_array($usuario) || empty($usuario['id'])) {
-    header('Location: pages/login.php');
-    exit();
-}
+use function Elos\Frontend\apiLista;
+use function Elos\Frontend\classeStatusEvento;
+use function Elos\Frontend\dataHoraBr;
+use function Elos\Frontend\diaMes;
+use function Elos\Frontend\esc;
+use function Elos\Frontend\exposicaoAtiva;
+use function Elos\Frontend\flash;
+use function Elos\Frontend\hoje;
+use function Elos\Frontend\intervaloBr;
+use function Elos\Frontend\mesAbreviado;
+use function Elos\Frontend\rotuloStatusEvento;
+use function Elos\Frontend\usuarioLogado;
 
-$nomeUsuario = (string) ($usuario['nome'] ?? 'Usuário');
-$perfilUsuario = (string) ($usuario['perfil'] ?? 'COLABORADOR');
+require_once __DIR__ . '/src/Planejamento.php';
 
-$primeiroNome = explode(' ', trim($nomeUsuario))[0] ?: $nomeUsuario;
+$usuario = usuarioLogado('pages/login.php');
 
-function buscarApi(string $path): ?array
-{
-    $url = 'http://127.0.0.1:8000' . $path;
-
-    $cookie = session_name() . '=' . session_id();
-
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'header' => [
-                'Accept: application/json',
-                'Cookie: ' . $cookie,
-            ],
-            'timeout' => 5,
-            'ignore_errors' => true,
-        ],
-    ]);
-
-    $resposta = @file_get_contents($url, false, $context);
-
-    if ($resposta === false) {
-        return null;
-    }
-
-    $dados = json_decode($resposta, true);
-
-    return is_array($dados) ? $dados : null;
-}
-
-function escapar(mixed $valor): string
-{
-    return htmlspecialchars(
-        (string) $valor,
-        ENT_QUOTES,
-        'UTF-8'
-    );
-}
-
-function formatarData(?string $data): string
-{
-    if (!$data) {
-        return 'Não informado';
-    }
-
-    $timestamp = strtotime($data);
-
-    if ($timestamp === false) {
-        return $data;
-    }
-
-    return date('d/m/Y', $timestamp);
-}
-
-function traduzirStatusEvento(string $status): string
-{
-    return match ($status) {
-        'PLANEJAMENTO' => 'Planejamento',
-        'EM_ANDAMENTO' => 'Em andamento',
-        'CONCLUIDO' => 'Concluído',
-        'CANCELADO' => 'Cancelado',
-        default => $status,
-    };
-}
-
-function classeStatusEvento(string $status): string
-{
-    return match ($status) {
-        'EM_ANDAMENTO' => 'status-andamento',
-        'CONCLUIDO' => 'status-concluido',
-        'CANCELADO' => 'status-cancelado',
-        default => 'status-planejamento',
-    };
-}
-
-function traduzirPrioridade(string $prioridade): string
-{
-    return match ($prioridade) {
-        'ALTA' => 'Alta',
-        'MEDIA' => 'Média',
-        'BAIXA' => 'Baixa',
-        default => $prioridade,
-    };
-}
-
-function classePrioridade(string $prioridade): string
-{
-    return match ($prioridade) {
-        'ALTA' => 'priority-alta',
-        'MEDIA' => 'priority-media',
-        default => 'priority-baixa',
-    };
-}
-
-function traduzirStatusTarefa(string $status): string
-{
-    return match ($status) {
-        'PENDENTE' => 'Pendente',
-        'EM_ANDAMENTO' => 'Em andamento',
-        'CONCLUIDA' => 'Concluída',
-        'BLOQUEADA' => 'Bloqueada',
-        'CANCELADA' => 'Cancelada',
-        default => $status,
-    };
-}
-
-$eventos = buscarApi('/api/eventos');
-
+$eventos = apiLista('/api/eventos', 'eventos');
 $apiIndisponivel = $eventos === null;
 
-if (!is_array($eventos)) {
-    $eventos = [];
-}
-
-$totalEventos = count($eventos);
-
-$eventosAndamento = array_values(
-    array_filter(
-        $eventos,
-        static fn(array $evento): bool =>
-            ($evento['status'] ?? '') === 'EM_ANDAMENTO'
-    )
+$planos = array_map(
+    static fn(array $evento): Planejamento => Planejamento::carregar($evento),
+    array_values(array_filter($eventos ?? [], 'Elos\Frontend\exposicaoAtiva'))
 );
 
-$eventosPlanejamento = array_values(
-    array_filter(
-        $eventos,
-        static fn(array $evento): bool =>
-            ($evento['status'] ?? '') === 'PLANEJAMENTO'
-    )
-);
+// Em cartaz hoje primeiro; depois as próximas a começar; sem data no fim.
+$hoje = hoje();
+$ordem = static function (Planejamento $p) use ($hoje): array {
+    ['inicio' => $inicio, 'fim' => $fim] = $p->periodo();
+    $emCartaz = $inicio !== null && $inicio <= $hoje && ($fim === null || $fim >= $hoje);
 
-$eventosConcluidos = array_values(
-    array_filter(
-        $eventos,
-        static fn(array $evento): bool =>
-            ($evento['status'] ?? '') === 'CONCLUIDO'
-    )
-);
+    return [$emCartaz ? 0 : ($inicio !== null && $inicio > $hoje ? 1 : 2), $inicio ?? '9999-12-31'];
+};
+usort($planos, static fn(Planejamento $a, Planejamento $b): int => $ordem($a) <=> $ordem($b));
 
-$eventoDestaque = $eventosAndamento[0]
-    ?? $eventosPlanejamento[0]
-    ?? $eventos[0]
-    ?? null;
-
-$tarefas = [];
-
-if ($eventoDestaque && isset($eventoDestaque['id'])) {
-    $dadosTarefas = buscarApi(
-        '/api/eventos/' . (int) $eventoDestaque['id'] . '/tarefas'
-    );
-
-    if (is_array($dadosTarefas)) {
-        $tarefas = $dadosTarefas;
+$escolhida = (int) ($_GET['exposicao'] ?? 0);
+$foco = null;
+foreach ($planos as $plano) {
+    if ($plano->id() === $escolhida) {
+        $foco = $plano;
     }
 }
+$foco ??= $planos[0] ?? null;
 
-$tarefasAtivas = array_values(
-    array_filter(
-        $tarefas,
-        static fn(array $tarefa): bool =>
-            !in_array(
-                $tarefa['status'] ?? '',
-                ['CONCLUIDA', 'CANCELADA'],
-                true
-            )
-    )
-);
+// Links do planejamento são relativos a pages/.
+$linkPagina = static fn(string $link): string => 'pages/' . $link;
 
-$hoje = strtotime(date('Y-m-d'));
-
-$tarefasAtrasadas = array_values(
-    array_filter(
-        $tarefasAtivas,
-        static function (array $tarefa) use ($hoje): bool {
-            if (empty($tarefa['prazo'])) {
-                return false;
-            }
-
-            $prazo = strtotime((string) $tarefa['prazo']);
-
-            return $prazo !== false && $prazo < $hoje;
-        }
-    )
-);
-
-$alertasCriticos = array_values(
-    array_filter(
-        $tarefasAtivas,
-        static function (array $tarefa) use ($hoje): bool {
-            $prioridade = $tarefa['prioridade'] ?? '';
-
-            if ($prioridade !== 'ALTA') {
-                return false;
-            }
-
-            if (empty($tarefa['prazo'])) {
-                return true;
-            }
-
-            $prazo = strtotime((string) $tarefa['prazo']);
-
-            return $prazo === false || $prazo <= strtotime('+3 days');
-        }
-    )
-);
-
-$alertas = array_values(
-    array_unique(
-        array_merge($alertasCriticos, $tarefasAtrasadas),
-        SORT_REGULAR
-    )
-);
-
-usort(
-    $eventos,
-    static function (array $a, array $b): int {
-        $dataA = strtotime((string) ($a['created_at'] ?? '9999-12-31'));
-        $dataB = strtotime((string) ($b['created_at'] ?? '9999-12-31'));
-
-        return $dataB <=> $dataA;
+// O que precisa de atenção em todas as exposições.
+$alertas = [];
+$minhas = [];
+foreach ($planos as $plano) {
+    foreach ($plano->alertas() as $alerta) {
+        $alertas[] = $alerta + ['_plano' => $plano];
     }
-);
 
-$eventosRecentes = array_slice($eventos, 0, 5);
-
-usort(
-    $tarefasAtivas,
-    static function (array $a, array $b): int {
-        $prazoA = strtotime((string) ($a['prazo'] ?? '9999-12-31'));
-        $prazoB = strtotime((string) ($b['prazo'] ?? '9999-12-31'));
-
-        return $prazoA <=> $prazoB;
+    foreach ($plano->necessidades ?? [] as $tarefa) {
+        if (
+            (int) ($tarefa['usuario_responsavel_id'] ?? 0) === $usuario['id']
+            && !in_array(Planejamento::estadoNecessidade($tarefa), ['concluido', 'cancelado'], true)
+        ) {
+            $minhas[] = $tarefa + ['_plano' => $plano];
+        }
     }
-);
+}
+usort($alertas, static fn(array $a, array $b): int => ($a['prazo'] ?? '') <=> ($b['prazo'] ?? ''));
+usort($minhas, static fn(array $a, array $b): int => ($a['prazo'] ?? '9999-12-31') <=> ($b['prazo'] ?? '9999-12-31'));
 
-$tarefasExibidas = array_slice($tarefasAtivas, 0, 5);
-
-$rotaAtual = 'inicio';
-
-$menuLateral = [
-    ['rota' => 'inicio', 'titulo' => 'Início', 'icone' => '⌂', 'href' => 'index.php'],
-    ['rota' => 'eventos', 'titulo' => 'Eventos', 'icone' => '▣', 'href' => '#'],
-    ['rota' => 'agenda', 'titulo' => 'Agenda', 'icone' => '◷', 'href' => '#'],
-    ['rota' => 'tarefas', 'titulo' => 'Tarefas', 'icone' => '✓', 'href' => '#'],
-    ['rota' => 'formularios', 'titulo' => 'Formulários', 'icone' => '▤', 'href' => '#'],
-    ['rota' => 'transportes', 'titulo' => 'Transportes', 'icone' => '▱', 'href' => '#'],
-    ['rota' => 'visitas', 'titulo' => 'Visitas', 'icone' => '♧', 'href' => '#'],
-    ['rota' => 'anexos', 'titulo' => 'Anexos', 'icone' => '▧', 'href' => '#'],
-    ['rota' => 'relatorios', 'titulo' => 'Relatórios', 'icone' => '▥', 'href' => '#'],
-    ['rota' => 'usuarios', 'titulo' => 'Usuários', 'icone' => '♙', 'href' => '#'],
-    ['rota' => 'locais', 'titulo' => 'Locais', 'icone' => '⌖', 'href' => '#'],
-    ['rota' => 'tipos-evento', 'titulo' => 'Tipo de evento', 'icone' => '◈', 'href' => '#'],
-    ['rota' => 'responsaveis', 'titulo' => 'Responsáveis', 'icone' => '◎', 'href' => '#'],
-];
-
-if ($apiIndisponivel) {
-    $mensagemEventos = 'Não foi possível carregar os eventos agora.';
-} elseif ($eventos === []) {
-    $mensagemEventos = 'Ainda não existem eventos cadastrados.';
-} else {
-    $mensagemEventos = 'Acompanhe os eventos e tudo o que precisa acontecer para que eles ganhem vida.';
+if ($foco !== null) {
+    $resumo = $foco->resumo();
+    $periodo = $foco->periodo();
+    $proximas = $foco->proximasAtividades(8);
+    $proximoMarco = null;
+    foreach ($foco->itensDatados() as $item) {
+        if ($item['origem'] === 'marco' && $item['data'] >= $hoje) {
+            $proximoMarco = $item;
+            break;
+        }
+    }
 }
 
 ?>
@@ -286,682 +99,324 @@ if ($apiIndisponivel) {
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Dashboard | ELOS</title>
-
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com"
-    >
-
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Início | ELOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/planejamento.css">
+    <link rel="stylesheet" href="assets/css/inicio.css">
 </head>
-
 <body>
 
 <div class="app-shell">
 
-    <aside class="sidebar">
-
-        <div class="sidebar-decoration sidebar-decoration-top"></div>
-
-        <div class="sidebar-top">
-
-            <a href="index.php" class="sidebar-logo" aria-label="ELOS">
-
-                <strong class="sidebar-logo-text">
-                    EL<span>O</span>S
-                </strong>
-
-                <small>
-                    EVENTOS QUE<br>
-                    CONECTAM
-                </small>
-
-            </a>
-
-            <nav class="sidebar-navigation" aria-label="Navegação principal">
-
-                <?php foreach ($menuLateral as $item): ?>
-
-                    <a
-                        href="<?= escapar($item['href']) ?>"
-                        class="sidebar-item<?= $item['rota'] === $rotaAtual ? ' active' : '' ?>"
-                        <?= $item['rota'] === $rotaAtual ? 'aria-current="page"' : '' ?>
-                    >
-                        <span class="sidebar-icon" aria-hidden="true">
-                            <?= $item['icone'] ?>
-                        </span>
-
-                        <span><?= escapar($item['titulo']) ?></span>
-                    </a>
-
-                <?php endforeach; ?>
-
-            </nav>
-
-        </div>
-
-        <div class="sidebar-footer">
-
-            <div class="sidebar-divider"></div>
-
-            <div class="sidebar-user">
-
-                <span class="user-avatar">
-                    <?= escapar(mb_substr($nomeUsuario, 0, 1)) ?>
-                </span>
-
-                <span>
-                    <strong><?= escapar($primeiroNome) ?></strong>
-                    <small><?= escapar($perfilUsuario) ?></small>
-                </span>
-
-            </div>
-
-            <a href="pages/logout.php" class="sidebar-logout">
-                <span class="sidebar-icon" aria-hidden="true">↪</span>
-                <span>Sair</span>
-            </a>
-
-        </div>
-
-        <div class="sidebar-decoration sidebar-decoration-bottom">
-            <span class="shape-yellow"></span>
-            <span class="shape-blue"></span>
-            <span class="shape-cream"></span>
-        </div>
-
-    </aside>
+    <?php MenuLateral::renderizar('inicio', true, $usuario['nome'], $usuario['primeiroNome'], $usuario['perfil']); ?>
 
     <main class="main-content">
 
         <header class="topbar">
-
-            <div class="topbar-search">
-
+            <form class="topbar-search" action="pages/eventos.php" method="get" role="search">
                 <span class="search-icon">⌕</span>
-
-                <input
-                    type="search"
-                    id="dashboardSearch"
-                    placeholder="Buscar no ELOS..."
-                    aria-label="Buscar no ELOS"
-                >
-
-            </div>
+                <input type="search" name="q" placeholder="Buscar exposição…" aria-label="Buscar exposição">
+            </form>
 
             <div class="topbar-actions">
-
-                <button
-                    type="button"
-                    class="icon-button"
-                    aria-label="Notificações"
-                >
-                    ♢
-                    <?php if ($alertas !== []): ?>
-                        <span class="notification-dot"></span>
-                    <?php endif; ?>
-                </button>
-
+                <?php if ($alertas !== []): ?>
+                    <a href="#alertas" class="icon-button" aria-label="<?= count($alertas) ?> alerta(s)" title="<?= count($alertas) ?> alerta(s)">
+                        ♢ <span class="notification-dot"></span>
+                    </a>
+                <?php endif; ?>
                 <div class="topbar-user">
-
-                    <div class="user-avatar small">
-                        <?= escapar(mb_strtoupper(mb_substr($nomeUsuario, 0, 1))) ?>
-                    </div>
-
+                    <div class="user-avatar small"><?= esc(mb_strtoupper(mb_substr($usuario['nome'], 0, 1))) ?></div>
                     <div>
-                        <strong><?= escapar($primeiroNome) ?></strong>
-                        <span><?= escapar($perfilUsuario) ?></span>
+                        <strong><?= esc($usuario['primeiroNome']) ?></strong>
+                        <span><?= esc($usuario['perfil']) ?></span>
                     </div>
-
                 </div>
-
             </div>
-
         </header>
 
         <div class="content-wrapper">
 
+            <?php if (($avisoInicio = flash('inicio')) !== ''): ?>
+                <div class="aviso aviso-ok" role="status"><?= esc($avisoInicio) ?></div>
+            <?php endif; ?>
+
             <?php if ($apiIndisponivel): ?>
+                <div class="aviso aviso-erro" role="alert">Não foi possível falar com o servidor do ELOS. Recarregue a página em instantes.</div>
+            <?php endif; ?>
 
-                <div class="system-message" role="alert">
+            <section class="welcome-section">
+                <div>
+                    <p class="eyebrow">Painel ELOS</p>
+                    <h1>
+                        Olá, <?= esc($usuario['primeiroNome']) ?>.
+                        <span><?= $foco !== null ? 'Veja o que precisa de atenção.' : 'Vamos dar movimento às exposições.' ?></span>
+                    </h1>
+                </div>
+                <div class="acoes-cabecalho">
+                    <?php if ($foco !== null): ?>
+                        <a href="pages/relatorio.php" class="botao-secundario">⎙ Relatório de atividades</a>
+                    <?php endif; ?>
+                    <?php if ($usuario['podeGerenciar']): ?>
+                        <a href="pages/evento_novo.php" class="primary-button"><span>+</span> Nova exposição</a>
+                    <?php endif; ?>
+                </div>
+            </section>
 
-                    <span class="system-message-icon" aria-hidden="true">!</span>
+            <?php if ($foco === null): ?>
 
-                    <div class="system-message-body">
-                        <strong>Não foi possível falar com a API do ELOS.</strong>
-
-                        <p>
-                            Os números desta tela podem estar desatualizados.
-                            Verifique se o serviço está no ar e recarregue a página.
-                        </p>
+                <article class="panel">
+                    <div class="empty-state large">
+                        <div class="empty-icon">▣</div>
+                        <h2>Nenhuma exposição em andamento</h2>
+                        <p>Crie uma exposição e diga o que ela precisa. O ELOS organiza as datas, o calendário e as pendências.</p>
+                        <?php if ($usuario['podeGerenciar']): ?>
+                            <a href="pages/evento_novo.php" class="primary-button"><span>+</span> Nova exposição</a>
+                        <?php endif; ?>
                     </div>
+                </article>
+
+            <?php else: ?>
+
+                <?php if (count($planos) > 1): ?>
+                    <nav class="seletor-exposicao" aria-label="Exposição em acompanhamento">
+                        <span>Acompanhando:</span>
+                        <?php foreach ($planos as $plano): ?>
+                            <a href="?exposicao=<?= $plano->id() ?>" class="<?= $plano->id() === $foco->id() ? 'ativa' : '' ?>" <?= $plano->id() === $foco->id() ? 'aria-current="true"' : '' ?>>
+                                <?= esc($plano->titulo()) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </nav>
+                <?php endif; ?>
+
+                <div class="inicio-grade">
+
+                    <div class="inicio-principal">
+
+                        <!-- A EXPOSIÇÃO EM ACOMPANHAMENTO -->
+                        <article class="foco">
+                            <div class="foco-cabecalho">
+                                <div>
+                                    <p class="eyebrow">
+                                        <?= esc($foco->evento['tipo_evento_nome'] ?? 'Exposição') ?>
+                                        <span class="status-badge <?= classeStatusEvento((string) ($foco->evento['status'] ?? '')) ?>">
+                                            <?= esc(rotuloStatusEvento((string) ($foco->evento['status'] ?? ''))) ?>
+                                        </span>
+                                    </p>
+                                    <h2><a href="pages/evento.php?id=<?= $foco->id() ?>"><?= esc($foco->titulo()) ?></a></h2>
+                                    <p class="foco-fatos">
+                                        <span>◷ <?= esc(intervaloBr($periodo['inicio'], $periodo['fim'], 'Datas a definir')) ?></span>
+                                        <?php if (!empty($foco->evento['local_nome'])): ?>
+                                            <span>⌖ <?= esc($foco->evento['local_nome']) ?></span>
+                                        <?php endif; ?>
+                                    </p>
+                                </div>
+                                <a href="pages/evento.php?id=<?= $foco->id() ?>" class="primary-button">Abrir exposição →</a>
+                            </div>
+
+                            <div class="foco-numeros">
+                                <?php if ($resumo['total'] > 0): ?>
+                                    <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="numero pendentes">
+                                        <strong><?= $resumo['pendentes'] ?></strong>
+                                        <span>pendência<?= $resumo['pendentes'] === 1 ? '' : 's' ?></span>
+                                    </a>
+                                    <?php if ($resumo['atrasadas'] > 0): ?>
+                                        <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="numero atrasadas">
+                                            <strong><?= $resumo['atrasadas'] ?></strong>
+                                            <span>atrasada<?= $resumo['atrasadas'] === 1 ? '' : 's' ?></span>
+                                        </a>
+                                    <?php endif; ?>
+                                    <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="numero concluidas">
+                                        <strong><?= $resumo['concluidas'] ?></strong>
+                                        <span>concluída<?= $resumo['concluidas'] === 1 ? '' : 's' ?></span>
+                                    </a>
+                                <?php else: ?>
+                                    <p class="numero-vazio">
+                                        Nada no planejamento ainda.
+                                        <?php if ($usuario['podeGerenciar']): ?>
+                                            <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="text-link">Dizer o que esta exposição precisa →</a>
+                                        <?php endif; ?>
+                                    </p>
+                                <?php endif; ?>
+
+                                <?php if ($proximoMarco !== null): ?>
+                                    <a href="<?= esc($linkPagina($proximoMarco['link'])) ?>" class="numero marco grupo-<?= esc($proximoMarco['grupo']) ?>">
+                                        <strong><?= esc(diaMes($proximoMarco['data'])) ?></strong>
+                                        <span><?= esc($proximoMarco['titulo']) ?></span>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($resumo['total'] > 0): ?>
+                                <div class="foco-progresso">
+                                    <div class="progresso"><span style="width: <?= $resumo['percentual'] ?>%"></span></div>
+                                    <span><?= $resumo['percentual'] ?>% resolvido</span>
+                                </div>
+                            <?php endif; ?>
+                        </article>
+
+                        <!-- PRÓXIMAS ATIVIDADES (tudo que tem data) -->
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="eyebrow">Da exposição</p>
+                                    <h2>Próximas atividades</h2>
+                                </div>
+                                <a href="pages/agenda.php?evento=<?= $foco->id() ?>" class="text-link">Ver no calendário →</a>
+                            </div>
+
+                            <?php if ($proximas === []): ?>
+                                <div class="empty-state">
+                                    <div class="empty-icon">◷</div>
+                                    <p>Nada com data pela frente nesta exposição.</p>
+                                </div>
+                            <?php else: ?>
+                                <ol class="lista-datas">
+                                    <?php foreach ($proximas as $item): ?>
+                                        <li class="estado-<?= esc($item['estado']) ?> grupo-<?= esc($item['grupo']) ?>">
+                                            <span class="event-date">
+                                                <strong><?= esc(substr($item['data'], 8, 2)) ?></strong>
+                                                <span><?= esc(mesAbreviado($item['data'])) ?></span>
+                                            </span>
+                                            <a href="<?= esc($linkPagina($item['link'])) ?>" class="lista-datas-texto">
+                                                <small><?= esc($item['categoria']) ?><?= $item['horario'] ? ' · ' . esc($item['horario']) : '' ?></small>
+                                                <strong><?= esc($item['titulo']) ?></strong>
+                                            </a>
+                                            <?php if ($item['estado'] !== 'marco'): ?>
+                                                <span class="estado-tag <?= esc($item['estado']) ?>"><?= esc($item['rotuloEstado']) ?></span>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ol>
+                            <?php endif; ?>
+                        </article>
+
+                    </div>
+
+                    <aside class="inicio-lateral">
+
+                        <!-- ALERTAS (todas as exposições) -->
+                        <article class="panel alert-panel" id="alertas">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="eyebrow">Atenção</p>
+                                    <h2>Alertas</h2>
+                                </div>
+                                <?php if ($alertas !== []): ?>
+                                    <span class="alert-symbol"><?= count($alertas) ?></span>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($alertas === []): ?>
+                                <div class="all-clear">
+                                    <span class="all-clear-icon">✓</span>
+                                    <div>
+                                        <strong>Tudo em ordem.</strong>
+                                        <p>Nenhuma pendência atrasada ou urgente.</p>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert-list">
+                                    <?php foreach (array_slice($alertas, 0, 5) as $alerta): ?>
+                                        <a href="pages/evento.php?id=<?= $alerta['_plano']->id() ?>#item-<?= (int) $alerta['id'] ?>" class="alert-card">
+                                            <strong><?= esc($alerta['titulo'] ?? '') ?></strong>
+                                            <span>
+                                                <?= esc($alerta['_motivo']) ?>
+                                                <?= !empty($alerta['prazo']) ? '· ' . esc(dataHoraBr($alerta['prazo'])) : '' ?>
+                                            </span>
+                                            <small><?= esc($alerta['_plano']->titulo()) ?></small>
+                                        </a>
+                                    <?php endforeach; ?>
+                                    <?php if (count($alertas) > 5): ?>
+                                        <p class="mais">+ <?= count($alertas) - 5 ?> outros alertas</p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </article>
+
+                        <!-- ATRIBUÍDAS A MIM (só aparece se houver) -->
+                        <?php if ($minhas !== []): ?>
+                            <article class="panel">
+                                <div class="panel-header">
+                                    <div>
+                                        <p class="eyebrow">Com você</p>
+                                        <h2>Suas pendências</h2>
+                                    </div>
+                                    <span class="panel-count"><?= count($minhas) ?></span>
+                                </div>
+                                <ul class="lista-minhas">
+                                    <?php foreach (array_slice($minhas, 0, 6) as $tarefa): ?>
+                                        <li>
+                                            <a href="pages/evento.php?id=<?= $tarefa['_plano']->id() ?>#item-<?= (int) $tarefa['id'] ?>">
+                                                <strong><?= esc($tarefa['titulo'] ?? '') ?></strong>
+                                                <span>
+                                                    <?= esc(!empty($tarefa['prazo']) ? diaMes((string) $tarefa['prazo']) : 'Sem data') ?>
+                                                    · <?= esc($tarefa['_plano']->titulo()) ?>
+                                                </span>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </article>
+                        <?php endif; ?>
+
+                        <!-- OUTRAS EXPOSIÇÕES -->
+                        <?php if (count($planos) > 1): ?>
+                            <article class="panel">
+                                <div class="panel-header">
+                                    <div>
+                                        <p class="eyebrow">Em andamento</p>
+                                        <h2>Outras exposições</h2>
+                                    </div>
+                                    <a href="pages/eventos.php" class="text-link">Ver todas →</a>
+                                </div>
+                                <ul class="lista-outras">
+                                    <?php foreach ($planos as $plano): ?>
+                                        <?php if ($plano->id() === $foco->id()) { continue; } ?>
+                                        <?php $r = $plano->resumo(); $p = $plano->periodo(); ?>
+                                        <li>
+                                            <a href="?exposicao=<?= $plano->id() ?>">
+                                                <strong><?= esc($plano->titulo()) ?></strong>
+                                                <span><?= esc(intervaloBr($p['inicio'], $p['fim'], 'Datas a definir')) ?></span>
+                                                <?php if ($r['total'] > 0): ?>
+                                                    <span class="progresso"><span style="width: <?= $r['percentual'] ?>%"></span></span>
+                                                    <small><?= $r['pendentes'] ?> pendente<?= $r['pendentes'] === 1 ? '' : 's' ?><?= $r['atrasadas'] > 0 ? ' · ' . $r['atrasadas'] . ' atrasada' . ($r['atrasadas'] === 1 ? '' : 's') : '' ?></small>
+                                                <?php else: ?>
+                                                    <small>Nada no planejamento ainda</small>
+                                                <?php endif; ?>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </article>
+                        <?php endif; ?>
+
+                        <article class="movement-card">
+                            <div class="movement-decoration">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <p>IDEIA DO ELOS</p>
+                            <h3>
+                                Eventos não são apenas datas.
+                                <span>São experiências em movimento.</span>
+                            </h3>
+                        </article>
+
+                    </aside>
 
                 </div>
 
             <?php endif; ?>
 
-            <section class="welcome-section">
-
-                <div>
-
-                    <p class="eyebrow">PAINEL ELOS</p>
-
-                    <h1>
-                        Olá, <?= escapar($primeiroNome) ?>.
-                        <span>Vamos dar movimento aos eventos.</span>
-                    </h1>
-
-                    <p class="welcome-description">
-                        <?= escapar($mensagemEventos) ?>
-                    </p>
-
-                </div>
-
-                <a href="#" class="primary-button">
-                    <span>+</span>
-                    Novo evento
-                </a>
-
-            </section>
-
-            <section class="metrics-grid">
-
-                <article class="metric-card blue">
-
-                    <div class="metric-icon">◫</div>
-
-                    <div class="metric-content">
-                        <span class="metric-label">Total de eventos</span>
-                        <strong><?= $totalEventos ?></strong>
-                    </div>
-
-                    <span class="metric-decoration">01</span>
-
-                </article>
-
-                <article class="metric-card turquoise">
-
-                    <div class="metric-icon">◌</div>
-
-                    <div class="metric-content">
-                        <span class="metric-label">Em andamento</span>
-                        <strong><?= count($eventosAndamento) ?></strong>
-                    </div>
-
-                    <span class="metric-decoration">02</span>
-
-                </article>
-
-                <article class="metric-card yellow">
-
-                    <div class="metric-icon">✓</div>
-
-                    <div class="metric-content">
-                        <span class="metric-label">Em planejamento</span>
-                        <strong><?= count($eventosPlanejamento) ?></strong>
-                    </div>
-
-                    <span class="metric-decoration">03</span>
-
-                </article>
-
-                <article class="metric-card red">
-
-                    <div class="metric-icon">!</div>
-
-                    <div class="metric-content">
-                        <span class="metric-label">Alertas</span>
-                        <strong><?= count($alertas) ?></strong>
-                    </div>
-
-                    <span class="metric-decoration">04</span>
-
-                </article>
-
-            </section>
-
-            <section class="dashboard-grid">
-
-                <div class="dashboard-main">
-
-                    <article class="featured-event">
-
-                        <?php if ($eventoDestaque): ?>
-
-                            <div class="featured-top">
-
-                                <div class="event-badge">
-                                    Evento em destaque
-                                </div>
-
-                                <span class="status-badge <?= escapar(classeStatusEvento((string) ($eventoDestaque['status'] ?? ''))) ?>">
-                                    <?= escapar(traduzirStatusEvento((string) ($eventoDestaque['status'] ?? ''))) ?>
-                                </span>
-
-                            </div>
-
-                            <div class="featured-content">
-
-                                <div class="abstract-art">
-
-                                    <span class="shape shape-one"></span>
-                                    <span class="shape shape-two"></span>
-                                    <span class="shape shape-three"></span>
-
-                                    <span class="abstract-letter">E</span>
-
-                                </div>
-
-                                <div class="featured-info">
-
-                                    <p class="event-type">
-                                        <?= escapar($eventoDestaque['tipo_evento_nome'] ?? 'Evento') ?>
-                                    </p>
-
-                                    <h2>
-                                        <?= escapar($eventoDestaque['titulo'] ?? 'Sem título') ?>
-                                    </h2>
-
-                                    <p class="featured-description">
-                                        <?= escapar(
-                                            $eventoDestaque['descricao']
-                                            ?? 'Este evento ainda não possui uma descrição cadastrada.'
-                                        ) ?>
-                                    </p>
-
-                                    <div class="event-meta-grid">
-
-                                        <div class="event-meta">
-
-                                            <span class="meta-icon">◷</span>
-
-                                            <div>
-                                                <small>Período</small>
-                                                <strong>
-                                                    <?= escapar(formatarData($eventoDestaque['abertura'] ?? null)) ?>
-                                                </strong>
-                                            </div>
-
-                                        </div>
-
-                                        <div class="event-meta">
-
-                                            <span class="meta-icon">⌖</span>
-
-                                            <div>
-                                                <small>Local</small>
-                                                <strong>
-                                                    <?= escapar($eventoDestaque['local_nome'] ?? 'Não informado') ?>
-                                                </strong>
-                                            </div>
-
-                                        </div>
-
-                                        <div class="event-meta">
-
-                                            <span class="meta-icon">◎</span>
-
-                                            <div>
-                                                <small>Responsável</small>
-                                                <strong>
-                                                    <?= escapar($eventoDestaque['responsavel_nome'] ?? 'Não informado') ?>
-                                                </strong>
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                            <div class="featured-footer">
-
-                                <div class="priority-wrapper">
-
-                                    <span>Prioridade</span>
-
-                                    <strong class="<?= escapar(classePrioridade((string) ($eventoDestaque['prioridade'] ?? ''))) ?>">
-                                        <?= escapar(traduzirPrioridade((string) ($eventoDestaque['prioridade'] ?? ''))) ?>
-                                    </strong>
-
-                                </div>
-
-                                <a href="#" class="secondary-button">
-                                    Ver evento
-                                    <span>→</span>
-                                </a>
-
-                            </div>
-
-                        <?php else: ?>
-
-                            <div class="empty-state large">
-
-                                <div class="empty-icon">◫</div>
-
-                                <?php if ($apiIndisponivel): ?>
-
-                                    <h2>Não foi possível carregar os eventos</h2>
-
-                                    <p>
-                                        Assim que a conexão com a API for
-                                        restabelecida, os eventos aparecem aqui.
-                                    </p>
-
-                                <?php else: ?>
-
-                                    <h2>Nenhum evento cadastrado</h2>
-
-                                    <p>
-                                        Quando um evento for criado, ele aparecerá aqui.
-                                    </p>
-
-                                    <a href="#" class="primary-button">
-                                        <span>+</span>
-                                        Criar primeiro evento
-                                    </a>
-
-                                <?php endif; ?>
-
-                            </div>
-
-                        <?php endif; ?>
-
-                    </article>
-
-                    <article class="panel recent-events">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <p class="eyebrow">ACOMPANHAMENTO</p>
-                                <h2>Eventos recentes</h2>
-                            </div>
-
-                            <a href="#" class="text-link">
-                                Ver todos →
-                            </a>
-
-                        </div>
-
-                        <?php if ($eventosRecentes !== []): ?>
-
-                            <div class="events-list">
-
-                                <?php foreach ($eventosRecentes as $evento): ?>
-
-                                    <div
-                                        class="event-row searchable-item"
-                                        data-search="<?= escapar(
-                                            ($evento['titulo'] ?? '')
-                                            . ' '
-                                            . ($evento['tipo_evento_nome'] ?? '')
-                                            . ' '
-                                            . ($evento['local_nome'] ?? '')
-                                        ) ?>"
-                                    >
-
-                                        <div class="event-date">
-
-                                            <strong>
-                                                <?= escapar(
-                                                    date(
-                                                        'd',
-                                                        strtotime(
-                                                            (string) (
-                                                                $evento['abertura']
-                                                                ?? $evento['created_at']
-                                                                ?? date('Y-m-d')
-                                                            )
-                                                        )
-                                                    )
-                                                ) ?>
-                                            </strong>
-
-                                            <span>
-                                                <?= escapar(
-                                                    strtoupper(
-                                                        date(
-                                                            'M',
-                                                            strtotime(
-                                                                (string) (
-                                                                    $evento['abertura']
-                                                                    ?? $evento['created_at']
-                                                                    ?? date('Y-m-d')
-                                                                )
-                                                            )
-                                                        )
-                                                    )
-                                                ) ?>
-                                            </span>
-
-                                        </div>
-
-                                        <div class="event-row-info">
-
-                                            <strong>
-                                                <?= escapar($evento['titulo'] ?? 'Sem título') ?>
-                                            </strong>
-
-                                            <span>
-                                                <?= escapar($evento['local_nome'] ?? 'Local não informado') ?>
-                                            </span>
-
-                                        </div>
-
-                                        <span class="status-badge <?= escapar(classeStatusEvento((string) ($evento['status'] ?? ''))) ?>">
-                                            <?= escapar(traduzirStatusEvento((string) ($evento['status'] ?? ''))) ?>
-                                        </span>
-
-                                    </div>
-
-                                <?php endforeach; ?>
-
-                            </div>
-
-                        <?php else: ?>
-
-                            <div class="empty-state">
-                                <div class="empty-icon">◌</div>
-                                <p>Nenhum evento encontrado.</p>
-                            </div>
-
-                        <?php endif; ?>
-
-                    </article>
-
-                </div>
-
-                <aside class="dashboard-side">
-
-                    <article class="panel tasks-panel">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <p class="eyebrow">PRÓXIMOS PRAZOS</p>
-                                <h2>Tarefas</h2>
-                            </div>
-
-                            <span class="panel-count">
-                                <?= count($tarefasAtivas) ?>
-                            </span>
-
-                        </div>
-
-                        <?php if ($tarefasExibidas !== []): ?>
-
-                            <div class="task-list">
-
-                                <?php foreach ($tarefasExibidas as $tarefa): ?>
-
-                                    <div class="task-item">
-
-                                        <div class="task-marker <?= escapar(classePrioridade((string) ($tarefa['prioridade'] ?? 'BAIXA'))) ?>"></div>
-
-                                        <div class="task-content">
-
-                                            <strong>
-                                                <?= escapar($tarefa['titulo'] ?? 'Tarefa sem título') ?>
-                                            </strong>
-
-                                            <span>
-                                                <?= escapar(
-                                                    !empty($tarefa['prazo'])
-                                                        ? 'Prazo: ' . formatarData($tarefa['prazo'])
-                                                        : 'Sem prazo definido'
-                                                ) ?>
-                                            </span>
-
-                                        </div>
-
-                                        <span class="task-status">
-                                            <?= escapar(traduzirStatusTarefa((string) ($tarefa['status'] ?? ''))) ?>
-                                        </span>
-
-                                    </div>
-
-                                <?php endforeach; ?>
-
-                            </div>
-
-                        <?php else: ?>
-
-                            <div class="empty-state">
-                                <div class="empty-icon">✓</div>
-                                <p>Não existem tarefas pendentes para o evento em destaque.</p>
-                            </div>
-
-                        <?php endif; ?>
-
-                    </article>
-
-                    <article class="panel alert-panel">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <p class="eyebrow">ATENÇÃO</p>
-                                <h2>Alertas</h2>
-                            </div>
-
-                            <span class="alert-symbol">!</span>
-
-                        </div>
-
-                        <?php if ($alertas !== []): ?>
-
-                            <div class="alert-list">
-
-                                <?php foreach (array_slice($alertas, 0, 3) as $alerta): ?>
-
-                                    <div class="alert-card">
-
-                                        <strong>
-                                            <?= escapar($alerta['titulo'] ?? 'Tarefa com atenção') ?>
-                                        </strong>
-
-                                        <span>
-                                            <?php if (!empty($alerta['prazo'])): ?>
-                                                Prazo: <?= escapar(formatarData($alerta['prazo'])) ?>
-                                            <?php else: ?>
-                                                Prioridade alta sem prazo definido
-                                            <?php endif; ?>
-                                        </span>
-
-                                    </div>
-
-                                <?php endforeach; ?>
-
-                            </div>
-
-                        <?php else: ?>
-
-                            <div class="all-clear">
-
-                                <span class="all-clear-icon">✓</span>
-
-                                <div>
-                                    <strong>Tudo em ordem.</strong>
-                                    <p>Nenhum alerta crítico encontrado.</p>
-                                </div>
-
-                            </div>
-
-                        <?php endif; ?>
-
-                    </article>
-
-                    <article class="movement-card">
-
-                        <div class="movement-decoration">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-
-                        <p>IDEIA DO ELOS</p>
-
-                        <h3>
-                            Eventos não são apenas datas.
-                            <span>São experiências em movimento.</span>
-                        </h3>
-
-                    </article>
-
-                </aside>
-
-            </section>
-
         </div>
-
     </main>
-
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('dashboardSearch');
-
-    if (!searchInput) {
-        return;
-    }
-
-    const items = document.querySelectorAll('.searchable-item');
-
-    searchInput.addEventListener('input', function () {
-        const termo = searchInput.value.trim().toLowerCase();
-
-        items.forEach(function (item) {
-            const texto = item.dataset.search.toLowerCase();
-
-            item.style.display = !termo || texto.includes(termo)
-                ? ''
-                : 'none';
-        });
-    });
-});
-</script>
 
 </body>
 </html>

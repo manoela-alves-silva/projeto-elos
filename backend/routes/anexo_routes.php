@@ -5,6 +5,30 @@ declare(strict_types=1);
 use Elos\Controllers\AnexoController;
 use Elos\Services\AuthorizationService;
 
+const ANEXO_TAMANHO_MAXIMO = 10 * 1024 * 1024;
+
+// Extensão aceita => tipos de conteúdo (detectados pelo finfo) que ela pode ter.
+const ANEXO_ZIP_OFFICE = ['application/zip', 'application/octet-stream'];
+const ANEXO_TIPOS_PERMITIDOS = [
+    'pdf' => ['application/pdf'],
+    'jpg' => ['image/jpeg'],
+    'jpeg' => ['image/jpeg'],
+    'png' => ['image/png'],
+    'webp' => ['image/webp'],
+    'gif' => ['image/gif'],
+    'txt' => ['text/plain'],
+    'csv' => ['text/plain', 'text/csv', 'application/csv'],
+    'doc' => ['application/msword', 'application/CDFV2', 'application/x-ole-storage'],
+    'xls' => ['application/vnd.ms-excel', 'application/CDFV2', 'application/x-ole-storage'],
+    'ppt' => ['application/vnd.ms-powerpoint', 'application/CDFV2', 'application/x-ole-storage'],
+    'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', ...ANEXO_ZIP_OFFICE],
+    'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ...ANEXO_ZIP_OFFICE],
+    'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation', ...ANEXO_ZIP_OFFICE],
+    'odt' => ['application/vnd.oasis.opendocument.text', ...ANEXO_ZIP_OFFICE],
+    'ods' => ['application/vnd.oasis.opendocument.spreadsheet', ...ANEXO_ZIP_OFFICE],
+    'odp' => ['application/vnd.oasis.opendocument.presentation', ...ANEXO_ZIP_OFFICE],
+];
+
 /**
  * @param callable(): AnexoController $anexoControllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
@@ -76,15 +100,33 @@ function handleAnexoRequest(
             ]);
         }
 
+        if ($tamanho > ANEXO_TAMANHO_MAXIMO) {
+            sendJsonResponse(413, [
+                'erro' => 'O arquivo passa de 10 MB.',
+            ]);
+        }
+
         $extensao = strtolower(
             pathinfo($nomeOriginal, PATHINFO_EXTENSION)
         );
 
-        $nome = bin2hex(random_bytes(16));
+        // O tipo informado pelo navegador não é confiável: vale o que o
+        // conteúdo do arquivo é, e ele precisa combinar com a extensão.
+        $tipoReal = (new finfo(FILEINFO_MIME_TYPE))->file($tmpName);
 
-        if ($extensao !== '') {
-            $nome .= '.' . $extensao;
+        if (
+            !isset(ANEXO_TIPOS_PERMITIDOS[$extensao])
+            || !is_string($tipoReal)
+            || !in_array($tipoReal, ANEXO_TIPOS_PERMITIDOS[$extensao], true)
+        ) {
+            sendJsonResponse(415, [
+                'erro' => 'Tipo de arquivo não aceito. Envie PDF, imagem, '
+                    . 'documento, planilha, apresentação ou texto.',
+            ]);
         }
+
+        $tipo = $tipoReal;
+        $nome = bin2hex(random_bytes(16)) . '.' . $extensao;
 
         $diretorio = dirname(__DIR__) . '/storage/anexos';
 
