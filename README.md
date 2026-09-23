@@ -1,1878 +1,397 @@
-# ELOS — Sistema de Gestão de Eventos
+# ELOS — Planejamento de exposições
 
-## 1. Sobre o projeto
+**Eventos que conectam pessoas, ideias e oportunidades.**
 
-O ELOS é um sistema web desenvolvido para auxiliar na organização, planejamento, execução e acompanhamento de eventos e exposições da Galeria de Arte La Salle / Unilasalle-RJ.
-
-O sistema foi pensado para centralizar em um único ambiente as informações necessárias para organizar um evento, evitando que o controle dependa exclusivamente de planilhas, documentos, mensagens ou informações espalhadas em diferentes lugares.
-
-O conceito principal do sistema é que o **evento seja a entidade central**. Todas as informações relacionadas à organização de um evento ficam vinculadas a ele.
-
-Um evento pode possuir:
-
-- tipo de evento;
-- responsável;
-- local;
-- cursos relacionados;
-- agenda;
-- tarefas;
-- formulários;
-- transportes;
-- visitas;
-- anexos;
-- histórico.
-
-O objetivo final é permitir acompanhar o evento desde o planejamento inicial até sua conclusão.
+O ELOS é um sistema web para planejar e acompanhar as exposições da
+Galeria de Arte La Salle / Unilasalle-RJ. A ideia é reunir num lugar só o
+que antes ficava espalhado em planilhas, documentos e mensagens.
 
 ---
 
-# 2. Objetivos do sistema
+## 1. Como o sistema pensa
 
-O ELOS deve permitir:
-
-- cadastrar eventos;
-- consultar eventos;
-- editar eventos;
-- acompanhar o status dos eventos;
-- definir prioridades;
-- cadastrar responsáveis;
-- cadastrar locais;
-- cadastrar cursos;
-- cadastrar tipos de evento;
-- relacionar cursos aos eventos;
-- organizar a agenda dos eventos;
-- organizar as etapas de produção;
-- criar e acompanhar tarefas;
-- acompanhar formulários;
-- acompanhar transportes;
-- registrar visitas;
-- anexar arquivos aos eventos;
-- consultar o histórico dos eventos;
-- controlar usuários;
-- controlar permissões de acesso;
-- disponibilizar diferentes interfaces de acordo com o perfil do usuário.
-
----
-
-# 3. Perfis de usuário
-
-O sistema possui três níveis de utilização planejados:
-
-1. GESTOR
-2. COLABORADOR
-3. CONSULTA
-
-O backend possui atualmente os perfis:
+**A exposição é o centro.** Tudo o que existe no sistema pertence a uma
+exposição, e as outras telas se montam sozinhas a partir dela:
 
 ```text
-ADMIN
-GESTOR
-COLABORADOR
+                 ┌──────────────┐
+                 │  EXPOSIÇÃO   │  nome, tipo, responsável, local, cursos
+                 └──────┬───────┘
+        ┌───────────────┼────────────────┐
+        ▼               ▼                ▼
+     Datas        Necessidades        Anexos
+ (montagem,        (checklist)
+  abertura,
+  em cartaz,
+  desmontagem)
+        │               │
+        └───────┬───────┘
+                ▼
+     Início · Calendário · Relatório   ← ninguém preenche: são calculados
 ```
 
-O perfil de consulta representa uma interface de visualização e deverá ser implementado de acordo com as regras definidas para esse usuário.
+- **Necessidades** são livres: cada item do checklist diz o que precisa ser
+  feito, com categoria, data, horário, responsável, prioridade e
+  observações. O responsável pode ser qualquer pessoa, mesmo sem conta no
+  sistema, como um técnico, um setor ou alguém de fora.
+- O **Início** mostra a exposição em acompanhamento, as próximas atividades
+  e as pendências.
+- O **Calendário** junta as datas das exposições e dos itens do checklist.
+- O **Relatório** gera uma versão para imprimir de cada exposição.
 
 ---
 
-# 4. Perfil GESTOR
+## 2. Regras de negócio
 
-O gestor é o usuário responsável pelo gerenciamento dos eventos e das informações administrativas.
+### Situação da exposição: vem das datas
 
-A interface do gestor é o foco atual do desenvolvimento do frontend.
+Ninguém precisa lembrar de mudar a situação da exposição:
 
-O gestor deverá conseguir acessar e administrar as principais áreas do sistema:
+| Situação       | Quando                                                     |
+|----------------|------------------------------------------------------------|
+| Planejamento   | sem datas, ou antes do primeiro dia marcado (em geral a montagem) |
+| Em andamento   | do primeiro ao último dia marcado (montagem → desmontagem) |
+| Concluída      | depois do último dia marcado; sai do Início sozinha        |
+| Cancelada      | **única escolhida à mão** (caixa "Exposição cancelada")    |
 
-- Dashboard;
-- Eventos;
-- Agenda;
-- Tarefas;
-- Formulários;
-- Transportes;
-- Visitas;
-- Anexos;
-- Histórico;
-- Relatórios;
-- Usuários;
-- Locais;
-- Tipos de evento;
-- Responsáveis;
-- Cursos;
-- Etapas;
-- Categorias de tarefas.
+O cálculo é feito no backend (`EventoRepository`), então todas as telas
+mostram a mesma situação. No banco fica guardado só se a exposição foi
+cancelada.
 
-O gestor possui permissões superiores às do colaborador.
+### Local ocupado
 
----
+Ao criar uma exposição, mudar as datas ou trocar o local, o sistema confere
+se outra exposição não cancelada ocupa o mesmo local no mesmo período, da
+montagem até a desmontagem. Se ocupar, aparece um aviso com a outra
+exposição e nada é salvo até a pessoa escolher **"Salvar mesmo assim"**.
+É um aviso, e não um bloqueio, porque duas mostras podem dividir o espaço
+de propósito.
 
-# 5. Perfil COLABORADOR
+### Um checklist só
 
-O colaborador terá uma interface própria e mais enxuta.
+Transportes, visitas e documentos **são itens do checklist**. A categoria
+diz o tipo (Transporte, Visita, Documentação…). O que é específico de cada
+tipo vai nas observações:
 
-A ideia é mostrar somente as funcionalidades necessárias para o trabalho e acompanhamento das atividades.
+| Exemplo de item | Categoria | Data e horário | Observações |
+|-----------------|-----------|----------------|-------------|
+| Buscar as obras no ateliê | Transporte | 10/10, 08:00 | Rua X → Galeria. Caminhão baú |
+| Visita da Escola Municipal Y | Visita | 15/10, 14:00 | 30 alunos, 2 professores |
+| Enviar termo de cessão de obras | Documentação | 01/10 | Assinado pela artista |
 
-Entre as áreas previstas:
+Não existe tela separada de transportes, visitas ou formulários: tudo fica
+no mesmo lugar, e o Calendário e o Início mostram esses itens com data e
+horário.
 
-- Dashboard;
-- Eventos permitidos;
-- Agenda;
-- Tarefas;
-- Formulários;
-- Transportes;
-- Visitas;
-- Anexos.
+### Itens atrasados
 
-O colaborador não deve visualizar funcionalidades administrativas exclusivas do gestor.
+"Atrasado" não se escolhe: um item que não foi marcado como feito até a
+data aparece como atrasado sozinho.
 
-A interface do colaborador ainda será desenvolvida.
+### Histórico automático
 
----
+A página da exposição tem um histórico de **quem fez o quê e quando**,
+gravado pelo backend (ninguém precisa anotar e ninguém consegue forjar):
 
-# 6. Perfil CONSULTA
+- exposição criada, cancelada ou reativada;
+- informações alteradas (diz quais campos mudaram e o novo local);
+- datas definidas ou alteradas (com o resumo das datas);
+- item do checklist adicionado, editado, removido, concluído ou reaberto;
+- anexo adicionado ou removido.
 
-O perfil de consulta será destinado a usuários que precisam apenas visualizar informações.
+Salvar sem mudar nada não gera registro. Se o histórico falhar, a ação
+continua valendo (o erro vai para o log).
 
-Esse usuário não deverá possuir ações administrativas.
+### Prioridade só nos itens
 
-Não deverá ser possível:
+A exposição não tem prioridade. Quem tem prioridade são os itens do
+checklist, e os de prioridade alta com data próxima aparecem como alerta
+no Início.
 
-- criar registros;
-- editar registros;
-- excluir registros;
-- administrar usuários;
-- alterar configurações.
+### Exposições não são apagadas
 
-A interface de consulta deverá permitir visualizar informações liberadas pelo sistema, principalmente:
-
-- eventos;
-- agenda;
-- detalhes dos eventos;
-- informações relacionadas aos eventos.
-
-A interface de consulta ainda será desenvolvida.
+Uma exposição se **cancela**, não se exclui. Assim o histórico da galeria
+não se perde.
 
 ---
 
-# 7. Controle de acesso
+## 3. Perfis e equipe
 
-O controle real de autorização é responsabilidade do backend.
+| Perfil          | O que faz                                                          |
+|-----------------|--------------------------------------------------------------------|
+| **Gestor**      | cria e edita exposições e checklist, aprova contas, gerencia a equipe |
+| **Colaborador** | acompanha as exposições e marca como feitos os itens que estão com ele |
 
-O frontend deve respeitar as permissões recebidas do backend.
+Também existe o perfil `ADMIN` no banco, com os mesmos poderes do gestor.
+Ele não pode ser alterado pela tela Equipe.
 
-A interface não deve simplesmente disponibilizar botões de criação, edição ou exclusão para usuários que não possuem autorização.
+### Como alguém entra na equipe
 
-Mesmo que uma ação esteja escondida no frontend, a segurança deve continuar sendo garantida pelo backend.
+1. A pessoa clica em **Criar conta**, na tela de login, e usa o próprio e-mail.
+2. A conta fica **aguardando aprovação**. Até lá, a pessoa não consegue entrar.
+3. Um gestor abre **Equipe** e escolhe **Aprovar** ou **Recusar**. Recusar
+   apaga o cadastro.
+4. Aprovada, a pessoa entra como colaboradora. Um gestor pode torná-la
+   gestora na mesma tela.
 
-A matriz de acesso atual considera:
+Regras da tela Equipe:
+
+- O sistema **nunca fica sem gestor**. Para deixar de ser gestor, é preciso
+  antes tornar outra pessoa gestora.
+- A troca de perfil vale na hora, sem precisar sair e entrar de novo.
+- **Primeiro acesso de um sistema novo:** se ainda não existe nenhum
+  gestor, a primeira conta criada já nasce gestora e aprovada.
+
+A autorização de verdade fica no backend. O frontend só esconde o que a
+pessoa não pode usar.
+
+---
+
+## 4. Arquitetura
+
+São duas aplicações PHP que conversam entre si:
 
 ```text
-ADMIN
-    ↓
-Acesso administrativo completo
-
-GESTOR
-    ↓
-Funções de gestão
-+
-Funções permitidas ao colaborador
-
-COLABORADOR
-    ↓
-Funções destinadas ao colaborador
+Navegador ──► FRONTEND (telas)  ──► BACKEND (API JSON) ──► MySQL
+              frontend/              backend/public/
 ```
 
----
+- **Backend**: API REST em JSON. Cuida de autenticação, permissões, regras
+  de negócio e banco de dados.
+- **Frontend**: páginas PHP que montam as telas. Ele chama a API **de
+  servidor para servidor** (`frontend/src/Api.php`), guardando a sessão do
+  backend dentro da sua própria sessão. O navegador nunca fala direto com
+  a API.
 
-# 8. Arquitetura do projeto
+Em desenvolvimento, cada um roda num servidor embutido do PHP (portas 8000
+e 8081). Em produção, um único Apache ou Nginx serve os dois (ver seção 8).
 
-O projeto possui duas partes principais:
-
-```text
-backend/
-frontend/
-```
-
-## Backend
-
-O backend é responsável por:
-
-- API;
-- autenticação;
-- autorização;
-- regras de negócio;
-- comunicação com o banco;
-- criação de registros;
-- consulta de registros;
-- atualização de registros;
-- exclusão de registros;
-- relacionamentos entre entidades.
-
-## Frontend
-
-O frontend é responsável por:
-
-- interface gráfica;
-- navegação;
-- dashboards;
-- formulários;
-- visualização de informações;
-- interação com o usuário;
-- consumo da API;
-- apresentação das permissões de cada perfil.
-
-O frontend não deve duplicar as regras de negócio que já pertencem ao backend.
-
----
-
-# 9. Estrutura atual do projeto
-
-A estrutura principal atual é:
+### Estrutura
 
 ```text
 projeto-elos/
-│
 ├── backend/
-│   ├── database/
-│   │   └── elos.sql
-│   │
-│   ├── public/
-│   │   └── index.php
-│   │
-│   ├── routes/
-│   │   ├── agenda_evento_routes.php
-│   │   ├── anexo_routes.php
-│   │   ├── api.php
-│   │   ├── auth_routes.php
-│   │   ├── categoria_tarefa_routes.php
-│   │   ├── curso_routes.php
-│   │   ├── etapa_routes.php
-│   │   ├── evento_curso_routes.php
-│   │   ├── evento_routes.php
-│   │   ├── eventos_dispatcher_routes.php
-│   │   ├── formulario_routes.php
-│   │   ├── historico_routes.php
-│   │   ├── local_routes.php
-│   │   ├── responsavel_routes.php
-│   │   ├── tarefa_routes.php
-│   │   ├── tipo_evento_routes.php
-│   │   ├── transporte_routes.php
-│   │   └── visita_routes.php
-│   │
+│   ├── public/index.php          ponto de entrada da API
+│   ├── routes/                   uma rota por recurso (api.php distribui)
 │   ├── src/
-│   │
-│   ├── storage/
-│   │
-│   └── .env.example
+│   │   ├── config/               conexão com o banco (variáveis DB_*)
+│   │   ├── controllers/          validação e regras
+│   │   ├── repositories/         SQL (PDO com parâmetros)
+│   │   └── services/             sessão, login, permissões, histórico, limite de tentativas
+│   ├── database/
+│   │   ├── elos.sql              banco completo, para instalação nova
+│   │   └── migracoes/            mudanças para bancos que já existem
+│   ├── storage/                  anexos enviados e controle de login (fora do git)
+│   └── .env.example              variáveis do backend
 │
-├── frontend/
-│   ├── assets/
-│   │   ├── css/
-│   │   │   ├── base.css
-│   │   │   ├── dashboard.css
-│   │   │   └── login.css
-│   │   │
-│   │   └── images/
-│   │
-│   ├── pages/
-│   │   ├── login.php
-│   │   └── logout.php
-│   │
-│   └── index.php
-│
-├── .gitignore
-└── README.md
+└── frontend/
+    ├── index.php                 Início
+    ├── pages/
+    │   ├── eventos.php           lista de exposições
+    │   ├── evento_novo.php       nova exposição
+    │   ├── evento.php            a exposição: dados, datas, checklist, anexos
+    │   ├── agenda.php            calendário
+    │   ├── relatorio.php         relatório para imprimir
+    │   ├── equipe.php            aprovar contas e trocar perfis (gestor)
+    │   └── login.php, cadastro.php, logout.php
+    ├── src/
+    │   ├── Api.php               cliente da API, sessão e proteção CSRF
+    │   ├── elos.php              funções compartilhadas pelas telas
+    │   ├── Planejamento.php      junta datas e checklist de uma exposição
+    │   └── MenuLateral.php       menu (Início, Exposições, Calendário, Equipe)
+    ├── assets/css/               base.css + um CSS por tela
+    ├── assets/js/elos.js
+    └── .env.example              variáveis do frontend
 ```
 
 ---
 
-# 10. Backend — organização
+## 5. Rodando no seu computador
 
-O backend está organizado em:
+### Requisitos
 
-```text
-backend/public/
-backend/routes/
-backend/src/
-backend/database/
-backend/storage/
-```
+- PHP 8.1 ou superior, com as extensões `pdo_mysql` e `fileinfo`;
+- MySQL ou MariaDB;
+- Git.
 
-## backend/public/
+### 1) Banco de dados
 
-Contém o ponto de entrada público da API:
-
-```text
-backend/public/index.php
-```
-
-Esse arquivo inicializa a aplicação e direciona as requisições para as rotas.
-
----
-
-# 11. Rotas
-
-As rotas ficam em:
-
-```text
-backend/routes/
-```
-
-Cada arquivo possui responsabilidade relacionada a uma funcionalidade.
-
-## auth_routes.php
-
-Responsável pelas operações de autenticação.
-
-Inclui o processo de login, logout e autenticação relacionada aos usuários.
-
----
-
-## tipo_evento_routes.php
-
-Responsável pelo gerenciamento dos tipos de evento.
-
-Os tipos servem para classificar os eventos.
-
-Exemplos conceituais:
-
-```text
-Exposição
-Palestra
-Oficina
-Evento institucional
-```
-
-Os tipos são configuráveis.
-
----
-
-## responsavel_routes.php
-
-Responsável pelo cadastro e gerenciamento dos responsáveis pelos eventos.
-
-Um responsável pode ser:
-
-```text
-PESSOA
-SETOR
-CURSO
-COLETIVO
-INSTITUICAO
-OUTRO
-```
-
-O cadastro possui informações como:
-
-- nome;
-- tipo;
-- email;
-- telefone;
-- observações;
-- situação ativa/inativa.
-
----
-
-## curso_routes.php
-
-Responsável pelo gerenciamento dos cursos.
-
-Os cursos podem ser relacionados aos eventos.
-
-Um evento pode possuir mais de um curso relacionado.
-
----
-
-## local_routes.php
-
-Responsável pelo gerenciamento dos locais.
-
-Os locais representam os espaços onde os eventos podem ocorrer.
-
----
-
-## evento_routes.php
-
-Responsável pela entidade principal do sistema: o evento.
-
-O evento possui:
-
-- tipo;
-- responsável;
-- local;
-- título;
-- descrição;
-- prioridade;
-- status;
-- observações.
-
----
-
-## evento_curso_routes.php
-
-Responsável pela relação entre eventos e cursos.
-
-A relação é muitos-para-muitos.
-
-Isso significa:
-
-```text
-Um evento → vários cursos
-
-Um curso → vários eventos
-```
-
-Por isso existe uma tabela intermediária chamada:
-
-```text
-evento_cursos
-```
-
----
-
-## agenda_evento_routes.php
-
-Responsável pela agenda de um evento.
-
-A agenda permite organizar:
-
-- início da montagem;
-- fim da montagem;
-- abertura;
-- horário;
-- início da permanência;
-- fim da permanência;
-- início da desmontagem;
-- fim da desmontagem;
-- tipo de horário;
-- observações.
-
----
-
-## etapa_routes.php
-
-Responsável pelas etapas do processo de organização.
-
-As etapas iniciais são:
-
-```text
-1. Contato inicial
-2. Pré-produção
-3. Produção
-4. Infraestrutura
-5. Divulgação
-6. Montagem
-7. Inauguração
-8. Pós-produção
-9. Desmontagem
-10. Devolução
-```
-
-As etapas são configuráveis.
-
----
-
-## categoria_tarefa_routes.php
-
-Responsável pelas categorias das tarefas.
-
-As categorias permitem organizar e classificar as atividades.
-
-Também são configuráveis.
-
----
-
-## tarefa_routes.php
-
-Responsável pelas tarefas relacionadas aos eventos.
-
-Uma tarefa possui:
-
-- evento;
-- usuário responsável;
-- etapa;
-- categoria;
-- título;
-- descrição;
-- prazo;
-- prioridade;
-- status;
-- observações.
-
-Status disponíveis:
-
-```text
-PENDENTE
-EM_ANDAMENTO
-CONCLUIDA
-BLOQUEADA
-CANCELADA
-```
-
-A tarefa existe para representar uma atividade que precisa ser executada.
-
-Exemplos:
-
-```text
-Solicitar material
-Confirmar responsável
-Preparar divulgação
-Organizar montagem
-Conferir equipamentos
-Agendar transporte
-Enviar formulário
-```
-
----
-
-## formulario_routes.php
-
-Responsável pelo gerenciamento dos formulários relacionados aos eventos.
-
-Um formulário possui:
-
-- evento;
-- tipo;
-- data prevista;
-- data de envio;
-- status;
-- observações.
-
-Status:
-
-```text
-PENDENTE
-EM_PREPARACAO
-ENVIADO
-ATRASADO
-CANCELADO
-```
-
-O objetivo é acompanhar o processo do formulário e evitar que algo necessário fique sem acompanhamento.
-
----
-
-## transporte_routes.php
-
-Responsável pelos transportes relacionados aos eventos.
-
-Os tipos de transporte são:
-
-```text
-OBRAS
-MATERIAIS
-EQUIPAMENTOS
-DEVOLUCAO
-OUTRO
-```
-
-Status:
-
-```text
-NAO_SOLICITADO
-SOLICITADO
-AGENDADO
-REALIZADO
-CANCELADO
-```
-
-Um transporte possui informações como:
-
-- origem;
-- destino;
-- data da solicitação;
-- data do transporte;
-- horário;
-- status;
-- observações.
-
----
-
-## visita_routes.php
-
-Responsável pelas visitas relacionadas aos eventos.
-
-Uma visita possui:
-
-- instituição;
-- responsável;
-- quantidade de pessoas;
-- data;
-- horário;
-- status;
-- observações.
-
-Status:
-
-```text
-AGENDADA
-REALIZADA
-CANCELADA
-```
-
-A funcionalidade existe para controlar visitas de instituições, grupos ou outros participantes relacionados aos eventos.
-
----
-
-## anexo_routes.php
-
-Responsável pelos anexos relacionados aos eventos.
-
-Um anexo possui informações como:
-
-- nome;
-- nome original;
-- caminho;
-- tipo;
-- tamanho;
-- evento relacionado.
-
-A finalidade é manter os arquivos relacionados ao evento organizados dentro do sistema.
-
----
-
-## historico_routes.php
-
-Responsável pelo histórico dos eventos.
-
-O histórico registra ações e acontecimentos relacionados ao evento.
-
-Exemplos:
-
-```text
-Evento criado
-Informação atualizada
-Tarefa adicionada
-Documento anexado
-```
-
-A finalidade é permitir rastreabilidade e acompanhamento do que aconteceu com o evento.
-
----
-
-## eventos_dispatcher_routes.php
-
-Responsável pelo direcionamento das rotas relacionadas aos eventos.
-
-Como o evento é a entidade central, existem várias funcionalidades dependentes dele.
-
-Exemplos:
-
-```text
-/api/eventos/{id}
-/api/eventos/{id}/cursos
-/api/eventos/{id}/agenda
-/api/eventos/{id}/tarefas
-/api/eventos/{id}/formularios
-/api/eventos/{id}/transportes
-/api/eventos/{id}/visitas
-/api/eventos/{id}/anexos
-/api/eventos/{id}/historico
-```
-
-O dispatcher organiza esse direcionamento.
-
----
-
-# 12. Banco de dados
-
-O ELOS utiliza MySQL.
-
-O script principal do banco está localizado em:
-
-```text
-backend/database/elos.sql
-```
-
-O banco possui **16 tabelas principais**.
-
-São elas:
-
-```text
-1. usuarios
-2. tipos_evento
-3. responsaveis
-4. locais
-5. cursos
-6. eventos
-7. evento_cursos
-8. agenda_eventos
-9. etapas
-10. categorias_tarefa
-11. tarefas
-12. formularios
-13. transportes
-14. visitas
-15. anexos
-16. historico
-```
-
----
-
-# 13. Tabela usuarios
-
-A tabela `usuarios` armazena os usuários que possuem acesso ao sistema.
-
-Informações principais:
-
-```text
-id
-nome
-email
-senha
-perfil
-ativo
-created_at
-updated_at
-```
-
-O email é único.
-
-A senha deve ser armazenada de forma segura utilizando hash.
-
-Perfis existentes:
-
-```text
-ADMIN
-GESTOR
-COLABORADOR
-```
-
----
-
-# 14. Tabela tipos_evento
-
-Armazena os tipos utilizados para classificar os eventos.
-
-Possui:
-
-```text
-id
-nome
-ativo
-```
-
-A tabela permite que os tipos sejam administrados sem precisar alterar o código do sistema.
-
----
-
-# 15. Tabela responsaveis
-
-Armazena os responsáveis relacionados aos eventos.
-
-Possui:
-
-```text
-id
-nome
-tipo
-email
-telefone
-observacoes
-ativo
-created_at
-updated_at
-```
-
-O campo `tipo` permite diferenciar:
-
-```text
-PESSOA
-SETOR
-CURSO
-COLETIVO
-INSTITUICAO
-OUTRO
-```
-
----
-
-# 16. Tabela locais
-
-Armazena os locais onde os eventos podem acontecer.
-
-Possui:
-
-```text
-id
-nome
-descricao
-ativo
-created_at
-updated_at
-```
-
-O nome do local é único.
-
----
-
-# 17. Tabela cursos
-
-Armazena os cursos que podem participar dos eventos.
-
-Um curso pode estar relacionado a vários eventos.
-
----
-
-# 18. Tabela eventos
-
-É a tabela central do sistema.
-
-Possui relacionamentos com várias outras tabelas.
-
-Informações principais:
-
-```text
-tipo_evento_id
-responsavel_id
-local_id
-titulo
-descricao
-prioridade
-status
-observacoes
-created_at
-updated_at
-```
-
-Status:
-
-```text
-PLANEJAMENTO
-EM_ANDAMENTO
-CONCLUIDO
-CANCELADO
-```
-
-Prioridade:
-
-```text
-BAIXA
-MEDIA
-ALTA
-```
-
-A prioridade é definida manualmente.
-
-O sistema pode utilizar prioridade, prazo e status para apresentar alertas, mas não deve inventar ou alterar a prioridade definida pelo usuário.
-
----
-
-# 19. Tabela evento_cursos
-
-É a tabela intermediária entre `eventos` e `cursos`.
-
-Ela permite uma relação muitos-para-muitos.
-
-Possui:
-
-```text
-evento_id
-curso_id
-```
-
-A chave primária é composta pelos dois campos.
-
----
-
-# 20. Tabela agenda_eventos
-
-Armazena as informações de agenda de um evento.
-
-Possui:
-
-```text
-id
-evento_id
-montagem_inicio
-montagem_fim
-abertura
-horario
-permanencia_inicio
-permanencia_fim
-desmontagem_inicio
-desmontagem_fim
-tipo_horario
-observacoes
-```
-
-A tabela permite representar as diferentes fases temporais do evento.
-
----
-
-# 21. Tabela etapas
-
-Armazena as etapas utilizadas no processo de organização.
-
-Possui:
-
-```text
-id
-nome
-ordem
-ativa
-```
-
-As etapas podem ser alteradas/configuradas pelo sistema.
-
-Etapas iniciais:
-
-```text
-Contato inicial
-Pré-produção
-Produção
-Infraestrutura
-Divulgação
-Montagem
-Inauguração
-Pós-produção
-Desmontagem
-Devolução
-```
-
----
-
-# 22. Tabela categorias_tarefa
-
-Armazena as categorias utilizadas para classificar tarefas.
-
-Possui:
-
-```text
-id
-nome
-ativa
-```
-
-A utilização de categorias facilita a organização das atividades.
-
----
-
-# 23. Tabela tarefas
-
-Armazena as atividades relacionadas aos eventos.
-
-Possui relacionamentos com:
-
-```text
-eventos
-usuarios
-etapas
-categorias_tarefa
-```
-
-Também possui:
-
-```text
-titulo
-descricao
-prazo
-prioridade
-status
-observacoes
-created_at
-updated_at
-```
-
-Status:
-
-```text
-PENDENTE
-EM_ANDAMENTO
-CONCLUIDA
-BLOQUEADA
-CANCELADA
-```
-
----
-
-# 24. Tabela formularios
-
-Armazena formulários relacionados aos eventos.
-
-Possui:
-
-```text
-id
-evento_id
-tipo
-data_previsao
-data_envio
-status
-observacoes
-created_at
-updated_at
-```
-
-Status:
-
-```text
-PENDENTE
-EM_PREPARACAO
-ENVIADO
-ATRASADO
-CANCELADO
-```
-
----
-
-# 25. Tabela transportes
-
-Armazena informações de transporte relacionadas aos eventos.
-
-Possui:
-
-```text
-id
-evento_id
-tipo
-origem
-destino
-data_solicitacao
-data_transporte
-horario
-status
-observacoes
-created_at
-updated_at
-```
-
-Tipos:
-
-```text
-OBRAS
-MATERIAIS
-EQUIPAMENTOS
-DEVOLUCAO
-OUTRO
-```
-
-Status:
-
-```text
-NAO_SOLICITADO
-SOLICITADO
-AGENDADO
-REALIZADO
-CANCELADO
-```
-
----
-
-# 26. Tabela visitas
-
-Armazena visitas relacionadas aos eventos.
-
-Possui:
-
-```text
-id
-evento_id
-instituicao
-responsavel
-quantidade_pessoas
-data
-horario
-status
-observacoes
-```
-
-Status:
-
-```text
-AGENDADA
-REALIZADA
-CANCELADA
-```
-
----
-
-# 27. Tabela anexos
-
-Armazena informações dos arquivos relacionados aos eventos.
-
-Possui:
-
-```text
-id
-evento_id
-nome
-nome_original
-caminho
-tipo
-tamanho
-created_at
-```
-
-O objetivo é manter documentos e arquivos associados ao contexto do evento.
-
----
-
-# 28. Tabela historico
-
-Registra ações relacionadas aos eventos.
-
-Possui:
-
-```text
-id
-evento_id
-usuario_id
-acao
-descricao
-created_at
-```
-
-O histórico existe para permitir rastreabilidade.
-
----
-
-# 29. Relacionamentos principais
-
-O modelo pode ser entendido desta forma:
-
-```text
-usuarios
-│
-├── tarefas
-│
-└── historico
-
-
-tipos_evento
-│
-└── eventos
-
-
-responsaveis
-│
-└── eventos
-
-
-locais
-│
-└── eventos
-
-
-eventos
-│
-├── evento_cursos ─── cursos
-│
-├── agenda_eventos
-│
-├── tarefas
-│
-├── formularios
-│
-├── transportes
-│
-├── visitas
-│
-├── anexos
-│
-└── historico
-```
-
-O evento é o ponto central que conecta essas informações.
-
----
-
-# 30. Dashboard
-
-O dashboard é a tela inicial de cada perfil.
-
-No caso do gestor, sua função é apresentar uma visão geral do sistema.
-
-O dashboard deve facilitar a identificação de:
-
-- quantidade de eventos;
-- eventos em andamento;
-- próximos eventos;
-- tarefas;
-- tarefas pendentes;
-- alertas;
-- informações importantes;
-- movimentações recentes.
-
-O dashboard não substitui as páginas específicas.
-
-Ele funciona como uma visão geral e como ponto inicial de navegação.
-
----
-
-# 31. Eventos
-
-A área de eventos é a principal área do sistema.
-
-Ela deve permitir ao gestor:
-
-- visualizar eventos;
-- criar eventos;
-- editar eventos;
-- consultar detalhes;
-- acompanhar status;
-- visualizar prioridade;
-- visualizar responsável;
-- visualizar local;
-- visualizar cursos relacionados;
-- acessar agenda;
-- acessar tarefas;
-- acessar formulários;
-- acessar transportes;
-- acessar visitas;
-- acessar anexos;
-- acessar histórico.
-
-A tela de detalhes do evento deve funcionar como um espaço central para todas as informações relacionadas àquele evento.
-
----
-
-# 32. Agenda
-
-A agenda organiza os compromissos e períodos relacionados aos eventos.
-
-Ela deve permitir uma visualização clara das datas.
-
-Deve ajudar a identificar:
-
-- eventos próximos;
-- montagem;
-- abertura;
-- permanência;
-- desmontagem;
-- outros períodos importantes.
-
----
-
-# 33. Tarefas
-
-As tarefas representam o trabalho necessário para organizar um evento.
-
-Cada tarefa deve deixar claro:
-
-- o que precisa ser feito;
-- para qual evento;
-- quem é o responsável;
-- qual a etapa;
-- qual a categoria;
-- qual o prazo;
-- qual a prioridade;
-- qual o status.
-
-A área de tarefas é especialmente importante para o perfil colaborador.
-
----
-
-# 34. Formulários
-
-A área de formulários existe para acompanhar documentos e formulários necessários para os eventos.
-
-O objetivo é permitir saber:
-
-- qual formulário existe;
-- a qual evento pertence;
-- qual a situação;
-- quando deveria ser enviado;
-- quando foi enviado.
-
----
-
-# 35. Transportes
-
-A área de transportes existe para controlar movimentações relacionadas aos eventos.
-
-Pode envolver:
-
-- obras;
-- materiais;
-- equipamentos;
-- devoluções.
-
-O objetivo é acompanhar o processo desde a solicitação até a realização.
-
----
-
-# 36. Visitas
-
-A área de visitas existe para registrar grupos, instituições e pessoas que visitarão eventos.
-
-Permite controlar:
-
-- instituição;
-- responsável;
-- quantidade de pessoas;
-- data;
-- horário;
-- situação.
-
----
-
-# 37. Anexos
-
-A área de anexos existe para manter arquivos relacionados aos eventos.
-
-A ideia é que documentos importantes não fiquem separados do evento ao qual pertencem.
-
----
-
-# 38. Histórico
-
-O histórico registra acontecimentos relacionados ao evento.
-
-Ele permite entender a evolução do evento e identificar ações realizadas ao longo do processo.
-
----
-
-# 39. Identidade visual
-
-A identidade visual do ELOS segue o conceito:
-
-**Contemporaneidade + memória + movimento.**
-
-O sistema deve ter uma aparência moderna, institucional e acolhedora.
-
-A interface deve transmitir organização sem parecer excessivamente tecnológica.
-
----
-
-# 40. Paleta visual
-
-As principais cores são:
-
-- creme / off-white;
-- azul-marinho;
-- azul claro;
-- turquesa;
-- amarelo;
-- bege / areia.
-
-O vermelho deve ser utilizado principalmente para:
-
-- alertas;
-- erros;
-- situações críticas;
-- informações que precisam de atenção.
- 43. Frontend atual
-
-O frontend está localizado em:
-
-```text
-frontend/
-```
-
-A página principal atual é:
-
-```text
-frontend/index.php
-```
-
-A página de login é:
-
-```text
-frontend/pages/login.php
-```
-
-Os estilos estão em:
-
-```text
-frontend/assets/css/
-```
-
-Arquivos atuais:
-
-```text
-base.css
-dashboard.css
-login.css
-```
-
-`base.css` concentra os tokens (cor, escala tipográfica, espaçamento, raio
-e profundidade), o reset e a navegação lateral compartilhada. Ele deve ser
-carregado antes do CSS específico de cada tela.
-
-O desenvolvimento atual está concentrado na interface do gestor.
-
----
-
-# 41. Login
-
-A página de login atual é:
-
-```text
-frontend/pages/login.php
-```
-
-O login utiliza o backend através da API.
-
-Endpoint:
-
-```text
-POST /api/login
-```
-
-Após a autenticação, o backend cria uma sessão PHP.
-
-As informações básicas do usuário autenticado incluem:
-
-```text
-id
-nome
-email
-perfil
-```
-
----
-
-# 42. Backend e frontend
-
-O frontend deve consumir a API existente.
-
-Antes de criar uma nova funcionalidade no frontend:
-
-1. verificar se existe endpoint no backend;
-2. verificar qual método HTTP deve ser utilizado;
-3. verificar os dados necessários;
-4. verificar o formato da resposta;
-5. verificar as permissões necessárias.
-
-Não criar uma implementação paralela no frontend quando a funcionalidade já existe no backend.
-
----
-
-# 43. Configuração do ambiente
-
-## Requisitos
-
-O projeto utiliza:
-
-- PHP 8 ou superior;
-- MySQL;
-- Git;
-- servidor web ou servidor embutido do PHP.
-
-O desenvolvimento original foi realizado em ambiente Linux/Ubuntu.
-
----
-
-# 44. Banco de dados local
-
-O script do banco está em:
-
-```text
-backend/database/elos.sql
-```
-
-Para configurar o ambiente:
-
-1. criar um banco MySQL;
-2. importar `backend/database/elos.sql`;
-3. configurar as credenciais do banco;
-4. criar o arquivo `backend/.env`.
-
-O projeto possui:
-
-```text
-backend/.env.example
-```
-
-Esse arquivo serve como modelo.
-
----
-
-# 45. Arquivo .env
-
-Cada desenvolvedor deve possuir seu próprio:
-
-```text
-backend/.env
-```
-
-Exemplo:
-
-```env
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=elos_db
-DB_USER=elos_user
-DB_PASSWORD=SUA_SENHA
-
-A API ficará disponível em:
-
-```text
-http://127.0.0.1:8000
-```
-
----
-
-# 46. Executando o frontend
-
-O frontend deve ser servido pelo servidor web local.
-
-Dependendo da configuração do ambiente:
-
-```text
-http://localhost/frontend/
-```
-
-ou:
-
-```text
-http://localhost/frontend/index.php
-```
-
----
-
-# 47. Git
-
-O projeto utiliza Git para controle de versão.
-
-Depois de clonar:
+**Instalação nova:**
 
 ```bash
-git clone URL_DO_REPOSITORIO
-cd projeto-elos
+mysql -u SEU_USUARIO -p < backend/database/elos.sql
 ```
 
-Verifique:
+Isso cria o banco `elos_db`, as tabelas, as etapas e as categorias
+sugeridas.
+
+**Banco que já existe:** rode, uma vez, cada arquivo de
+`backend/database/migracoes/` que ainda não foi aplicado, em ordem de data:
 
 ```bash
-git status
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsavel_livre.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
 ```
 
----
+### 2) Variáveis de ambiente
 
-# 48. Branches
-
-Recomenda-se trabalhar em branches separadas.
-
-Exemplo:
+O backend **não lê arquivo `.env`**. As variáveis precisam estar
+exportadas no terminal que vai rodar o servidor. Use `backend/.env.example`
+como guia:
 
 ```bash
-git checkout -b frontend/dashboard-gestor
+export DB_HOST=127.0.0.1
+export DB_PORT=3306
+export DB_NAME=elos_db
+export DB_USER=seu_usuario
+export DB_PASSWORD=sua_senha
+export ELOS_DEBUG=1        # mostra erros nas respostas da API (só no seu computador)
 ```
 
-Outros exemplos:
+| Variável        | Onde     | Para quê                                                        |
+|-----------------|----------|-----------------------------------------------------------------|
+| `DB_*`          | backend  | conexão com o banco (obrigatórias)                              |
+| `ELOS_DEBUG`    | backend  | `1` mostra detalhes de erro; vazio em produção                  |
+| `ELOS_GESTORES` | backend  | e-mails (separados por vírgula) que já entram como gestores. Opcional. |
+| `ELOS_API_URL`  | frontend | endereço da API. Vazio = `http://127.0.0.1:8000`                |
 
-```text
-frontend/login
-frontend/eventos
-frontend/agenda
-frontend/tarefas
-frontend/colaborador
-frontend/consulta
-```
+### 3) Servidores
 
----
+São dois terminais.
 
-# 49. Commits
-
-Os commits devem explicar claramente o que foi alterado.
-
-Exemplos:
+**Terminal 1, backend** (com as variáveis acima exportadas):
 
 ```bash
-git commit -m "feat: cria dashboard do gestor"
+php -S 127.0.0.1:8000 -t backend/public
 ```
+
+**Terminal 2, frontend:**
 
 ```bash
-git commit -m "fix: corrige responsividade do login"
+php -S 127.0.0.1:8081 -t frontend
 ```
+
+Acesse **http://127.0.0.1:8081**, crie sua conta em **Criar conta** e
+entre. Num banco vazio, a primeira conta vira gestora automaticamente.
+
+> Os erros do backend aparecem no terminal 1. Se uma tela disser que não
+> conseguiu falar com o servidor, confira se o terminal 1 está rodando e
+> com as variáveis `DB_*` exportadas.
+
+---
+
+## 6. API
+
+Todas as rotas respondem JSON. Exceto login, logout e cadastro, todas
+exigem sessão. "Gestor" indica as rotas que exigem esse perfil.
+
+| Rota | Métodos | Observação |
+|------|---------|------------|
+| `/api/login`, `/api/logout` | POST | login com limite de tentativas |
+| `/api/usuarios` | GET, POST | POST = criar conta (fica pendente) |
+| `/api/usuarios/{id}` | PUT | trocar perfil. Gestor |
+| `/api/usuarios/pendentes` | GET | contas aguardando aprovação. Gestor |
+| `/api/usuarios/pendentes/{id}` | POST, DELETE | aprovar / recusar. Gestor |
+| `/api/eventos` | GET, POST | exposições (`status` já calculado) |
+| `/api/eventos/{id}` | GET, PUT | |
+| `/api/eventos/conflitos` | GET | `?local_id=&inicio=&fim=&exceto=` |
+| `/api/eventos/{id}/agenda` | GET, POST, PUT | datas da exposição |
+| `/api/eventos/{id}/tarefas[/{id}]` | GET, POST, PUT, DELETE | checklist |
+| `/api/eventos/{id}/tarefas/{id}/status` | PUT | marcar feito (colaborador: só os seus) |
+| `/api/eventos/{id}/cursos[/{id}]` | GET, POST, DELETE | |
+| `/api/eventos/{id}/formularios[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas (ver seção 9) |
+| `/api/eventos/{id}/transportes[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
+| `/api/eventos/{id}/visitas[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
+| `/api/eventos/{id}/anexos[/{id}]` | GET, POST, DELETE | até 10 MB. PDF, imagens, Office/LibreOffice, TXT, CSV |
+| `/api/eventos/{id}/historico` | GET, POST | gravado automaticamente pelas outras rotas |
+| `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/etapas`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
+
+Os detalhes de cada rota (campos aceitos e respostas) estão nos arquivos
+de `backend/routes/`.
+
+---
+
+## 7. Segurança
+
+O que já está no sistema:
+
+- senhas guardadas com `password_hash`, e todo SQL com parâmetros (PDO);
+- tudo o que aparece na tela passa por `esc()`, contra XSS;
+- **CSRF**: todo formulário POST leva uma chave da sessão
+  (`campoCsrf()`), conferida automaticamente em `iniciarSessao()`. **Todo
+  formulário novo precisa de `<?= \Elos\Frontend\campoCsrf() ?>`**. Sem
+  ele, o envio é recusado com "Esta página expirou";
+- cookies de sessão com `HttpOnly` e `SameSite`, `Secure` sob HTTPS, e
+  sessão nova a cada login;
+- **login**: 5 erros por e-mail ou 20 por endereço em 15 minutos bloqueiam
+  por 15 minutos;
+- contas novas só entram depois de aprovadas por um gestor;
+- anexos: tamanho e tipo conferidos pelo **conteúdo** do arquivo, salvos
+  fora da pasta pública e com nome aleatório;
+- em produção, os erros vão para o log e não para a tela.
+
+---
+
+## 8. Colocando no ar
+
+- **HTTPS é obrigatório.** Sem ele, as senhas trafegam abertas.
+- **Um só servidor web** (Apache ou Nginx com PHP-FPM):
+  - o site aponta para `frontend/`;
+  - a API aponta para `backend/public/` e fica acessível **só pela própria
+    máquina** (por exemplo, `127.0.0.1:8000`). Se ficar em outro endereço,
+    configure `ELOS_API_URL` no frontend.
+- Variáveis `DB_*` configuradas no PHP-FPM ou no servidor, com
+  `ELOS_DEBUG` vazio.
+- `backend/storage/` com permissão de escrita para o PHP.
+- **Backup** diário do banco e de `backend/storage/anexos/`.
+
+---
+
+## 9. Em aberto
+
+- **Tabelas e rotas antigas de transportes, visitas e formulários**: as
+  telas foram aposentadas (agora tudo é checklist), mas as tabelas e as
+  rotas da API continuam no backend, sem uso. Podem ser removidas depois,
+  com uma migração.
+- **Coluna `eventos.prioridade`**: não é mais usada pelas telas (a API
+  grava `MEDIA` quando não vem nada). Pode ser removida depois, com uma
+  migração.
+
+---
+
+## 10. Para quem for mexer no código
+
+1. **Cores**: use só os tokens de `frontend/assets/css/base.css`. A
+   identidade visual (creme, azul-marinho, azul claro, turquesa, amarelo e
+   areia, com vermelho só para alertas e erros) não deve mudar.
+2. **Regras de negócio ficam no backend.** O frontend mostra; o backend
+   decide e protege.
+3. **Mudou o banco?** Atualize `backend/database/elos.sql` **e** crie um
+   arquivo em `backend/database/migracoes/` com a data no nome.
+4. **Formulário novo?** Coloque `campoCsrf()` dentro dele.
+5. **Nunca envie para o git:** `.env`, `cookies*.txt`, conteúdo de
+   `backend/storage/`. O `.gitignore` já cuida disso.
+6. Teste no navegador antes de dar por pronto, inclusive no celular.
+
+### Git
+
+Trabalhe numa branch e escreva commits que expliquem o que mudou:
 
 ```bash
-git commit -m "style: ajusta identidade visual dos eventos"
+git checkout -b nome-da-mudanca
+git commit -m "feat: aviso de local ocupado ao salvar datas"
 ```
 
-```bash
-git commit -m "feat: cria interface do colaborador"
-```
+Prefixos usados: `feat` (novidade), `fix` (correção), `style` (visual),
+`refactor` (reorganização sem mudar comportamento), `docs` (documentação).
 
 ---
 
-# 50. Arquivos que NÃO devem ir para o GitHub
+## 11. Princípios
 
-Nunca enviar:
+O ELOS não precisa ser complexo para parecer sofisticado.
 
 ```text
-.env
-cookies.txt
-cookies-gestor.txt
-cookies-tipos.txt
+CLAREZA → ORGANIZAÇÃO → FUNCIONALIDADE → EXPERIÊNCIA DE USO
 ```
 
-Esses arquivos podem conter:
-
-- senhas;
-- credenciais;
-- sessões autenticadas;
-- informações específicas do ambiente local.
-
-O `.gitignore` deve impedir que esses arquivos sejam versionados.
-
----
-
-# 51. .gitignore
-
-O projeto utiliza `.gitignore` para impedir o envio de arquivos locais ou sensíveis.
-
-Entre os arquivos ignorados:
-
-```text
-.env
-cookies.txt
-cookies-*.txt
-vendor/
-logs/
-arquivos temporários
-arquivos de IDE
-```
-
-O arquivo:
-
-```text
-backend/.env.example
-```
-
-pode ser enviado para o GitHub porque não deve conter credenciais reais.
-
----
-
-# 52. Desenvolvimento em equipe
-
-O projeto está sendo preparado para que diferentes pessoas possam trabalhar simultaneamente.
-
-O foco atual do trabalho em equipe é o frontend.
-
-O desenvolvedor que estiver trabalhando na interface deve priorizar:
-
-```text
-frontend/
-```
-
-O backend existente deve ser utilizado como base para as integrações.
-
-Antes de modificar o backend, verificar se a API existente já atende à necessidade.
-
----
-
-# 53. Ordem de desenvolvimento
-
-O desenvolvimento do frontend seguirá esta ordem:
-
-```text
-1. Gestor
-2. Colaborador
-3. Consulta
-4. Integração final
-5. Testes
-6. Limpeza e organização final
-```
-
----
-
-# 54. Situação atual do projeto
-
-## Backend
-
-O backend já possui estrutura para:
-
-- autenticação;
-- autorização;
-- usuários;
-- tipos de evento;
-- responsáveis;
-- cursos;
-- locais;
-- eventos;
-- relacionamento entre eventos e cursos;
-- agenda;
-- etapas;
-- categorias de tarefas;
-- tarefas;
-- formulários;
-- transportes;
-- visitas;
-- anexos;
-- histórico.
-
----
-
-## Frontend
-
-O frontend está em desenvolvimento.
-
-A interface atual em desenvolvimento é a do:
-
-```text
-GESTOR
-```
-
-Já existe estrutura para:
-
-- login;
-- dashboard;
-- identidade visual;
-- navegação.
-
-Ainda precisam ser desenvolvidas ou finalizadas as demais áreas do gestor e, posteriormente, as interfaces do colaborador e do usuário de consulta.
-
----
-
-# 55. Próximas etapas do frontend
-
-## Gestor
-
-Finalizar:
-
-- Dashboard;
-- Eventos;
-- Detalhes do evento;
-- Agenda;
-- Tarefas;
-- Formulários;
-- Transportes;
-- Visitas;
-- Anexos;
-- Histórico;
-- Relatórios;
-- Usuários;
-- Locais;
-- Tipos de evento;
-- Responsáveis;
-- Cursos;
-- Etapas;
-- Categorias de tarefas.
-
----
-
-## Colaborador
-
-Criar uma interface específica para:
-
-- Dashboard;
-- Eventos;
-- Agenda;
-- Tarefas;
-- Formulários;
-- Transportes;
-- Visitas;
-- Anexos.
-
-A interface deve respeitar as permissões do colaborador.
-
----
-
-## Consulta
-
-Criar uma interface específica para:
-
-- Dashboard;
-- Eventos;
-- Agenda;
-- Detalhes do evento;
-- informações permitidas para visualização.
-
-Sem funções administrativas.
-
----
-
-# 56. Regras importantes para quem continuar o projeto
-
-Antes de fazer uma alteração importante:
-
-1. Ler este README.
-2. Entender a arquitetura.
-3. Verificar se a funcionalidade já existe no backend.
-4. Não criar endpoints duplicados.
-5. Não criar regras de negócio desnecessárias no frontend.
-6. Não alterar o banco sem necessidade.
-7. Não remover arquivos sem verificar referências.
-8. Manter a identidade visual.
-9. Manter a responsividade.
-10. Testar a alteração.
-11. Não enviar credenciais para o Git.
-12. Não enviar cookies para o Git.
-13. Trabalhar preferencialmente em uma branch.
-14. Fazer commits claros.
-
----
-
-# 57. Princípios do projeto
-
-O ELOS não tem como objetivo ser complexo apenas para parecer sofisticado.
-
-O sistema deve priorizar:
-
-```text
-CLAREZA
-   ↓
-ORGANIZAÇÃO
-   ↓
-FUNCIONALIDADE
-   ↓
-EXPERIÊNCIA DE USO
-```
-
-A interface deve ser fácil de entender para quem administra os eventos e para quem participa da execução das atividades.
-
----
-
-# 58. Resumo rápido para novos desenvolvedores
-
-Se você acabou de clonar o projeto:
-
-```text
-1. Leia o README
-        ↓
-2. Configure o MySQL
-        ↓
-3. Importe backend/database/elos.sql
-        ↓
-4. Crie backend/.env
-        ↓
-5. Inicie o backend
-        ↓
-6. Inicie/acesse o frontend
-        ↓
-7. Teste o login
-        ↓
-8. Entenda o dashboard do gestor
-        ↓
-9. Consulte os endpoints existentes
-        ↓
-10. Crie uma branch
-        ↓
-11. Desenvolva
-        ↓
-12. Teste
-        ↓
-13. Faça commit
-        ↓
-14. Envie a branch
-```
-
----
-
-# 59. Importante
-
-O projeto possui uma separação clara entre:
-
-```text
-BACKEND
-```
-
-e
-
-```text
-FRONTEND
-```
-
-O backend deve ser tratado como a camada responsável pelos dados, regras e segurança.
-
-O frontend deve ser tratado como a camada responsável pela experiência e interação do usuário.
-
-O desenvolvimento atual deve priorizar o frontend, especialmente a interface do gestor.
-
-As interfaces do colaborador e do usuário de consulta serão desenvolvidas posteriormente.
-
----
-
-# ELOS
-**Eventos que conectam pessoas, ideias e oportunidades.**

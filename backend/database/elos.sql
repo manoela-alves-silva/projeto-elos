@@ -121,11 +121,15 @@ CREATE TABLE IF NOT EXISTS tarefas (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     evento_id INT UNSIGNED NOT NULL,
     usuario_responsavel_id INT UNSIGNED NULL,
+    -- Responsável em texto livre: qualquer pessoa, mesmo sem conta no sistema.
+    responsavel_nome VARCHAR(150) NULL,
     etapa_id INT UNSIGNED NULL,
     categoria_id INT UNSIGNED NULL,
     titulo VARCHAR(200) NOT NULL,
     descricao TEXT NULL,
     prazo DATE NULL,
+    -- Horário opcional do item (visita, transporte, entrega...).
+    horario TIME NULL,
     prioridade ENUM('BAIXA', 'MEDIA', 'ALTA') NOT NULL DEFAULT 'MEDIA',
     status ENUM('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'BLOQUEADA', 'CANCELADA') NOT NULL DEFAULT 'PENDENTE',
     observacoes TEXT NULL,
@@ -244,3 +248,16 @@ INSERT INTO etapas (nome, ordem, ativa) VALUES
 ON DUPLICATE KEY UPDATE
     ordem = VALUES(ordem),
     ativa = VALUES(ativa);
+
+-- Categorias sugeridas para o checklist de necessidades do evento.
+-- São só um ponto de partida: novas categorias são criadas pela API
+-- (POST /api/categorias-tarefa) e qualquer uma pode ser desativada
+-- (ativa = 0). INSERT IGNORE não reativa nem altera as já existentes.
+INSERT IGNORE INTO categorias_tarefa (nome) VALUES
+    ('Transporte'),
+    ('Infraestrutura'),
+    ('Visita'),
+    ('Alimentação'),
+    ('Equipamentos'),
+    ('Documentação'),
+    ('Outro');

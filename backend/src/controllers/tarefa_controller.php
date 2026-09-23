@@ -41,14 +41,16 @@ final class TarefaController
     public function create(
         int $eventoId,
         ?int $usuarioResponsavelId,
-        int $etapaId,
+        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
         ?string $prazo,
         string $prioridade,
         string $status,
-        ?string $observacoes
+        ?string $observacoes,
+        ?string $responsavelNome = null,
+        ?string $horario = null
     ): ?array {
         return $this->repository->create(
             $eventoId,
@@ -60,7 +62,9 @@ final class TarefaController
             $prazo,
             $prioridade,
             $status,
-            $observacoes
+            $observacoes,
+            $responsavelNome,
+            $horario
         );
     }
 
@@ -73,14 +77,16 @@ final class TarefaController
         int $id,
         int $eventoId,
         ?int $usuarioResponsavelId,
-        int $etapaId,
+        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
         ?string $prazo,
         string $prioridade,
         string $status,
-        ?string $observacoes
+        ?string $observacoes,
+        ?string $responsavelNome = null,
+        ?string $horario = null
     ): ?array {
         return $this->repository->update(
             $id,
@@ -93,7 +99,23 @@ final class TarefaController
             $prazo,
             $prioridade,
             $status,
-            $observacoes
+            $observacoes,
+            $responsavelNome,
+            $horario
+        );
+    }
+
+    /**
+     * Atualiza somente o status de uma tarefa.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function updateStatus(int $id, int $eventoId, string $status): ?array
+    {
+        return $this->repository->updateStatus(
+            $id,
+            $eventoId,
+            $status
         );
     }
 

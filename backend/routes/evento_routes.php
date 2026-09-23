@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Elos\Controllers\EventoController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 
 /**
  * Processa as requisições de eventos.
@@ -39,7 +40,9 @@ function handleEventoRequest(
         $localId = $payload['local_id'] ?? null;
         $titulo = $payload['titulo'] ?? null;
         $descricao = $payload['descricao'] ?? null;
-        $prioridade = $payload['prioridade'] ?? null;
+        // A exposição não usa mais prioridade (só os itens do checklist);
+        // a coluna continua e recebe o padrão quando não vem nada.
+        $prioridade = $payload['prioridade'] ?? 'MEDIA';
         $status = $payload['status'] ?? null;
         $observacoes = $payload['observacoes'] ?? null;
 
@@ -121,6 +124,8 @@ function handleEventoRequest(
                 'erro' => 'Não foi possível cadastrar o evento.',
             ]);
         }
+
+        HistoricoService::registrar((int) $evento['id'], 'Exposição criada', (string) $evento['titulo']);
 
         sendJsonResponse(201, [
             'evento' => $evento,
@@ -282,6 +287,8 @@ function handleEventoByIdRequest(
             ]);
         }
 
+        registrarAlteracoesDoEvento($id, $eventoAtual, $evento);
+
         sendJsonResponse(200, [
             'evento' => $evento,
         ]);
@@ -290,4 +297,86 @@ function handleEventoByIdRequest(
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
     ]);
+}
+
+/**
+ * Exposições que já ocupam um local num período:
+ * GET /api/eventos/conflitos?local_id=1&inicio=2026-10-01&fim=2026-10-30[&exceto=5]
+ *
+ * @param callable(): EventoController $eventoControllerFactory
+ * @param callable(): AuthorizationService $authorizationFactory
+ */
+function handleEventoConflitosRequest(
+    string $method,
+    callable $eventoControllerFactory,
+    callable $authorizationFactory
+): never {
+    if ($method !== 'GET') {
+        sendJsonResponse(405, ['erro' => 'Método não permitido.']);
+    }
+
+    requireRole($authorizationFactory, 'COLABORADOR');
+
+    $localId = filter_var($_GET['local_id'] ?? null, FILTER_VALIDATE_INT);
+    $inicio = (string) ($_GET['inicio'] ?? '');
+    $fim = (string) ($_GET['fim'] ?? '');
+    $exceto = filter_var($_GET['exceto'] ?? null, FILTER_VALIDATE_INT);
+
+    $dataValida = static function (string $data): bool {
+        $lida = DateTimeImmutable::createFromFormat('!Y-m-d', $data);
+
+        return $lida !== false && $lida->format('Y-m-d') === $data;
+    };
+
+    if ($localId === false || $localId < 1 || !$dataValida($inicio) || !$dataValida($fim)) {
+        sendJsonResponse(400, ['erro' => 'Informe local_id, inicio e fim (AAAA-MM-DD).']);
+    }
+
+    sendJsonResponse(200, [
+        'conflitos' => $eventoControllerFactory()->conflitos(
+            $localId,
+            $inicio,
+            $fim,
+            $exceto === false ? null : $exceto
+        ),
+    ]);
+}
+
+/**
+ * Histórico de uma edição: cancelamento/reativação e os campos que
+ * mudaram. Salvar sem mudar nada não registra.
+ */
+function registrarAlteracoesDoEvento(int $id, array $antes, array $depois): void
+{
+    $cancelada = static fn(array $e): bool => ($e['status'] ?? '') === 'CANCELADO';
+
+    if ($cancelada($antes) !== $cancelada($depois)) {
+        HistoricoService::registrar($id, $cancelada($depois) ? 'Exposição cancelada' : 'Exposição reativada');
+    }
+
+    $rotulos = [
+        'titulo' => 'nome',
+        'tipo_evento_id' => 'tipo',
+        'responsavel_id' => 'responsável',
+        'local_id' => 'local',
+        'descricao' => 'descrição',
+        'observacoes' => 'observações',
+    ];
+    $mudou = [];
+
+    foreach ($rotulos as $campo => $rotulo) {
+        if ((string) ($antes[$campo] ?? '') !== (string) ($depois[$campo] ?? '')) {
+            $mudou[] = $rotulo;
+        }
+    }
+
+    if ($mudou !== []) {
+        $descricao = 'Mudou: ' . implode(', ', $mudou);
+
+        if (in_array('local', $mudou, true)) {
+            $descricao .= ' (agora: ' . ($depois['local_nome'] ?? '') . ')';
+        }
+
+        HistoricoService::registrar($id, 'Informações alteradas', $descricao);
+    }
 }

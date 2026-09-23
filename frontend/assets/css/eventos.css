@@ -1,0 +1,431 @@
+/* =========================================================
+   ELOS — EXPOSIÇÕES (lista) e NOVA EXPOSIÇÃO
+
+   Depende de base.css, dashboard.css e planejamento.css.
+   Só usa os tokens de cor de base.css.
+   ========================================================= */
+
+
+/* ---------- abas (em andamento / encerradas) ---------- */
+
+.abas {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8);
+
+    margin-bottom: var(--sp-24);
+}
+
+.abas a {
+    display: inline-flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    min-height: 38px;
+
+    padding: 0 var(--sp-16);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+
+    background: var(--white);
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
+}
+
+.abas a span {
+    min-width: 22px;
+
+    padding: 0 var(--sp-4);
+
+    border-radius: var(--radius-pill);
+
+    background: var(--cream);
+    color: var(--navy);
+
+    font-size: var(--fs-11);
+
+    text-align: center;
+}
+
+.abas a.ativa {
+    border-color: var(--navy);
+
+    background: var(--navy);
+    color: var(--white);
+}
+
+.abas a.ativa span {
+    background: var(--navy-soft);
+    color: var(--white);
+}
+
+
+/* ---------- cartões das exposições ---------- */
+
+.expo-cartoes {
+    display: grid;
+
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+
+    gap: var(--sp-20);
+}
+
+.expo-cartao {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-12);
+
+    padding: var(--sp-24);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    background: var(--white);
+
+    box-shadow: var(--shadow-card);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.expo-cartao[hidden] {
+    display: none;
+}
+
+.expo-cartao:hover {
+    border-color: var(--turquoise);
+
+    box-shadow: var(--shadow-soft);
+
+    transform: translateY(-2px);
+}
+
+.expo-cartao-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: var(--sp-12);
+}
+
+.expo-cartao-topo .eyebrow {
+    margin: 0;
+}
+
+.expo-cartao h2 {
+    color: var(--navy);
+
+    font-size: var(--fs-20);
+    font-weight: 750;
+
+    line-height: 1.25;
+}
+
+.expo-cartao-fatos {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-4) var(--sp-16);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+.expo-cartao-progresso {
+    margin-top: auto;
+}
+
+.expo-cartao-progresso p {
+    margin-top: var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+.expo-cartao-progresso strong {
+    color: var(--navy);
+}
+
+.expo-cartao-proximo {
+    display: flex;
+    flex-direction: column;
+
+    gap: 2px;
+
+    padding: var(--sp-8) var(--sp-12);
+
+    border-left: 3px solid var(--turquoise);
+    border-radius: var(--radius-xs);
+
+    background: var(--cream-light);
+}
+
+.expo-cartao-proximo.estado-atrasado {
+    border-left-color: var(--red);
+
+    background: var(--red-surface);
+}
+
+.expo-cartao-proximo.estado-pendente {
+    border-left-color: var(--yellow);
+}
+
+.expo-cartao-proximo span {
+    color: var(--text-soft);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.expo-cartao-proximo strong {
+    overflow: hidden;
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.busca-vazia {
+    padding: var(--sp-24);
+
+    color: var(--text-soft);
+
+    text-align: center;
+}
+
+
+/* ---------- nova exposição (pages/evento_novo.php) ---------- */
+
+.passos {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-24);
+}
+
+.passo {
+    padding-bottom: var(--sp-24);
+}
+
+.passo-cabecalho {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-16);
+
+    padding: var(--sp-20) var(--sp-24) var(--sp-16);
+
+    border-bottom: 1px solid var(--border);
+}
+
+.passo-numero {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+
+    background: var(--yellow);
+    color: var(--navy);
+
+    font-size: var(--fs-14);
+    font-weight: 800;
+}
+
+.passo-cabecalho h2 {
+    color: var(--navy);
+
+    font-size: var(--fs-18);
+    font-weight: 750;
+}
+
+.passo-cabecalho p {
+    margin-top: 2px;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+.passo-corpo {
+    display: grid;
+
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    gap: var(--sp-16);
+
+    padding: var(--sp-20) var(--sp-24) 0;
+}
+
+.passo-corpo .campo { grid-column: span 2; }
+.passo-corpo .campo-metade { grid-column: span 3; }
+.passo-corpo .campo-largo { grid-column: 1 / -1; }
+
+.passo-corpo .campo-duplo {
+    display: grid;
+
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    border: 0;
+}
+
+.passo-corpo .campo-duplo legend {
+    margin-bottom: var(--sp-4);
+}
+
+.passo-corpo .campo-duplo > span {
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+}
+
+.passo-corpo fieldset {
+    border: 0;
+}
+
+.linhas-necessidades {
+    list-style: none;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-12);
+
+    padding: var(--sp-20) var(--sp-24) 0;
+}
+
+.linha-necessidade {
+    position: relative;
+
+    padding: var(--sp-16) var(--sp-16) var(--sp-16);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    background: var(--cream-light);
+}
+
+.linha-necessidade .necessidade-campos {
+    display: grid;
+
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    gap: var(--sp-12) var(--sp-16);
+}
+
+.linha-necessidade .necessidade-campos .campo { grid-column: span 2; }
+.linha-necessidade .necessidade-campos .campo-titulo { grid-column: span 4; }
+.linha-necessidade .necessidade-campos .campo.campo-curto { grid-column: span 1; }
+
+.remover-linha {
+    position: absolute;
+    top: var(--sp-8);
+    right: var(--sp-12);
+
+    padding: 0;
+
+    border: 0;
+
+    background: transparent;
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.remover-linha:hover {
+    color: var(--red);
+}
+
+.adicionar-linha {
+    margin: var(--sp-16) var(--sp-24) 0;
+
+    min-height: 42px;
+
+    padding: 0 var(--sp-16);
+
+    border: 1px dashed var(--turquoise);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--on-turquoise);
+
+    font-size: var(--fs-13);
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.adicionar-linha:hover {
+    background: var(--turquoise-light);
+}
+
+.concluir-cadastro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+
+    gap: var(--sp-20);
+
+    padding: var(--sp-20) var(--sp-24);
+}
+
+.concluir-cadastro p {
+    margin-right: auto;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+
+/* ---------- responsivo ---------- */
+
+@media (max-width: 900px) {
+    .passo-corpo .campo,
+    .passo-corpo .campo-metade {
+        grid-column: span 3;
+    }
+}
+
+@media (max-width: 700px) {
+    .expo-cartoes {
+        grid-template-columns: 1fr;
+    }
+
+    .passo-corpo .campo,
+    .passo-corpo .campo-metade,
+    .linha-necessidade .necessidade-campos .campo,
+    .linha-necessidade .necessidade-campos .campo-titulo {
+        grid-column: 1 / -1;
+    }
+
+    .linha-necessidade .necessidade-campos .campo.campo-curto {
+        grid-column: span 3;
+    }
+}

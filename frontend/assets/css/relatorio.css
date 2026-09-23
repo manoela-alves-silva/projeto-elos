@@ -1,0 +1,420 @@
+/* =========================================================
+   ELOS — RELATÓRIO DE ATIVIDADES (pages/relatorio.php)
+
+   Na tela: uma folha sobre o fundo creme, com os filtros acima.
+   Na impressão: só a folha, em A4, sem menus nem botões.
+   Só usa os tokens de cor de base.css.
+   ========================================================= */
+
+
+/* ---------- controles (só na tela) ---------- */
+
+.pagina-relatorio {
+    background: var(--cream);
+}
+
+.relatorio-controles {
+    position: sticky;
+    top: 0;
+
+    z-index: 10;
+
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+
+    gap: var(--sp-16) var(--sp-24);
+
+    padding: var(--sp-16) var(--sp-32);
+
+    border-bottom: 1px solid var(--border);
+
+    background: var(--cream-light);
+}
+
+.relatorio-controles .voltar {
+    align-self: center;
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 800;
+}
+
+.relatorio-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+
+    gap: var(--sp-12);
+
+    margin-right: auto;
+}
+
+.relatorio-filtros .campo {
+    min-width: 150px;
+}
+
+.relatorio-filtros .campo:first-child {
+    min-width: 240px;
+}
+
+.botao-atualizar {
+    min-height: 42px;
+
+    padding: 0 var(--sp-16);
+
+    border: 1px solid var(--navy);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.botao-atualizar:hover {
+    background: var(--navy);
+    color: var(--white);
+}
+
+
+/* ---------- a folha ---------- */
+
+.folha {
+    max-width: 1000px;
+
+    margin: var(--sp-32) auto var(--sp-64);
+
+    padding: var(--sp-48) var(--sp-56);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--text);
+
+    box-shadow: var(--shadow-soft);
+}
+
+.folha-cabecalho {
+    display: flex;
+    align-items: flex-start;
+
+    gap: var(--sp-32);
+
+    padding-bottom: var(--sp-24);
+
+    border-bottom: 3px solid var(--navy);
+}
+
+.folha-marca {
+    display: flex;
+    flex-direction: column;
+}
+
+.folha-marca strong {
+    color: var(--navy);
+
+    font-family: var(--font-display);
+    font-size: var(--fs-28);
+    font-weight: 800;
+
+    letter-spacing: 1px;
+}
+
+.folha-marca strong span {
+    color: var(--yellow);
+}
+
+.folha-marca small {
+    color: var(--text-soft);
+
+    font-size: var(--fs-8);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.folha-titulo p:first-child {
+    color: var(--turquoise);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.folha-titulo h1 {
+    margin-top: var(--sp-4);
+
+    color: var(--navy);
+
+    font-size: var(--fs-28);
+    font-weight: 750;
+
+    line-height: 1.2;
+}
+
+.folha-meta {
+    margin-top: var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+}
+
+.folha-exposicao {
+    margin-top: var(--sp-32);
+}
+
+.folha-exposicao-titulo {
+    padding-bottom: var(--sp-8);
+
+    border-bottom: 1px solid var(--border);
+
+    color: var(--navy);
+
+    font-size: var(--fs-20);
+    font-weight: 750;
+}
+
+.folha-resumo {
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: var(--sp-12) var(--sp-32);
+
+    margin-top: var(--sp-16);
+}
+
+.folha-resumo div:last-child {
+    grid-column: 1 / -1;
+}
+
+.folha-resumo dt {
+    color: var(--text-soft);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.folha-resumo dd {
+    margin-top: 2px;
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 600;
+}
+
+.folha h3 {
+    margin: var(--sp-28) 0 var(--sp-8);
+
+    color: var(--navy);
+
+    font-size: var(--fs-14);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.folha-tabela {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    font-size: var(--fs-12);
+}
+
+.folha-tabela th,
+.folha-tabela td {
+    padding: var(--sp-8) var(--sp-8);
+
+    border-bottom: 1px solid var(--border);
+
+    text-align: left;
+    vertical-align: top;
+}
+
+.folha-tabela thead th {
+    border-bottom: 2px solid var(--navy);
+
+    color: var(--navy);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.folha-tabela small {
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+}
+
+.tabela-datas th {
+    width: 160px;
+
+    color: var(--text-soft);
+
+    font-weight: 700;
+}
+
+.col-data {
+    width: 96px;
+
+    white-space: nowrap;
+}
+
+.col-situacao {
+    width: 96px;
+
+    font-weight: 700;
+}
+
+.col-marca {
+    width: 28px;
+}
+
+.marca-caixa {
+    display: inline-grid;
+    place-items: center;
+
+    width: 16px;
+    height: 16px;
+
+    border: 1.5px solid var(--navy);
+    border-radius: 3px;
+
+    color: var(--navy);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    line-height: 1;
+}
+
+tr.estado-atrasado .col-situacao { color: var(--red); }
+tr.estado-concluido .col-situacao { color: var(--on-green); }
+tr.estado-concluido td:nth-child(3) { color: var(--text-soft); }
+
+.folha-vazio {
+    padding: var(--sp-12) 0;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-style: italic;
+}
+
+.folha-rodape {
+    margin-top: var(--sp-40);
+    padding-top: var(--sp-12);
+
+    border-top: 1px solid var(--border);
+
+    color: var(--text-muted);
+
+    font-size: var(--fs-10);
+
+    text-align: center;
+}
+
+
+/* ---------- celular (só a tela) ---------- */
+
+@media (max-width: 700px) {
+    .relatorio-controles {
+        padding: var(--sp-12) var(--sp-16);
+    }
+
+    .relatorio-filtros,
+    .relatorio-filtros .campo,
+    .relatorio-filtros .campo:first-child {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .relatorio-controles .primary-button {
+        width: 100%;
+    }
+
+    .folha {
+        margin: var(--sp-16);
+        padding: var(--sp-24) var(--sp-16);
+
+        overflow-x: auto;
+    }
+
+    .folha-cabecalho {
+        flex-direction: column;
+
+        gap: var(--sp-12);
+    }
+
+    .folha-resumo {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ---------- impressão ---------- */
+
+@page {
+    size: A4;
+    margin: 14mm 12mm;
+}
+
+@media print {
+    .relatorio-controles {
+        display: none;
+    }
+
+    .pagina-relatorio,
+    .folha {
+        background: var(--white);
+    }
+
+    .folha {
+        max-width: none;
+
+        margin: 0;
+        padding: 0;
+
+        border: 0;
+        border-radius: 0;
+
+        box-shadow: none;
+    }
+
+    /* cores fiéis na impressão (faixa do cabeçalho, marcas) */
+    .folha {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .folha-tabela tr,
+    .folha-resumo {
+        break-inside: avoid;
+    }
+
+    .folha h3 {
+        break-after: avoid;
+    }
+
+    .folha-exposicao.nova-pagina {
+        break-before: page;
+    }
+}

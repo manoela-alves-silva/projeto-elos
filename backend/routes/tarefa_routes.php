@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Elos\Controllers\TarefaController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 
 /**
  * Lista ou cadastra tarefas de um evento.
  *
  * GET: qualquer usuário autenticado pode consultar.
  * POST: somente gestor ou administrador pode cadastrar.
+ * A etapa é opcional (checklist de necessidades do evento).
  *
  * @param callable(): TarefaController $tarefaControllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
@@ -50,6 +52,9 @@ function handleTarefaRequest(
         $prioridade = $payload['prioridade'] ?? null;
         $status = $payload['status'] ?? null;
         $observacoes = $payload['observacoes'] ?? null;
+        // Responsável em texto livre (qualquer pessoa, mesmo sem conta).
+        $responsavelNome = $payload['responsavel_nome'] ?? null;
+        $horario = normalizarHorarioTarefa($payload['horario'] ?? null);
 
         if (
             $usuarioResponsavelId !== null
@@ -60,9 +65,11 @@ function handleTarefaRequest(
             ]);
         }
 
-        if (!is_int($etapaId) || $etapaId <= 0) {
+        // Etapa é opcional: necessidades do checklist do evento
+        // (ex.: "comprar pregos") não pertencem a uma etapa.
+        if ($etapaId !== null && (!is_int($etapaId) || $etapaId <= 0)) {
             sendJsonResponse(400, [
-                'erro' => 'Etapa é obrigatória.',
+                'erro' => 'Etapa inválida.',
             ]);
         }
 
@@ -111,6 +118,19 @@ function handleTarefaRequest(
             ]);
         }
 
+        if (
+            $responsavelNome !== null
+            && (!is_string($responsavelNome) || mb_strlen(trim($responsavelNome)) > 150)
+        ) {
+            sendJsonResponse(400, [
+                'erro' => 'Responsável inválido.',
+            ]);
+        }
+
+        $responsavelNome = is_string($responsavelNome) && trim($responsavelNome) !== ''
+            ? trim($responsavelNome)
+            : null;
+
         $tarefaController = $tarefaControllerFactory();
 
         if (!$tarefaController->isValidPriority($prioridade)) {
@@ -135,7 +155,9 @@ function handleTarefaRequest(
             $prazo,
             $prioridade,
             $status,
-            $observacoes
+            $observacoes,
+            $responsavelNome,
+            $horario
         );
 
         if ($tarefa === null) {
@@ -144,6 +166,8 @@ function handleTarefaRequest(
             ]);
         }
 
+        HistoricoService::registrar($eventoId, 'Item adicionado', (string) $tarefa['titulo']);
+
         sendJsonResponse(201, [
             'tarefa' => $tarefa,
         ]);
@@ -151,6 +175,111 @@ function handleTarefaRequest(
 
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
+    ]);
+}
+
+/**
+ * Altera somente o status de uma tarefa.
+ *
+ * GESTOR/ADMIN: podem alterar o status de qualquer tarefa do evento
+ * (mesmo resultado que já obtêm via PUT completo).
+ * COLABORADOR: só pode alterar o status de tarefas cujo
+ * usuario_responsavel_id seja o do próprio usuário autenticado na
+ * sessão — nunca um usuario_id enviado pelo cliente. Nenhum outro
+ * campo da tarefa é aceito nesta rota.
+ *
+ * @param callable(): TarefaController $tarefaControllerFactory
+ * @param callable(): AuthorizationService $authorizationFactory
+ */
+function handleTarefaStatusRequest(
+    string $method,
+    int $eventoId,
+    int $id,
+    callable $tarefaControllerFactory,
+    callable $authorizationFactory
+): never {
+    requireRole($authorizationFactory, 'COLABORADOR');
+
+    if ($method !== 'PUT') {
+        sendJsonResponse(405, [
+            'erro' => 'Método não permitido.',
+        ]);
+    }
+
+    if ($eventoId <= 0 || $id <= 0) {
+        sendJsonResponse(400, [
+            'erro' => 'Evento ou tarefa inválidos.',
+        ]);
+    }
+
+    $tarefaController = $tarefaControllerFactory();
+
+    $tarefa = $tarefaController->show($id);
+
+    if ($tarefa === null || (int) $tarefa['evento_id'] !== $eventoId) {
+        sendJsonResponse(404, [
+            'erro' => 'Tarefa não encontrada.',
+        ]);
+    }
+
+    $authorization = $authorizationFactory();
+
+    if (!$authorization->hasRole('GESTOR')) {
+        // Perfil COLABORADOR (a única possibilidade aqui, já que
+        // requireRole acima exige ao menos COLABORADOR): só pode
+        // mexer na própria tarefa. O usuário vem da sessão, nunca
+        // de um campo enviado pelo cliente.
+        $usuarioAtual = $authorization->currentUser();
+        $usuarioAtualId = (int) ($usuarioAtual['id'] ?? 0);
+
+        $responsavelId = $tarefa['usuario_responsavel_id'] !== null
+            ? (int) $tarefa['usuario_responsavel_id']
+            : null;
+
+        if ($responsavelId === null || $responsavelId !== $usuarioAtualId) {
+            sendJsonResponse(403, [
+                'erro' => 'Você só pode alterar o status de tarefas atribuídas a você.',
+            ]);
+        }
+    }
+
+    $payload = readJsonPayload();
+    $status = $payload['status'] ?? null;
+
+    if (!is_string($status) || trim($status) === '') {
+        sendJsonResponse(400, [
+            'erro' => 'Status é obrigatório.',
+        ]);
+    }
+
+    if (!$tarefaController->isValidStatus($status)) {
+        sendJsonResponse(400, [
+            'erro' => 'Status inválido.',
+        ]);
+    }
+
+    $tarefaAtualizada = $tarefaController->updateStatus(
+        $id,
+        $eventoId,
+        $status
+    );
+
+    if ($tarefaAtualizada === null) {
+        sendJsonResponse(400, [
+            'erro' => 'Não foi possível atualizar o status da tarefa.',
+        ]);
+    }
+
+    if (($tarefa['status'] ?? '') !== ($tarefaAtualizada['status'] ?? '')) {
+        HistoricoService::registrar(
+            $eventoId,
+            ($tarefaAtualizada['status'] ?? '') === 'CONCLUIDA' ? 'Item concluído' : 'Item reaberto',
+            (string) $tarefaAtualizada['titulo']
+        );
+    }
+
+    sendJsonResponse(200, [
+        'tarefa' => $tarefaAtualizada,
     ]);
 }
 
@@ -211,13 +340,21 @@ function handleTarefaByIdRequest(
 
         $payload = readJsonPayload();
 
-        $usuarioResponsavelId = $payload['usuario_responsavel_id']
-            ?? ($tarefaAtual['usuario_responsavel_id'] !== null
+        // array_key_exists: enviar null tira o responsável (com ?? o
+        // null era ignorado e o responsável antigo voltava).
+        $usuarioResponsavelId = array_key_exists('usuario_responsavel_id', $payload)
+            ? $payload['usuario_responsavel_id']
+            : ($tarefaAtual['usuario_responsavel_id'] !== null
                 ? (int) $tarefaAtual['usuario_responsavel_id']
                 : null);
 
-        $etapaId = $payload['etapa_id']
-            ?? (int) $tarefaAtual['etapa_id'];
+        $etapaId = array_key_exists('etapa_id', $payload)
+            ? $payload['etapa_id']
+            : (
+                $tarefaAtual['etapa_id'] !== null
+                    ? (int) $tarefaAtual['etapa_id']
+                    : null
+            );
 
         $categoriaId = array_key_exists('categoria_id', $payload)
             ? $payload['categoria_id']
@@ -248,6 +385,14 @@ function handleTarefaByIdRequest(
             ? $payload['observacoes']
             : $tarefaAtual['observacoes'];
 
+        $responsavelNome = array_key_exists('responsavel_nome', $payload)
+            ? $payload['responsavel_nome']
+            : $tarefaAtual['responsavel_nome'];
+
+        $horario = array_key_exists('horario', $payload)
+            ? normalizarHorarioTarefa($payload['horario'])
+            : $tarefaAtual['horario'];
+
         if (
             $usuarioResponsavelId !== null
             && (!is_int($usuarioResponsavelId) || $usuarioResponsavelId <= 0)
@@ -257,7 +402,7 @@ function handleTarefaByIdRequest(
             ]);
         }
 
-        if (!is_int($etapaId) || $etapaId <= 0) {
+        if ($etapaId !== null && (!is_int($etapaId) || $etapaId <= 0)) {
             sendJsonResponse(400, [
                 'erro' => 'Etapa inválida.',
             ]);
@@ -308,6 +453,19 @@ function handleTarefaByIdRequest(
             ]);
         }
 
+        if (
+            $responsavelNome !== null
+            && (!is_string($responsavelNome) || mb_strlen(trim($responsavelNome)) > 150)
+        ) {
+            sendJsonResponse(400, [
+                'erro' => 'Responsável inválido.',
+            ]);
+        }
+
+        $responsavelNome = is_string($responsavelNome) && trim($responsavelNome) !== ''
+            ? trim($responsavelNome)
+            : null;
+
         if (!$tarefaController->isValidPriority($prioridade)) {
             sendJsonResponse(400, [
                 'erro' => 'Prioridade inválida.',
@@ -331,7 +489,9 @@ function handleTarefaByIdRequest(
             $prazo,
             $prioridade,
             $status,
-            $observacoes
+            $observacoes,
+            $responsavelNome,
+            $horario
         );
 
         if ($tarefa === null) {
@@ -339,6 +499,8 @@ function handleTarefaByIdRequest(
                 'erro' => 'Não foi possível atualizar a tarefa.',
             ]);
         }
+
+        HistoricoService::registrar($eventoId, 'Item editado', (string) $tarefa['titulo']);
 
         sendJsonResponse(200, [
             'tarefa' => $tarefa,
@@ -370,6 +532,8 @@ function handleTarefaByIdRequest(
             ]);
         }
 
+        HistoricoService::registrar($eventoId, 'Item removido', (string) $tarefa['titulo']);
+
         sendJsonResponse(200, [
             'mensagem' => 'Tarefa excluída com sucesso.',
         ]);
@@ -378,4 +542,26 @@ function handleTarefaByIdRequest(
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
     ]);
+}
+
+/**
+ * Horário opcional de um item ("14:30" ou "14:30:00"). Vazio vira null;
+ * qualquer outra coisa encerra a requisição com 400.
+ */
+function normalizarHorarioTarefa(mixed $horario): ?string
+{
+    if ($horario === null || (is_string($horario) && trim($horario) === '')) {
+        return null;
+    }
+
+    if (
+        !is_string($horario)
+        || !preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', trim($horario))
+    ) {
+        sendJsonResponse(400, [
+            'erro' => 'Horário inválido.',
+        ]);
+    }
+
+    return trim($horario);
 }

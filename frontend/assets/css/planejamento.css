@@ -1,0 +1,562 @@
+/* =========================================================
+   ELOS — PLANEJAMENTO (componentes compartilhados)
+
+   Usado pelas telas centradas na exposição: Início, Exposições,
+   Exposição, Nova exposição e Calendário. Depende de base.css e
+   dashboard.css. Só usa os tokens de cor de base.css.
+   ========================================================= */
+
+
+/* ---------- acessibilidade ---------- */
+
+.sr-only {
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    overflow: hidden;
+
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+
+/* ---------- avisos curtos (após salvar) ---------- */
+
+.aviso {
+    margin-bottom: var(--sp-20);
+
+    padding: var(--sp-12) var(--sp-16);
+
+    border-radius: var(--radius-sm);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
+}
+
+.aviso-ok {
+    border: 1px solid var(--blue-border);
+
+    background: var(--blue-light);
+    color: var(--navy);
+}
+
+.aviso-erro,
+.form-erro {
+    border: 1px solid var(--red-border);
+
+    background: var(--red-light);
+    color: var(--red-dark);
+}
+
+/* Local ocupado: pede atenção, mas deixa seguir. */
+.aviso-conflito {
+    border: 1px solid var(--yellow);
+
+    background: var(--yellow-light);
+    color: var(--navy);
+
+    font-weight: 500;
+}
+
+.aviso-conflito ul {
+    margin: var(--sp-8) 0;
+    padding-left: var(--sp-20);
+}
+
+.aviso-conflito a {
+    color: var(--navy);
+    font-weight: 700;
+}
+
+.aviso-conflito p + button,
+.aviso-conflito button {
+    margin-top: var(--sp-8);
+}
+
+.form-erro {
+    margin-bottom: var(--sp-16);
+
+    padding: var(--sp-8) var(--sp-12);
+
+    border-radius: var(--radius-sm);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+}
+
+
+/* ---------- estado de um item (pendente, concluído...) ---------- */
+
+.estado-tag {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 22px;
+
+    padding: 0 var(--sp-8);
+
+    border-radius: var(--radius-pill);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+
+    white-space: nowrap;
+}
+
+.estado-tag.pendente { background: var(--yellow-light); color: var(--on-yellow); }
+.estado-tag.atrasado { background: var(--red-light); color: var(--red-dark); }
+.estado-tag.agendado { background: var(--blue-light); color: var(--blue); }
+.estado-tag.concluido { background: var(--green-light); color: var(--on-green); }
+.estado-tag.cancelado { background: var(--cream-dark); color: var(--text-soft); }
+
+.texto-atrasado {
+    color: var(--red);
+
+    font-weight: 800;
+}
+
+
+/* ---------- barra de progresso do checklist ---------- */
+
+.progresso {
+    height: 8px;
+
+    overflow: hidden;
+
+    border-radius: var(--radius-pill);
+
+    background: var(--cream-dark);
+}
+
+.progresso span {
+    display: block;
+
+    height: 100%;
+
+    border-radius: inherit;
+
+    background: var(--turquoise);
+
+    transition: width 0.3s ease;
+}
+
+
+/* ---------- lista de datas (próximas atividades) ---------- */
+
+.lista-datas {
+    list-style: none;
+}
+
+.lista-datas li {
+    display: grid;
+
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+
+    gap: var(--sp-12);
+
+    padding: var(--sp-12) var(--sp-24);
+
+    border-bottom: 1px solid var(--border);
+}
+
+.lista-datas li:last-child {
+    border-bottom: 0;
+}
+
+/* marca lateral com a cor do tipo de data */
+.lista-datas li .event-date {
+    border-left: 3px solid transparent;
+}
+
+.lista-datas li.grupo-montagem .event-date { border-left-color: var(--yellow); }
+.lista-datas li.grupo-abertura .event-date { border-left-color: var(--turquoise); }
+.lista-datas li.grupo-permanencia .event-date { border-left-color: var(--blue); }
+.lista-datas li.grupo-desmontagem .event-date { border-left-color: var(--sand); }
+.lista-datas li.estado-atrasado .event-date { background: var(--red-light); }
+.lista-datas li.estado-atrasado .event-date strong { color: var(--red-dark); }
+
+.lista-datas-texto {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 2px;
+}
+
+.lista-datas-texto small {
+    color: var(--text-soft);
+
+    font-size: var(--fs-10);
+    font-weight: 800;
+
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.lista-datas-texto strong {
+    overflow: hidden;
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+a.lista-datas-texto:hover strong {
+    color: var(--blue);
+
+    text-decoration: underline;
+}
+
+.lista-datas li.estado-concluido .lista-datas-texto strong {
+    color: var(--text-soft);
+
+    text-decoration: line-through;
+}
+
+
+/* ---------- lista simples (visitas, transportes, anexos...) ---------- */
+
+.lista-simples {
+    list-style: none;
+}
+
+.lista-simples li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-8) var(--sp-16);
+
+    padding: var(--sp-12) var(--sp-24);
+
+    border-bottom: 1px solid var(--border);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+.lista-simples li:last-child {
+    border-bottom: 0;
+}
+
+.lista-simples li strong {
+    flex: 1 1 220px;
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+}
+
+
+/* ---------- formulários ---------- */
+
+.form-elos .campo {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-4);
+
+    min-width: 0;
+}
+
+.form-elos label,
+.form-elos legend {
+    color: var(--navy);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+}
+
+.form-elos label span {
+    color: var(--text-muted);
+
+    font-weight: 500;
+}
+
+.form-elos input[type="text"],
+.form-elos input[type="date"],
+.form-elos input[type="time"],
+.form-elos select,
+.form-elos textarea {
+    width: 100%;
+    min-height: 42px;
+
+    padding: 0 var(--sp-12);
+
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--text);
+
+    font-size: var(--fs-13);
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.form-elos textarea {
+    padding: var(--sp-8) var(--sp-12);
+
+    resize: vertical;
+}
+
+.form-elos input:focus,
+.form-elos select:focus,
+.form-elos textarea:focus {
+    border-color: var(--turquoise);
+
+    box-shadow: 0 0 0 3px rgba(53, 167, 167, 0.12);
+}
+
+.form-elos input[hidden] {
+    display: none;
+}
+
+/* lista aberta: bloco para escrever um item novo (tipo, local...) */
+.novo-item {
+    display: flex;
+
+    gap: var(--sp-8);
+
+    margin-top: var(--sp-8);
+}
+
+.novo-item[hidden] {
+    display: none;
+}
+
+.novo-item input {
+    flex: 1;
+}
+
+.form-elos .novo-item select {
+    flex: 0 0 132px;
+
+    width: auto;
+}
+
+.form-elos .cursos-outros {
+    margin-top: var(--sp-8);
+}
+
+.form-botoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+
+    gap: var(--sp-16);
+
+    margin-top: var(--sp-16);
+}
+
+.form-botoes .dica {
+    margin-right: auto;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+}
+
+/* caixas de marcar grandes, clicáveis pelo texto (ex.: cursos) */
+.opcoes-marcar {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8);
+
+    margin-top: var(--sp-4);
+}
+
+.opcao-marcar {
+    position: relative;
+
+    cursor: pointer;
+}
+
+.opcao-marcar input {
+    position: absolute;
+
+    opacity: 0;
+}
+
+.opcao-marcar span {
+    display: inline-flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    min-height: 36px;
+
+    padding: 0 var(--sp-12);
+
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-pill);
+
+    background: var(--white);
+    color: var(--text);
+
+    font-size: var(--fs-12);
+    font-weight: 600;
+
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease;
+}
+
+.opcao-marcar span::before {
+    content: "";
+
+    width: 14px;
+    height: 14px;
+
+    border: 2px solid var(--border-input);
+    border-radius: var(--radius-xs);
+
+    background: var(--white);
+}
+
+.opcao-marcar input:checked + span {
+    border-color: var(--turquoise);
+
+    background: var(--turquoise-light);
+    color: var(--on-turquoise);
+}
+
+.opcao-marcar input:checked + span::before {
+    border-color: var(--turquoise);
+
+    background: var(--turquoise);
+    box-shadow: inset 0 0 0 2px var(--white);
+}
+
+.opcao-marcar input:focus-visible + span {
+    box-shadow: 0 0 0 3px rgba(53, 167, 167, 0.2);
+}
+
+
+/* ---------- botões ---------- */
+
+/* botão de contorno, ao lado do botão amarelo principal */
+.botao-secundario {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: var(--sp-8);
+
+    min-height: 46px;
+
+    padding: 0 var(--sp-20);
+
+    border: 1px solid var(--navy);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 800;
+
+    white-space: nowrap;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+.botao-secundario:hover {
+    background: var(--navy);
+    color: var(--white);
+}
+
+.acoes-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-12);
+}
+
+.expo-identidade .acoes-cabecalho {
+    margin-top: var(--sp-20);
+}
+
+.expo-identidade .botao-secundario {
+    min-height: 38px;
+
+    padding: 0 var(--sp-16);
+
+    font-size: var(--fs-12);
+}
+
+.botao-perigo {
+    min-height: 34px;
+
+    padding: 0 var(--sp-12);
+
+    border: 0;
+    border-radius: var(--radius-sm);
+
+    background: var(--red);
+    color: var(--white);
+
+    font-size: var(--fs-12);
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.botao-perigo:hover {
+    background: var(--red-dark);
+}
+
+summary {
+    list-style: none;
+
+    cursor: pointer;
+}
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+
+/* ---------- chips ---------- */
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-4);
+}
+
+.chip {
+    display: inline-flex;
+
+    padding: 2px var(--sp-8);
+
+    border-radius: var(--radius-pill);
+
+    background: var(--cream);
+    color: var(--navy);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
+}
