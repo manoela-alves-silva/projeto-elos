@@ -52,7 +52,7 @@ $usuario = usuarioLogado('login.php');
 $podeGerenciar = $usuario['podeGerenciar'];
 
 const TIPOS_HORARIO = ['HORARIO_ESPECIFICO', 'DIA_TODO', 'TURNO_MANHA', 'TURNO_NOITE', 'MANHA_E_NOITE'];
-const CAMPOS_NECESSIDADE = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'responsavel', 'prioridade', 'observacoes'];
+const CAMPOS_NECESSIDADE = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'horario', 'responsavel', 'prioridade', 'observacoes'];
 
 /**
  * Lê e valida os campos de uma necessidade vindos do POST.
@@ -71,6 +71,7 @@ function lerNecessidade(array $post): array
         $valores['titulo'] === '' => 'Escreva o que precisa ser feito.',
         !in_array($valores['prioridade'], PRIORIDADES, true) => 'Escolha a prioridade.',
         $valores['prazo'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $valores['prazo']) => 'Data inválida.',
+        $valores['horario'] !== '' && !preg_match('/^\d{2}:\d{2}$/', $valores['horario']) => 'Horário inválido.',
         default => '',
     };
 
@@ -90,6 +91,7 @@ function lerNecessidade(array $post): array
             'categoria_id' => $categoria['id'],
             'titulo' => $valores['titulo'],
             'prazo' => $valores['prazo'] !== '' ? $valores['prazo'] : null,
+            'horario' => $valores['horario'] !== '' ? $valores['horario'] : null,
             'prioridade' => $valores['prioridade'],
             'observacoes' => $valores['observacoes'] !== '' ? $valores['observacoes'] : null,
         ] + resolverResponsavel($valores['responsavel'], apiLista('/api/usuarios', 'usuarios') ?? []),
@@ -256,7 +258,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
 
                 Api::put('/api/eventos/' . $eventoId, $cadastros['ids'] + [
                     'titulo' => $titulo,
-                    'prioridade' => (string) ($_POST['prioridade'] ?? ''),
                     'status' => $cancelada ? 'CANCELADO' : 'PLANEJAMENTO',
                     'descricao' => $descricao !== '' ? $descricao : null,
                     'observacoes' => $observacoes !== '' ? $observacoes : null,
@@ -438,9 +439,14 @@ function camposNecessidade(string $prefixo, array $v, array $categorias, array $
             >
         </div>
 
-        <div class="campo">
+        <div class="campo campo-curto">
             <label for="<?= $prefixo ?>prazo">Data</label>
             <input id="<?= $prefixo ?>prazo" type="date" name="prazo" value="<?= esc($v['prazo']) ?>">
+        </div>
+
+        <div class="campo campo-curto">
+            <label for="<?= $prefixo ?>horario">Horário <span>(opcional)</span></label>
+            <input id="<?= $prefixo ?>horario" type="time" name="horario" value="<?= esc($v['horario']) ?>">
         </div>
 
         <div class="campo">
@@ -474,7 +480,7 @@ function camposNecessidade(string $prefixo, array $v, array $categorias, array $
                 id="<?= $prefixo ?>obs"
                 type="text"
                 name="observacoes"
-                placeholder="Fornecedor, quantidade, detalhes…"
+                placeholder="Fornecedor, quantidade, origem e destino, nº de pessoas…"
                 value="<?= esc($v['observacoes']) ?>"
             >
         </div>
@@ -496,6 +502,7 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
         'nova_categoria' => '',
         'titulo' => (string) ($tarefa['titulo'] ?? ''),
         'prazo' => (string) ($tarefa['prazo'] ?? ''),
+        'horario' => substr((string) ($tarefa['horario'] ?? ''), 0, 5),
         'responsavel' => nomeDoResponsavel($tarefa),
         'prioridade' => (string) ($tarefa['prioridade'] ?? 'MEDIA'),
         'observacoes' => (string) ($tarefa['observacoes'] ?? ''),
@@ -529,7 +536,7 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
             <p class="item-meta">
                 <?php if (!empty($tarefa['prazo'])): ?>
                     <span class="item-data<?= $estado === 'atrasado' ? ' atrasada' : '' ?>">
-                        <?= esc(dataBr($tarefa['prazo'])) ?><?php if (!$concluida && !$cancelada): ?> · <?= esc(distanciaRelativa((string) $tarefa['prazo'])) ?><?php endif; ?>
+                        <?= esc(dataHoraBr($tarefa['prazo'], $tarefa['horario'] ?? null)) ?><?php if (!$concluida && !$cancelada): ?> · <?= esc(distanciaRelativa((string) $tarefa['prazo'])) ?><?php endif; ?>
                     </span>
                 <?php else: ?>
                     <span class="item-data sem">Sem data</span>
@@ -669,7 +676,6 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                         <?php if (!empty($evento['responsavel_nome'])): ?>
                             <li><span aria-hidden="true">◎</span> <?= esc($evento['responsavel_nome']) ?></li>
                         <?php endif; ?>
-                        <li>Prioridade <strong class="<?= classePrioridade((string) ($evento['prioridade'] ?? '')) ?>"><?= esc(rotuloPrioridade((string) ($evento['prioridade'] ?? ''))) ?></strong></li>
                     </ul>
 
                     <div class="acoes-cabecalho">
@@ -781,87 +787,6 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                     </article>
 
                     <!-- SÓ APARECE O QUE EXISTE -->
-                    <?php if (($plano->visitas ?? []) !== []): ?>
-                        <article class="panel" id="visitas">
-                            <div class="panel-header">
-                                <div><p class="eyebrow">Público</p><h2>Visitas</h2></div>
-                                <a href="visitas.php" class="text-link">Ver todas →</a>
-                            </div>
-                            <ul class="lista-simples">
-                                <?php foreach ($plano->visitas as $visita): ?>
-                                    <?php $status = (string) ($visita['status'] ?? ''); ?>
-                                    <li>
-                                        <strong><?= esc($visita['instituicao'] ?? 'Instituição não informada') ?></strong>
-                                        <span><?= esc(dataHoraBr($visita['data'] ?? null, $visita['horario'] ?? null)) ?></span>
-                                        <?php if (!empty($visita['quantidade_pessoas'])): ?>
-                                            <span><?= (int) $visita['quantidade_pessoas'] ?> pessoas</span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($visita['responsavel'])): ?>
-                                            <span><?= esc($visita['responsavel']) ?></span>
-                                        <?php endif; ?>
-                                        <span class="estado-tag <?= match ($status) { 'REALIZADA' => 'concluido', 'CANCELADA' => 'cancelado', default => 'agendado' } ?>">
-                                            <?= esc(match ($status) { 'REALIZADA' => 'Realizada', 'CANCELADA' => 'Cancelada', default => 'Agendada' }) ?>
-                                        </span>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </article>
-                    <?php endif; ?>
-
-                    <?php if (($plano->transportes ?? []) !== []): ?>
-                        <article class="panel" id="transportes">
-                            <div class="panel-header">
-                                <div><p class="eyebrow">Logística</p><h2>Transportes</h2></div>
-                                <a href="transportes.php" class="text-link">Ver todos →</a>
-                            </div>
-                            <ul class="lista-simples">
-                                <?php foreach ($plano->transportes as $transporte): ?>
-                                    <?php $status = (string) ($transporte['status'] ?? ''); ?>
-                                    <li>
-                                        <strong><?= esc(($transporte['origem'] ?? '—') . ' → ' . ($transporte['destino'] ?? '—')) ?></strong>
-                                        <span><?= esc(dataHoraBr($transporte['data_transporte'] ?? null, $transporte['horario'] ?? null)) ?></span>
-                                        <span><?= esc(match ((string) ($transporte['tipo'] ?? '')) { 'OBRAS' => 'Obras', 'MATERIAIS' => 'Materiais', 'EQUIPAMENTOS' => 'Equipamentos', 'DEVOLUCAO' => 'Devolução', default => 'Outro' }) ?></span>
-                                        <span class="estado-tag <?= match ($status) { 'REALIZADO' => 'concluido', 'CANCELADO' => 'cancelado', 'AGENDADO' => 'agendado', default => 'pendente' } ?>">
-                                            <?= esc(match ($status) { 'REALIZADO' => 'Realizado', 'CANCELADO' => 'Cancelado', 'AGENDADO' => 'Agendado', 'SOLICITADO' => 'Solicitado', default => 'Não solicitado' }) ?>
-                                        </span>
-                                        <?php if ($podeGerenciar): ?>
-                                            <a class="text-link" href="transportes.php?painel=editar&evento_id=<?= $eventoId ?>&id=<?= (int) $transporte['id'] ?>">Editar</a>
-                                        <?php endif; ?>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </article>
-                    <?php endif; ?>
-
-                    <?php if (($plano->formularios ?? []) !== []): ?>
-                        <article class="panel" id="formularios">
-                            <div class="panel-header">
-                                <div><p class="eyebrow">Documentos</p><h2>Formulários</h2></div>
-                                <a href="formularios.php" class="text-link">Ver todos →</a>
-                            </div>
-                            <ul class="lista-simples">
-                                <?php foreach ($plano->formularios as $formulario): ?>
-                                    <?php $status = (string) ($formulario['status'] ?? ''); ?>
-                                    <li>
-                                        <strong><?= esc($formulario['tipo'] ?? 'Formulário') ?></strong>
-                                        <span>Previsão: <?= esc(dataBr($formulario['data_previsao'] ?? null, 'sem data')) ?></span>
-                                        <?php if (!empty($formulario['data_envio'])): ?>
-                                            <span>Enviado em <?= esc(dataBr($formulario['data_envio'])) ?></span>
-                                        <?php endif; ?>
-                                        <?php
-                                        // Atrasado = ainda não enviado depois da data prevista.
-                                        $atrasado = !in_array($status, ['ENVIADO', 'CANCELADO'], true)
-                                            && !empty($formulario['data_previsao'])
-                                            && (string) $formulario['data_previsao'] < date('Y-m-d');
-                                        ?>
-                                        <span class="estado-tag <?= $atrasado ? 'atrasado' : match ($status) { 'ENVIADO' => 'concluido', 'CANCELADO' => 'cancelado', default => 'pendente' } ?>">
-                                            <?= esc($atrasado ? 'Atrasado' : match ($status) { 'ENVIADO' => 'Enviado', 'CANCELADO' => 'Cancelado', 'EM_PREPARACAO' => 'Em preparação', default => 'Pendente' }) ?>
-                                        </span>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </article>
-                    <?php endif; ?>
 
                     <?php if ($anexos !== []): ?>
                         <article class="panel" id="anexos">
@@ -889,9 +814,11 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                             <ul class="lista-simples">
                                 <?php foreach ($historico as $registro): ?>
                                     <li>
-                                        <strong><?= esc(($registro['descricao'] ?? '') !== '' ? $registro['descricao'] : ($registro['acao'] ?? '')) ?></strong>
-                                        <span><?= esc($registro['usuario_nome'] ?? '') ?></span>
-                                        <span><?= esc(dataHoraBr($registro['created_at'] ?? null)) ?></span>
+                                        <strong><?= esc($registro['acao'] ?? '') ?></strong>
+                                        <?php if (($registro['descricao'] ?? '') !== ''): ?>
+                                            <span class="historico-detalhe"><?= esc($registro['descricao']) ?></span>
+                                        <?php endif; ?>
+                                        <span><?= esc(($registro['usuario_nome'] ?? '') !== '' ? $registro['usuario_nome'] : 'Sistema') ?> · <?= esc(dataHoraBr($registro['created_at'] ?? null)) ?></span>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
@@ -1070,23 +997,13 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 <?php selectAberto('tipo_evento_id', 'Tipo', $tipos, $valorInfo('tipo_evento_id'), $valorInfo('tipo_evento_id_novo'), 'Novo tipo', 'Ex.: Mostra acadêmica'); ?>
                                 <?php selectAberto('responsavel_id', 'Responsável', $responsaveis, $valorInfo('responsavel_id'), $valorInfo('responsavel_id_novo'), 'Novo responsável', 'Nome do responsável', 'campo', extraTipoResponsavel($valorInfo('responsavel_tipo_novo') ?: 'PESSOA')); ?>
                                 <?php selectAberto('local_id', 'Local', $locais, $valorInfo('local_id'), $valorInfo('local_id_novo'), 'Novo local', 'Ex.: Auditório do bloco B'); ?>
-                                <div class="campo-par">
-                                    <fieldset class="campo">
-                                        <legend>Situação</legend>
-                                        <label class="opcao-marcar">
-                                            <input type="checkbox" name="cancelada" value="1" <?= ($info !== [] ? ($info['cancelada'] ?? '') === '1' : ($evento['status'] ?? '') === 'CANCELADO') ? 'checked' : '' ?>>
-                                            <span>Exposição cancelada</span>
-                                        </label>
-                                    </fieldset>
-                                    <div class="campo">
-                                        <label for="prioridade">Prioridade</label>
-                                        <select id="prioridade" name="prioridade">
-                                            <?php foreach (PRIORIDADES as $prioridade): ?>
-                                                <option value="<?= $prioridade ?>" <?= $prioridade === ($evento['prioridade'] ?? '') ? 'selected' : '' ?>><?= esc(rotuloPrioridade($prioridade)) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
+                                <fieldset class="campo">
+                                    <legend>Situação</legend>
+                                    <label class="opcao-marcar">
+                                        <input type="checkbox" name="cancelada" value="1" <?= ($info !== [] ? ($info['cancelada'] ?? '') === '1' : ($evento['status'] ?? '') === 'CANCELADO') ? 'checked' : '' ?>>
+                                        <span>Exposição cancelada</span>
+                                    </label>
+                                </fieldset>
                                 <fieldset class="campo">
                                     <legend>Cursos envolvidos</legend>
                                     <?php if ($cursos !== []): ?>

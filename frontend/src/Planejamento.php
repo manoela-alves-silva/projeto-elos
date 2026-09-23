@@ -9,8 +9,9 @@ require_once __DIR__ . '/elos.php';
 /**
  * Tudo o que uma exposição tem, carregado da API e organizado.
  *
- * É o "caderno" da exposição: agenda (marcos), necessidades
- * (checklist — tabela tarefas), visitas, transportes e formulários.
+ * É o "caderno" da exposição: agenda (marcos) e necessidades (checklist
+ * — tabela tarefas). Visitas, transportes e documentos também são itens
+ * do checklist, com a categoria dizendo o tipo.
  * A partir disso monta a lista única de itens com data, que alimenta
  * a própria exposição, o Início e o Calendário — a professora cadastra
  * uma vez e o resto acompanha.
@@ -31,18 +32,12 @@ final class Planejamento
      * @param array<string, mixed> $evento
      * @param array<string, mixed>|null $agenda
      * @param list<array<string, mixed>>|null $necessidades
-     * @param list<array<string, mixed>>|null $visitas
-     * @param list<array<string, mixed>>|null $transportes
-     * @param list<array<string, mixed>>|null $formularios
      */
     private function __construct(
         public readonly array $evento,
         public readonly ?array $agenda,
         public readonly bool $agendaIndisponivel,
-        public readonly ?array $necessidades,
-        public readonly ?array $visitas,
-        public readonly ?array $transportes,
-        public readonly ?array $formularios
+        public readonly ?array $necessidades
     ) {
     }
 
@@ -68,10 +63,7 @@ final class Planejamento
             $evento,
             $agenda,
             $agendaIndisponivel,
-            self::ordenarNecessidades(apiLista('/api/eventos/' . $id . '/tarefas', 'tarefas')),
-            apiLista('/api/eventos/' . $id . '/visitas', 'visitas'),
-            apiLista('/api/eventos/' . $id . '/transportes', 'transportes'),
-            apiLista('/api/eventos/' . $id . '/formularios', 'formularios')
+            self::ordenarNecessidades(apiLista('/api/eventos/' . $id . '/tarefas', 'tarefas'))
         );
     }
 
@@ -176,7 +168,7 @@ final class Planejamento
      * Itens com data da exposição, em ordem cronológica.
      *
      * Cada item: data (Y-m-d), horario (?H:i), origem (marco |
-     * necessidade | visita | transporte | formulario), titulo,
+     * necessidade), titulo,
      * categoria, estado (marco | pendente | atrasado | agendado |
      * concluido | cancelado), rotuloEstado, grupo (cor do marco),
      * link (para a exposição, na seção certa).
@@ -212,7 +204,7 @@ final class Planejamento
             $estado = self::estadoNecessidade($tarefa);
             $itens[] = $this->item(
                 (string) $tarefa['prazo'],
-                null,
+                $tarefa['horario'] ?? null,
                 'necessidade',
                 (string) ($tarefa['titulo'] ?? 'Necessidade'),
                 (string) ($tarefa['categoria_nome'] ?? 'Necessidade'),
@@ -224,87 +216,6 @@ final class Planejamento
                     default => 'Pendente',
                 },
                 $base . '#item-' . (int) ($tarefa['id'] ?? 0)
-            );
-        }
-
-        foreach ($this->visitas ?? [] as $visita) {
-            if (empty($visita['data'])) {
-                continue;
-            }
-
-            [$estado, $rotulo] = match ((string) ($visita['status'] ?? '')) {
-                'REALIZADA' => ['concluido', 'Realizada'],
-                'CANCELADA' => ['cancelado', 'Cancelada'],
-                default => ['agendado', 'Agendada'],
-            };
-
-            $itens[] = $this->item(
-                (string) $visita['data'],
-                $visita['horario'] ?? null,
-                'visita',
-                (string) ($visita['instituicao'] ?? 'Instituição não informada'),
-                'Visita',
-                $estado,
-                $rotulo,
-                $base . '#visitas'
-            );
-        }
-
-        foreach ($this->transportes ?? [] as $transporte) {
-            if (empty($transporte['data_transporte'])) {
-                continue;
-            }
-
-            $status = (string) ($transporte['status'] ?? '');
-            [$estado, $rotulo] = match ($status) {
-                'REALIZADO' => ['concluido', 'Realizado'],
-                'CANCELADO' => ['cancelado', 'Cancelado'],
-                'AGENDADO' => ['agendado', 'Agendado'],
-                'SOLICITADO' => ['pendente', 'Solicitado'],
-                default => ['pendente', 'Não solicitado'],
-            };
-
-            if ($estado === 'pendente' && (string) $transporte['data_transporte'] < hoje()) {
-                $estado = 'atrasado';
-            }
-
-            $itens[] = $this->item(
-                (string) $transporte['data_transporte'],
-                $transporte['horario'] ?? null,
-                'transporte',
-                ($transporte['origem'] ?? '—') . ' → ' . ($transporte['destino'] ?? '—'),
-                'Transporte',
-                $estado,
-                $rotulo,
-                $base . '#transportes'
-            );
-        }
-
-        foreach ($this->formularios ?? [] as $formulario) {
-            $status = (string) ($formulario['status'] ?? '');
-            $data = $status === 'ENVIADO'
-                ? ($formulario['data_envio'] ?? $formulario['data_previsao'] ?? null)
-                : ($formulario['data_previsao'] ?? null);
-
-            if (empty($data)) {
-                continue;
-            }
-
-            [$estado, $rotulo] = match ($status) {
-                'ENVIADO' => ['concluido', 'Enviado'],
-                'CANCELADO' => ['cancelado', 'Cancelado'],
-                default => [(string) $data < hoje() ? 'atrasado' : 'pendente', 'A enviar'],
-            };
-
-            $itens[] = $this->item(
-                (string) $data,
-                null,
-                'formulario',
-                (string) ($formulario['tipo'] ?? 'Formulário'),
-                'Documento',
-                $estado,
-                $rotulo,
-                $base . '#formularios'
             );
         }
 
@@ -350,8 +261,8 @@ final class Planejamento
         usort(
             $necessidades,
             static fn(array $a, array $b): int =>
-                [in_array($a['status'] ?? '', ['CONCLUIDA', 'CANCELADA'], true), $a['prazo'] ?? '9999-12-31', (int) ($a['id'] ?? 0)]
-                <=> [in_array($b['status'] ?? '', ['CONCLUIDA', 'CANCELADA'], true), $b['prazo'] ?? '9999-12-31', (int) ($b['id'] ?? 0)]
+                [in_array($a['status'] ?? '', ['CONCLUIDA', 'CANCELADA'], true), $a['prazo'] ?? '9999-12-31', $a['horario'] ?? '99:99', (int) ($a['id'] ?? 0)]
+                <=> [in_array($b['status'] ?? '', ['CONCLUIDA', 'CANCELADA'], true), $b['prazo'] ?? '9999-12-31', $b['horario'] ?? '99:99', (int) ($b['id'] ?? 0)]
         );
 
         return $necessidades;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Elos\Controllers\EventoController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 
 /**
  * Processa as requisições de eventos.
@@ -39,7 +40,9 @@ function handleEventoRequest(
         $localId = $payload['local_id'] ?? null;
         $titulo = $payload['titulo'] ?? null;
         $descricao = $payload['descricao'] ?? null;
-        $prioridade = $payload['prioridade'] ?? null;
+        // A exposição não usa mais prioridade (só os itens do checklist);
+        // a coluna continua e recebe o padrão quando não vem nada.
+        $prioridade = $payload['prioridade'] ?? 'MEDIA';
         $status = $payload['status'] ?? null;
         $observacoes = $payload['observacoes'] ?? null;
 
@@ -121,6 +124,8 @@ function handleEventoRequest(
                 'erro' => 'Não foi possível cadastrar o evento.',
             ]);
         }
+
+        HistoricoService::registrar((int) $evento['id'], 'Exposição criada', (string) $evento['titulo']);
 
         sendJsonResponse(201, [
             'evento' => $evento,
@@ -282,6 +287,8 @@ function handleEventoByIdRequest(
             ]);
         }
 
+        registrarAlteracoesDoEvento($id, $eventoAtual, $evento);
+
         sendJsonResponse(200, [
             'evento' => $evento,
         ]);
@@ -333,4 +340,43 @@ function handleEventoConflitosRequest(
             $exceto === false ? null : $exceto
         ),
     ]);
+}
+
+/**
+ * Histórico de uma edição: cancelamento/reativação e os campos que
+ * mudaram. Salvar sem mudar nada não registra.
+ */
+function registrarAlteracoesDoEvento(int $id, array $antes, array $depois): void
+{
+    $cancelada = static fn(array $e): bool => ($e['status'] ?? '') === 'CANCELADO';
+
+    if ($cancelada($antes) !== $cancelada($depois)) {
+        HistoricoService::registrar($id, $cancelada($depois) ? 'Exposição cancelada' : 'Exposição reativada');
+    }
+
+    $rotulos = [
+        'titulo' => 'nome',
+        'tipo_evento_id' => 'tipo',
+        'responsavel_id' => 'responsável',
+        'local_id' => 'local',
+        'descricao' => 'descrição',
+        'observacoes' => 'observações',
+    ];
+    $mudou = [];
+
+    foreach ($rotulos as $campo => $rotulo) {
+        if ((string) ($antes[$campo] ?? '') !== (string) ($depois[$campo] ?? '')) {
+            $mudou[] = $rotulo;
+        }
+    }
+
+    if ($mudou !== []) {
+        $descricao = 'Mudou: ' . implode(', ', $mudou);
+
+        if (in_array('local', $mudou, true)) {
+            $descricao .= ' (agora: ' . ($depois['local_nome'] ?? '') . ')';
+        }
+
+        HistoricoService::registrar($id, 'Informações alteradas', $descricao);
+    }
 }

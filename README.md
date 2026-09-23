@@ -31,9 +31,9 @@ exposição, e as outras telas se montam sozinhas a partir dela:
 ```
 
 - **Necessidades** são livres: cada item do checklist diz o que precisa ser
-  feito, com categoria, data, responsável e prioridade. O responsável pode
-  ser qualquer pessoa, mesmo sem conta no sistema, como um técnico, um
-  setor ou alguém de fora.
+  feito, com categoria, data, horário, responsável, prioridade e
+  observações. O responsável pode ser qualquer pessoa, mesmo sem conta no
+  sistema, como um técnico, um setor ou alguém de fora.
 - O **Início** mostra a exposição em acompanhamento, as próximas atividades
   e as pendências.
 - O **Calendário** junta as datas das exposições e dos itens do checklist.
@@ -67,10 +67,46 @@ exposição e nada é salvo até a pessoa escolher **"Salvar mesmo assim"**.
 É um aviso, e não um bloqueio, porque duas mostras podem dividir o espaço
 de propósito.
 
-### Formulários atrasados
+### Um checklist só
 
-"Atrasado" não se escolhe: um formulário que não foi enviado até a data
-prevista aparece como atrasado sozinho.
+Transportes, visitas e documentos **são itens do checklist**. A categoria
+diz o tipo (Transporte, Visita, Documentação…). O que é específico de cada
+tipo vai nas observações:
+
+| Exemplo de item | Categoria | Data e horário | Observações |
+|-----------------|-----------|----------------|-------------|
+| Buscar as obras no ateliê | Transporte | 10/10, 08:00 | Rua X → Galeria. Caminhão baú |
+| Visita da Escola Municipal Y | Visita | 15/10, 14:00 | 30 alunos, 2 professores |
+| Enviar termo de cessão de obras | Documentação | 01/10 | Assinado pela artista |
+
+Não existe tela separada de transportes, visitas ou formulários: tudo fica
+no mesmo lugar, e o Calendário e o Início mostram esses itens com data e
+horário.
+
+### Itens atrasados
+
+"Atrasado" não se escolhe: um item que não foi marcado como feito até a
+data aparece como atrasado sozinho.
+
+### Histórico automático
+
+A página da exposição tem um histórico de **quem fez o quê e quando**,
+gravado pelo backend (ninguém precisa anotar e ninguém consegue forjar):
+
+- exposição criada, cancelada ou reativada;
+- informações alteradas (diz quais campos mudaram e o novo local);
+- datas definidas ou alteradas (com o resumo das datas);
+- item do checklist adicionado, editado, removido, concluído ou reaberto;
+- anexo adicionado ou removido.
+
+Salvar sem mudar nada não gera registro. Se o histórico falhar, a ação
+continua valendo (o erro vai para o log).
+
+### Prioridade só nos itens
+
+A exposição não tem prioridade. Quem tem prioridade são os itens do
+checklist, e os de prioridade alta com data próxima aparecem como alerta
+no Início.
 
 ### Exposições não são apagadas
 
@@ -141,7 +177,7 @@ projeto-elos/
 │   │   ├── config/               conexão com o banco (variáveis DB_*)
 │   │   ├── controllers/          validação e regras
 │   │   ├── repositories/         SQL (PDO com parâmetros)
-│   │   └── services/             sessão, login, permissões, limite de tentativas
+│   │   └── services/             sessão, login, permissões, histórico, limite de tentativas
 │   ├── database/
 │   │   ├── elos.sql              banco completo, para instalação nova
 │   │   └── migracoes/            mudanças para bancos que já existem
@@ -157,8 +193,6 @@ projeto-elos/
     │   ├── agenda.php            calendário
     │   ├── relatorio.php         relatório para imprimir
     │   ├── equipe.php            aprovar contas e trocar perfis (gestor)
-    │   ├── tarefas.php, transportes.php, visitas.php, formularios.php
-    │   │                         telas por tipo (em revisão, ver seção 9)
     │   └── login.php, cadastro.php, logout.php
     ├── src/
     │   ├── Api.php               cliente da API, sessão e proteção CSRF
@@ -196,6 +230,7 @@ sugeridas.
 
 ```bash
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsavel_livre.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
 ```
 
 ### 2) Variáveis de ambiente
@@ -264,11 +299,11 @@ exigem sessão. "Gestor" indica as rotas que exigem esse perfil.
 | `/api/eventos/{id}/tarefas[/{id}]` | GET, POST, PUT, DELETE | checklist |
 | `/api/eventos/{id}/tarefas/{id}/status` | PUT | marcar feito (colaborador: só os seus) |
 | `/api/eventos/{id}/cursos[/{id}]` | GET, POST, DELETE | |
-| `/api/eventos/{id}/formularios[/{id}]` | GET, POST, PUT, DELETE | |
-| `/api/eventos/{id}/transportes[/{id}]` | GET, POST, PUT, DELETE | |
-| `/api/eventos/{id}/visitas[/{id}]` | GET, POST, PUT, DELETE | |
+| `/api/eventos/{id}/formularios[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas (ver seção 9) |
+| `/api/eventos/{id}/transportes[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
+| `/api/eventos/{id}/visitas[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
 | `/api/eventos/{id}/anexos[/{id}]` | GET, POST, DELETE | até 10 MB. PDF, imagens, Office/LibreOffice, TXT, CSV |
-| `/api/eventos/{id}/historico` | GET, POST | |
+| `/api/eventos/{id}/historico` | GET, POST | gravado automaticamente pelas outras rotas |
 | `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/etapas`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
 
 Os detalhes de cada rota (campos aceitos e respostas) estão nos arquivos
@@ -314,12 +349,13 @@ O que já está no sistema:
 
 ## 9. Em aberto
 
-- **Transportes, visitas e formulários duplicam o checklist.** Hoje dá
-  para registrar "transporte das obras" como item do checklist (categoria
-  Transporte) **e** na tela de Transportes, e os dois não se conversam. A
-  proposta é deixar tudo no checklist e aposentar as telas separadas.
-- **Histórico**: a tabela existe, mas nenhuma ação grava nela ainda.
-- **Prioridade da exposição**: avaliar se é usada de verdade.
+- **Tabelas e rotas antigas de transportes, visitas e formulários**: as
+  telas foram aposentadas (agora tudo é checklist), mas as tabelas e as
+  rotas da API continuam no backend, sem uso. Podem ser removidas depois,
+  com uma migração.
+- **Coluna `eventos.prioridade`**: não é mais usada pelas telas (a API
+  grava `MEDIA` quando não vem nada). Pode ser removida depois, com uma
+  migração.
 
 ---
 

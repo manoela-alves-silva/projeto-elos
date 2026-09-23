@@ -128,6 +128,8 @@ CREATE TABLE IF NOT EXISTS tarefas (
     titulo VARCHAR(200) NOT NULL,
     descricao TEXT NULL,
     prazo DATE NULL,
+    -- Horário opcional do item (visita, transporte, entrega...).
+    horario TIME NULL,
     prioridade ENUM('BAIXA', 'MEDIA', 'ALTA') NOT NULL DEFAULT 'MEDIA',
     status ENUM('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'BLOQUEADA', 'CANCELADA') NOT NULL DEFAULT 'PENDENTE',
     observacoes TEXT NULL,
@@ -257,4 +259,5 @@ INSERT IGNORE INTO categorias_tarefa (nome) VALUES
     ('Visita'),
     ('Alimentação'),
     ('Equipamentos'),
+    ('Documentação'),
     ('Outro');

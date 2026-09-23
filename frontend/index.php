@@ -326,7 +326,7 @@ if ($foco !== null) {
                                             <strong><?= esc($alerta['titulo'] ?? '') ?></strong>
                                             <span>
                                                 <?= esc($alerta['_motivo']) ?>
-                                                <?= !empty($alerta['prazo']) ? '· ' . esc(dataHoraBr($alerta['prazo'])) : '' ?>
+                                                <?= !empty($alerta['prazo']) ? '· ' . esc(dataHoraBr($alerta['prazo'], $alerta['horario'] ?? null)) : '' ?>
                                             </span>
                                             <small><?= esc($alerta['_plano']->titulo()) ?></small>
                                         </a>

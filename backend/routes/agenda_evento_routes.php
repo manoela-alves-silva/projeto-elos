@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Elos\Controllers\AgendaEventoController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 
 /**
  * Processa as requisições da agenda de um evento.
@@ -108,6 +109,8 @@ function handleAgendaEventoRequest(
             ]);
         }
 
+        HistoricoService::registrar($eventoId, 'Datas definidas', resumoDasDatas($agenda));
+
         sendJsonResponse(201, [
             'agenda' => $agenda,
         ]);
@@ -126,24 +129,34 @@ function handleAgendaEventoRequest(
 
         $payload = readJsonPayload();
 
-        $montagemInicio = $payload['montagem_inicio']
-            ?? $agendaAtual['montagem_inicio'];
-        $montagemFim = $payload['montagem_fim']
-            ?? $agendaAtual['montagem_fim'];
-        $abertura = $payload['abertura']
-            ?? $agendaAtual['abertura'];
-        $horario = $payload['horario']
-            ?? $agendaAtual['horario'];
-        $permanenciaInicio = $payload['permanencia_inicio']
-            ?? $agendaAtual['permanencia_inicio'];
-        $permanenciaFim = $payload['permanencia_fim']
-            ?? $agendaAtual['permanencia_fim'];
-        $desmontagemInicio = $payload['desmontagem_inicio']
-            ?? $agendaAtual['desmontagem_inicio'];
-        $desmontagemFim = $payload['desmontagem_fim']
-            ?? $agendaAtual['desmontagem_fim'];
-        $tipoHorario = $payload['tipo_horario']
-            ?? $agendaAtual['tipo_horario'];
+        // Campo enviado como null apaga a data; campo ausente mantém.
+        $montagemInicio = array_key_exists('montagem_inicio', $payload)
+            ? $payload['montagem_inicio']
+            : $agendaAtual['montagem_inicio'];
+        $montagemFim = array_key_exists('montagem_fim', $payload)
+            ? $payload['montagem_fim']
+            : $agendaAtual['montagem_fim'];
+        $abertura = array_key_exists('abertura', $payload)
+            ? $payload['abertura']
+            : $agendaAtual['abertura'];
+        $horario = array_key_exists('horario', $payload)
+            ? $payload['horario']
+            : $agendaAtual['horario'];
+        $permanenciaInicio = array_key_exists('permanencia_inicio', $payload)
+            ? $payload['permanencia_inicio']
+            : $agendaAtual['permanencia_inicio'];
+        $permanenciaFim = array_key_exists('permanencia_fim', $payload)
+            ? $payload['permanencia_fim']
+            : $agendaAtual['permanencia_fim'];
+        $desmontagemInicio = array_key_exists('desmontagem_inicio', $payload)
+            ? $payload['desmontagem_inicio']
+            : $agendaAtual['desmontagem_inicio'];
+        $desmontagemFim = array_key_exists('desmontagem_fim', $payload)
+            ? $payload['desmontagem_fim']
+            : $agendaAtual['desmontagem_fim'];
+        $tipoHorario = array_key_exists('tipo_horario', $payload)
+            ? $payload['tipo_horario']
+            : $agendaAtual['tipo_horario'];
         $observacoes = array_key_exists('observacoes', $payload)
             ? $payload['observacoes']
             : $agendaAtual['observacoes'];
@@ -189,6 +202,8 @@ function handleAgendaEventoRequest(
             ]);
         }
 
+        HistoricoService::registrar($eventoId, 'Datas alteradas', resumoDasDatas($agenda));
+
         sendJsonResponse(200, [
             'agenda' => $agenda,
         ]);
@@ -197,4 +212,26 @@ function handleAgendaEventoRequest(
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
     ]);
+}
+
+/**
+ * "Montagem 01/10/2026 · abertura 05/10/2026 · desmontagem 30/10/2026"
+ * — só com as datas preenchidas, para o histórico.
+ */
+function resumoDasDatas(array $agenda): ?string
+{
+    $partes = [];
+
+    foreach ([
+        'montagem_inicio' => 'montagem',
+        'abertura' => 'abertura',
+        'permanencia_fim' => 'em cartaz até',
+        'desmontagem_fim' => 'desmontagem',
+    ] as $campo => $rotulo) {
+        if (!empty($agenda[$campo])) {
+            $partes[] = $rotulo . ' ' . date('d/m/Y', (int) strtotime((string) $agenda[$campo]));
+        }
+    }
+
+    return $partes === [] ? 'sem datas' : ucfirst(implode(' · ', $partes));
 }

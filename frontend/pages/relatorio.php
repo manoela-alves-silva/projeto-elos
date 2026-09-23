@@ -178,7 +178,7 @@ if ($de !== '' || $ate !== '') {
                 <div><dt>Período</dt><dd><?= esc(intervaloBr($periodo['inicio'], $periodo['fim'], 'A definir')) ?></dd></div>
                 <div><dt>Local</dt><dd><?= esc($evento['local_nome'] ?? '—') ?></dd></div>
                 <div><dt>Responsável</dt><dd><?= esc($evento['responsavel_nome'] ?? '—') ?></dd></div>
-                <div><dt>Situação</dt><dd><?= esc(rotuloStatusEvento((string) ($evento['status'] ?? ''))) ?> · prioridade <?= esc(mb_strtolower(rotuloPrioridade((string) ($evento['prioridade'] ?? '')))) ?></dd></div>
+                <div><dt>Situação</dt><dd><?= esc(rotuloStatusEvento((string) ($evento['status'] ?? ''))) ?></dd></div>
                 <div>
                     <dt>Andamento</dt>
                     <dd>

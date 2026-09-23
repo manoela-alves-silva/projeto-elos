@@ -337,6 +337,7 @@
 
 .linha-necessidade .necessidade-campos .campo { grid-column: span 2; }
 .linha-necessidade .necessidade-campos .campo-titulo { grid-column: span 4; }
+.linha-necessidade .necessidade-campos .campo.campo-curto { grid-column: span 1; }
 
 .remover-linha {
     position: absolute;
@@ -422,5 +423,9 @@
     .linha-necessidade .necessidade-campos .campo,
     .linha-necessidade .necessidade-campos .campo-titulo {
         grid-column: 1 / -1;
+    }
+
+    .linha-necessidade .necessidade-campos .campo.campo-curto {
+        grid-column: span 3;
     }
 }

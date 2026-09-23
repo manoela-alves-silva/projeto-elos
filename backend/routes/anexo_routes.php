@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Elos\Controllers\AnexoController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 
 const ANEXO_TAMANHO_MAXIMO = 10 * 1024 * 1024;
 
@@ -166,6 +167,8 @@ function handleAnexoRequest(
             ]);
         }
 
+        HistoricoService::registrar($eventoId, 'Anexo adicionado', $nomeOriginal);
+
         sendJsonResponse(201, [
             'mensagem' => 'Anexo criado com sucesso.',
             'anexo' => $anexo,
@@ -237,6 +240,8 @@ function handleAnexoByIdRequest(
         if (is_file($caminhoFisico)) {
             unlink($caminhoFisico);
         }
+
+        HistoricoService::registrar($eventoId, 'Anexo removido', (string) ($anexo['nome_original'] ?? ''));
 
         sendJsonResponse(200, [
             'mensagem' => 'Anexo excluído com sucesso.',

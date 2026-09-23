@@ -37,7 +37,11 @@ use Elos\Repositories\UsuarioRepository;
 use Elos\Repositories\VisitaRepository;
 use Elos\Services\AuthService;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 use Elos\Services\SessionService;
+
+// Datas no horário de Brasília (o padrão do PHP é UTC).
+date_default_timezone_set('America/Sao_Paulo');
 
 // Detalhes de erro só na tela com ELOS_DEBUG=1 (desenvolvimento).
 // Sem isso eles vão para o log/terminal, nunca para quem usa o site.
@@ -50,6 +54,9 @@ $database = Database::fromEnvironment();
 $pdo = $database->getConnection();
 
 $sessionService = new SessionService();
+
+// Histórico automático: as rotas registram quem fez cada alteração.
+HistoricoService::ativar(new HistoricoService(new HistoricoRepository($pdo), $sessionService));
 
 $usuarioControllerFactory = static function () use ($pdo, $sessionService): UsuarioController {
     $usuarioRepository = new UsuarioRepository($pdo);

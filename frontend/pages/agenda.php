@@ -6,8 +6,8 @@ declare(strict_types=1);
  * CALENDÁRIO — consequência do planejamento, nunca a origem.
  *
  * Mostra tudo o que tem data nas exposições: marcos da agenda
- * (montagem, abertura, período, desmontagem), necessidades com o
- * status atual, visitas, transportes e documentos. Nada é cadastrado
+ * (montagem, abertura, período, desmontagem) e os itens do checklist
+ * com o status atual. Nada é cadastrado
  * aqui: cada item leva à exposição, onde ele é editado.
  */
 
@@ -205,7 +205,6 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                         <li class="fase-desmontagem">Desmontagem</li>
                         <li class="estado-pendente">Pendente</li>
                         <li class="estado-atrasado">Atrasado</li>
-                        <li class="estado-agendado">Agendado</li>
                         <li class="estado-concluido">Concluído</li>
                     </ul>
                 </div>

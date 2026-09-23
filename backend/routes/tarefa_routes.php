@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Elos\Controllers\TarefaController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\HistoricoService;
 
 /**
  * Lista ou cadastra tarefas de um evento.
@@ -53,6 +54,7 @@ function handleTarefaRequest(
         $observacoes = $payload['observacoes'] ?? null;
         // Responsável em texto livre (qualquer pessoa, mesmo sem conta).
         $responsavelNome = $payload['responsavel_nome'] ?? null;
+        $horario = normalizarHorarioTarefa($payload['horario'] ?? null);
 
         if (
             $usuarioResponsavelId !== null
@@ -154,7 +156,8 @@ function handleTarefaRequest(
             $prioridade,
             $status,
             $observacoes,
-            $responsavelNome
+            $responsavelNome,
+            $horario
         );
 
         if ($tarefa === null) {
@@ -162,6 +165,8 @@ function handleTarefaRequest(
                 'erro' => 'Não foi possível cadastrar a tarefa.',
             ]);
         }
+
+        HistoricoService::registrar($eventoId, 'Item adicionado', (string) $tarefa['titulo']);
 
         sendJsonResponse(201, [
             'tarefa' => $tarefa,
@@ -263,6 +268,14 @@ function handleTarefaStatusRequest(
         sendJsonResponse(400, [
             'erro' => 'Não foi possível atualizar o status da tarefa.',
         ]);
+    }
+
+    if (($tarefa['status'] ?? '') !== ($tarefaAtualizada['status'] ?? '')) {
+        HistoricoService::registrar(
+            $eventoId,
+            ($tarefaAtualizada['status'] ?? '') === 'CONCLUIDA' ? 'Item concluído' : 'Item reaberto',
+            (string) $tarefaAtualizada['titulo']
+        );
     }
 
     sendJsonResponse(200, [
@@ -376,6 +389,10 @@ function handleTarefaByIdRequest(
             ? $payload['responsavel_nome']
             : $tarefaAtual['responsavel_nome'];
 
+        $horario = array_key_exists('horario', $payload)
+            ? normalizarHorarioTarefa($payload['horario'])
+            : $tarefaAtual['horario'];
+
         if (
             $usuarioResponsavelId !== null
             && (!is_int($usuarioResponsavelId) || $usuarioResponsavelId <= 0)
@@ -473,7 +490,8 @@ function handleTarefaByIdRequest(
             $prioridade,
             $status,
             $observacoes,
-            $responsavelNome
+            $responsavelNome,
+            $horario
         );
 
         if ($tarefa === null) {
@@ -481,6 +499,8 @@ function handleTarefaByIdRequest(
                 'erro' => 'Não foi possível atualizar a tarefa.',
             ]);
         }
+
+        HistoricoService::registrar($eventoId, 'Item editado', (string) $tarefa['titulo']);
 
         sendJsonResponse(200, [
             'tarefa' => $tarefa,
@@ -512,6 +532,8 @@ function handleTarefaByIdRequest(
             ]);
         }
 
+        HistoricoService::registrar($eventoId, 'Item removido', (string) $tarefa['titulo']);
+
         sendJsonResponse(200, [
             'mensagem' => 'Tarefa excluída com sucesso.',
         ]);
@@ -520,4 +542,26 @@ function handleTarefaByIdRequest(
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
     ]);
+}
+
+/**
+ * Horário opcional de um item ("14:30" ou "14:30:00"). Vazio vira null;
+ * qualquer outra coisa encerra a requisição com 400.
+ */
+function normalizarHorarioTarefa(mixed $horario): ?string
+{
+    if ($horario === null || (is_string($horario) && trim($horario) === '')) {
+        return null;
+    }
+
+    if (
+        !is_string($horario)
+        || !preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', trim($horario))
+    ) {
+        sendJsonResponse(400, [
+            'erro' => 'Horário inválido.',
+        ]);
+    }
+
+    return trim($horario);
 }

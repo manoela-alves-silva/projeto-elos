@@ -175,6 +175,7 @@
 .necessidade-campos .campo { grid-column: span 2; }
 .necessidade-campos .campo-titulo { grid-column: span 4; }
 .necessidade-campos .campo-largo { grid-column: 1 / -1; }
+.necessidade-campos .campo.campo-curto { grid-column: span 1; }
 
 
 
@@ -667,6 +668,10 @@ fieldset.campo {
     .necessidade-campos .campo,
     .necessidade-campos .campo-titulo {
         grid-column: 1 / -1;
+    }
+
+    .necessidade-campos .campo.campo-curto {
+        grid-column: span 3;
     }
 
     .item {

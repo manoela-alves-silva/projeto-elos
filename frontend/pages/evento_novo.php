@@ -43,7 +43,7 @@ if (!$usuario['podeGerenciar']) {
     redirecionar('eventos.php');
 }
 
-const CAMPOS_LINHA = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'responsavel', 'prioridade'];
+const CAMPOS_LINHA = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'horario', 'responsavel', 'prioridade'];
 
 $categorias = array_values(array_filter(
     apiLista('/api/categorias-tarefa', 'categorias_tarefa') ?? [],
@@ -64,7 +64,7 @@ $valores = [
     'titulo' => '', 'tipo_evento_id' => '', 'responsavel_id' => '', 'local_id' => '',
     'tipo_evento_id_novo' => '', 'responsavel_id_novo' => '', 'local_id_novo' => '',
     'responsavel_tipo_novo' => 'PESSOA', 'cursos_outros' => '',
-    'prioridade' => 'MEDIA', 'descricao' => '', 'observacoes' => '',
+    'descricao' => '', 'observacoes' => '',
     'montagem_inicio' => '', 'montagem_fim' => '', 'abertura' => '', 'horario' => '',
     'permanencia_inicio' => '', 'permanencia_fim' => '', 'desmontagem_inicio' => '', 'desmontagem_fim' => '',
 ];
@@ -97,7 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $erro = match (true) {
         $valores['titulo'] === '' => 'Dê um nome à exposição.',
-        !in_array($valores['prioridade'], PRIORIDADES, true) => 'Escolha a prioridade.',
         default => '',
     };
 
@@ -129,7 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $resposta = Api::post('/api/eventos', $cadastros['ids'] + [
                 'titulo' => $valores['titulo'],
-                'prioridade' => $valores['prioridade'],
                 // O status sai das datas; toda exposição nasce em planejamento.
                 'status' => 'PLANEJAMENTO',
                 'descricao' => $valores['descricao'] !== '' ? $valores['descricao'] : null,
@@ -181,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'categoria_id' => $categoria['id'],
                         'titulo' => $linha['titulo'],
                         'prazo' => $linha['prazo'] !== '' ? $linha['prazo'] : null,
+                        'horario' => preg_match('/^\d{2}:\d{2}$/', $linha['horario']) ? $linha['horario'] : null,
                         'prioridade' => in_array($linha['prioridade'], PRIORIDADES, true) ? $linha['prioridade'] : 'MEDIA',
                         'status' => 'PENDENTE',
                         'etapa_id' => null,
@@ -240,9 +239,13 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
                 <label for="<?= $id('titulo') ?>">O que precisa ser feito</label>
                 <input id="<?= $id('titulo') ?>" type="text" name="<?= $nome('titulo') ?>" maxlength="200" placeholder="Ex.: Transporte das obras até a galeria" value="<?= esc($v['titulo']) ?>">
             </div>
-            <div class="campo">
+            <div class="campo campo-curto">
                 <label for="<?= $id('prazo') ?>">Data</label>
                 <input id="<?= $id('prazo') ?>" type="date" name="<?= $nome('prazo') ?>" value="<?= esc($v['prazo']) ?>">
+            </div>
+            <div class="campo campo-curto">
+                <label for="<?= $id('horario') ?>">Horário</label>
+                <input id="<?= $id('horario') ?>" type="time" name="<?= $nome('horario') ?>" value="<?= esc($v['horario']) ?>">
             </div>
             <div class="campo">
                 <label for="<?= $id('responsavel') ?>">Responsável</label>
@@ -337,15 +340,6 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
                         <?php selectAberto('tipo_evento_id', 'Tipo', $tipos, $valores['tipo_evento_id'], $valores['tipo_evento_id_novo'], 'Novo tipo', 'Ex.: Mostra acadêmica'); ?>
                         <?php selectAberto('responsavel_id', 'Responsável', $responsaveis, $valores['responsavel_id'], $valores['responsavel_id_novo'], 'Novo responsável', 'Nome do responsável', 'campo', extraTipoResponsavel($valores['responsavel_tipo_novo'])); ?>
                         <?php selectAberto('local_id', 'Local', $locais, $valores['local_id'], $valores['local_id_novo'], 'Novo local', 'Ex.: Auditório do bloco B'); ?>
-
-                        <div class="campo campo-metade">
-                            <label for="prioridade">Prioridade</label>
-                            <select id="prioridade" name="prioridade">
-                                <?php foreach (PRIORIDADES as $prioridade): ?>
-                                    <option value="<?= $prioridade ?>" <?= $prioridade === $valores['prioridade'] ? 'selected' : '' ?>><?= esc(rotuloPrioridade($prioridade)) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
 
                         <fieldset class="campo campo-largo">
                             <legend>Cursos envolvidos <span>(opcional)</span></legend>
@@ -461,7 +455,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
             if (lista.children.length > 1) {
                 linha.remove();
             } else {
-                linha.querySelectorAll('input[type="text"], input[type="date"]').forEach(function (campo) {
+                linha.querySelectorAll('input[type="text"], input[type="date"], input[type="time"]').forEach(function (campo) {
                     campo.value = '';
                 });
             }

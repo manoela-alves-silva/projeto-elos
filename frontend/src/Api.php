@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Elos\Frontend;
 
+// "Hoje", atrasos e contagens de dias no horário de Brasília, não no
+// fuso padrão do PHP (UTC, que já "vira o dia" às 21h).
+date_default_timezone_set('America/Sao_Paulo');
+
 /**
  * Abre a sessão do frontend com o cookie protegido: invisível para
  * JavaScript (HttpOnly), não enviado por outros sites em POST

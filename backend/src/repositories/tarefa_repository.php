@@ -31,6 +31,7 @@ final class TarefaRepository
                 t.titulo,
                 t.descricao,
                 t.prazo,
+                t.horario,
                 t.prioridade,
                 t.status,
                 t.observacoes,
@@ -51,6 +52,8 @@ final class TarefaRepository
             ORDER BY
                 t.prazo IS NULL,
                 t.prazo ASC,
+                t.horario IS NULL,
+                t.horario ASC,
                 t.id ASC
         ';
 
@@ -80,6 +83,7 @@ final class TarefaRepository
                 t.titulo,
                 t.descricao,
                 t.prazo,
+                t.horario,
                 t.prioridade,
                 t.status,
                 t.observacoes,
@@ -124,7 +128,8 @@ final class TarefaRepository
         string $prioridade,
         string $status,
         ?string $observacoes,
-        ?string $responsavelNome = null
+        ?string $responsavelNome = null,
+        ?string $horario = null
     ): ?array {
         $sql = '
             INSERT INTO tarefas (
@@ -138,7 +143,8 @@ final class TarefaRepository
                 prioridade,
                 status,
                 observacoes,
-                responsavel_nome
+                responsavel_nome,
+                horario
             ) VALUES (
                 :evento_id,
                 :usuario_responsavel_id,
@@ -150,7 +156,8 @@ final class TarefaRepository
                 :prioridade,
                 :status,
                 :observacoes,
-                :responsavel_nome
+                :responsavel_nome,
+                :horario
             )
         ';
 
@@ -168,6 +175,7 @@ final class TarefaRepository
             'status' => $status,
             'observacoes' => $observacoes,
             'responsavel_nome' => $responsavelNome,
+            'horario' => $horario,
         ]);
 
         if (!$success) {
@@ -192,7 +200,8 @@ final class TarefaRepository
         string $prioridade,
         string $status,
         ?string $observacoes,
-        ?string $responsavelNome = null
+        ?string $responsavelNome = null,
+        ?string $horario = null
     ): ?array {
         $sql = '
             UPDATE tarefas
@@ -206,7 +215,8 @@ final class TarefaRepository
                 prioridade = :prioridade,
                 status = :status,
                 observacoes = :observacoes,
-                responsavel_nome = :responsavel_nome
+                responsavel_nome = :responsavel_nome,
+                horario = :horario
             WHERE id = :id
               AND evento_id = :evento_id
         ';
@@ -226,6 +236,7 @@ final class TarefaRepository
             'status' => $status,
             'observacoes' => $observacoes,
             'responsavel_nome' => $responsavelNome,
+            'horario' => $horario,
         ]);
 
         if (!$success) {

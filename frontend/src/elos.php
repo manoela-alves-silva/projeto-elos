@@ -6,11 +6,7 @@ namespace Elos\Frontend;
 
 /*
  * Funções compartilhadas pelas telas centradas na exposição
- * (Início, Exposições, Exposição, Nova exposição, Calendário).
- *
- * Ficam num namespace próprio para conviver com as páginas antigas
- * (Tarefas, Transportes, Visitas, Formulários), que ainda declaram
- * suas próprias funções globais com os mesmos nomes.
+ * (Início, Exposições, Exposição, Nova exposição, Calendário, Relatório).
  */
 
 require_once __DIR__ . '/Api.php';
