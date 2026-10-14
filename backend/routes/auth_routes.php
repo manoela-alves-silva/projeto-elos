@@ -73,15 +73,18 @@ function handleLoginRequest(
 /**
  * Endereço de quem está usando o site. As chamadas chegam do servidor do
  * frontend, que repassa o endereço do navegador em X-Elos-Cliente-IP; o
- * cabeçalho só é aceito quando vem da própria máquina.
+ * cabeçalho só é aceito quando vem da própria máquina ou quando a API
+ * exige a chave ELOS_API_CHAVE (conferida em public/index.php).
  */
 function enderecoDoCliente(): string
 {
     $remoto = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
     $repassado = (string) ($_SERVER['HTTP_X_ELOS_CLIENTE_IP'] ?? '');
+    $origemConfiavel = in_array($remoto, ['127.0.0.1', '::1'], true)
+        || trim((string) getenv('ELOS_API_CHAVE')) !== '';
 
     if (
-        in_array($remoto, ['127.0.0.1', '::1'], true)
+        $origemConfiavel
         && filter_var($repassado, FILTER_VALIDATE_IP) !== false
     ) {
         return $repassado;

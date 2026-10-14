@@ -4,6 +4,41 @@ declare(strict_types=1);
 
 namespace Elos\Frontend;
 
+/**
+ * Lê as variáveis de um arquivo .env (CHAVE=valor, # comentário) e as
+ * coloca no ambiente, sem passar por cima das que já existem. Assim
+ * funciona em qualquer hospedagem: o arquivo fica fora das pastas
+ * públicas e nunca vai para o git.
+ */
+function carregarArquivoEnv(string $arquivo): void
+{
+    if (!is_file($arquivo) || !is_readable($arquivo)) {
+        return;
+    }
+
+    foreach (file($arquivo, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $linha) {
+        $linha = trim($linha);
+
+        if ($linha === '' || $linha[0] === '#' || !str_contains($linha, '=')) {
+            continue;
+        }
+
+        [$nome, $valor] = array_map('trim', explode('=', $linha, 2));
+
+        if (strlen($valor) >= 2 && in_array($valor[0], ['"', "'"], true) && $valor[-1] === $valor[0]) {
+            $valor = substr($valor, 1, -1);
+        }
+
+        if ($nome !== '' && getenv($nome) === false) {
+            putenv($nome . '=' . $valor);
+        }
+    }
+}
+
+// As configurações ficam no mesmo backend/.env do servidor (fora das
+// pastas públicas): ELOS_API_URL, ELOS_API_CHAVE...
+carregarArquivoEnv(dirname(__DIR__, 2) . '/backend/.env');
+
 // "Hoje", atrasos e contagens de dias no horário de Brasília, não no
 // fuso padrão do PHP (UTC, que já "vira o dia" às 21h).
 date_default_timezone_set('America/Sao_Paulo');
@@ -25,6 +60,9 @@ function iniciarSessao(): void
         return;
     }
 
+    $https = emHttps();
+
+    session_name('ELOS');
     session_set_cookie_params(parametrosDoCookie(0));
     ini_set('session.use_strict_mode', '1');
     guardarSessoesEm('frontend');
@@ -42,16 +80,36 @@ function iniciarSessao(): void
 
     $_SESSION['_ultimo_acesso'] = $agora;
 
+    // Proteções do navegador: o ELOS não abre dentro de outro site
+    // (contra clickjacking), o navegador não "adivinha" tipos de arquivo
+    // e o endereço das páginas não vaza para links externos.
+    if (!headers_sent()) {
+        header('X-Frame-Options: DENY');
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: same-origin');
+
+        if ($https) {
+            header('Strict-Transport-Security: max-age=31536000');
+        }
+    }
+
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         exigirCsrf();
     }
 }
 
 /**
- * Chave secreta desta sessão, que vai escondida em todo formulário.
- * Um site de fora não tem como saber o valor, então não consegue
- * enviar formulários do ELOS em nome de quem está logado.
+ * O site foi aberto por HTTPS? Em hospedagens com proxy na frente do
+ * PHP, o HTTPS termina no proxy e só chega o aviso X-Forwarded-Proto.
  */
+function emHttps(): bool
+{
+    $https = (string) ($_SERVER['HTTPS'] ?? '');
+
+    return ($https !== '' && $https !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+}
+
 // "Lembrar de mim": quanto tempo a pessoa continua logada.
 const LEMBRAR_SEGUNDOS = 30 * 24 * 60 * 60;
 // Sem "Lembrar de mim": sai depois de 2 horas sem usar o sistema.
@@ -65,7 +123,7 @@ function parametrosDoCookie(int $expira): array
     return [
         'lifetime' => $expira,
         'path' => '/',
-        'secure' => ($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off',
+        'secure' => emHttps(),
         'httponly' => true,
         'samesite' => 'Lax',
     ];
@@ -109,6 +167,11 @@ function lembrarLogin(bool $lembrar): void
     }
 }
 
+/**
+ * Chave secreta desta sessão, que vai escondida em todo formulário.
+ * Um site de fora não tem como saber o valor, então não consegue
+ * enviar formulários do ELOS em nome de quem está logado.
+ */
 function tokenCsrf(): string
 {
     iniciarSessao();
@@ -245,6 +308,13 @@ final class Api
 
         if (filter_var($ipCliente, FILTER_VALIDATE_IP) !== false) {
             $headers[] = 'X-Elos-Cliente-IP: ' . $ipCliente;
+        }
+
+        // Chave combinada com a API (quando ela fica em endereço público).
+        $chaveApi = trim((string) getenv('ELOS_API_CHAVE'));
+
+        if ($chaveApi !== '') {
+            $headers[] = 'X-Elos-Chave: ' . $chaveApi;
         }
 
         $payload = null;

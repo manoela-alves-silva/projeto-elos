@@ -18,7 +18,7 @@ require_once __DIR__ . '/../src/Api.php';
 // Guardado até a volta do Google ("Lembrar de mim" marcado no login).
 $_SESSION['_google_lembrar'] = ($_GET['lembrar'] ?? '') === '1';
 
-$https = ($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off';
+$https = \Elos\Frontend\emHttps();
 $pasta = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/pages/google_entrar.php')), '/');
 $retorno = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '127.0.0.1') . $pasta . '/google_retorno.php';
 

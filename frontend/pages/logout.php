@@ -6,8 +6,8 @@ require_once __DIR__ . '/../src/Api.php';
 
 \Elos\Frontend\iniciarSessao();
 
-// Encerra também a sessão no backend (antes ela ficava aberta lá até
-// expirar sozinha). Se o backend estiver fora do ar, sai mesmo assim.
+// Encerra também a sessão no backend. Se a API não responder, a saída
+// continua: sem o cookie guardado aqui, aquela sessão fica inacessível.
 try {
     \Elos\Frontend\Api::post('/api/logout');
 } catch (\Elos\Frontend\ApiException) {

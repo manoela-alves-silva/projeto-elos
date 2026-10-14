@@ -1,0 +1,3 @@
+# Só backend/public/ deve ficar acessível pela web. Se esta pasta for
+# enviada inteira para dentro do site por engano, nada aqui é servido.
+Require all denied

@@ -57,3 +57,36 @@ spl_autoload_register(
         }
     }
 );
+
+/**
+ * Lê as variáveis de um arquivo .env (CHAVE=valor, # comentário) e as
+ * coloca no ambiente, sem passar por cima das que já existem. Assim
+ * funciona em qualquer hospedagem: o arquivo fica fora das pastas
+ * públicas e nunca vai para o git.
+ */
+function carregarArquivoEnv(string $arquivo): void
+{
+    if (!is_file($arquivo) || !is_readable($arquivo)) {
+        return;
+    }
+
+    foreach (file($arquivo, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $linha) {
+        $linha = trim($linha);
+
+        if ($linha === '' || $linha[0] === '#' || !str_contains($linha, '=')) {
+            continue;
+        }
+
+        [$nome, $valor] = array_map('trim', explode('=', $linha, 2));
+
+        if (strlen($valor) >= 2 && in_array($valor[0], ['"', "'"], true) && $valor[-1] === $valor[0]) {
+            $valor = substr($valor, 1, -1);
+        }
+
+        if ($nome !== '' && getenv($nome) === false) {
+            putenv($nome . '=' . $valor);
+        }
+    }
+}
+
+carregarArquivoEnv(dirname(__DIR__) . '/.env');

@@ -202,6 +202,9 @@ projeto-elos/
     ├── assets/css/               base.css + um CSS por tela
     ├── assets/js/elos.js
     └── .env.example              variáveis do frontend
+
+deploy/                           modelos de Nginx e Apache para VPS
+iniciar-dev.sh                    sobe backend e frontend no seu computador
 ```
 
 ---
@@ -236,17 +239,13 @@ mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-14_codigo_r
 
 ### 2) Variáveis de ambiente
 
-O backend **não lê arquivo `.env`**. As variáveis precisam estar
-exportadas no terminal que vai rodar o servidor. Use `backend/.env.example`
-como guia:
+As configurações ficam em `backend/.env`, que o próprio ELOS lê (o
+backend e o frontend). Ele fica fora das pastas públicas e **não vai
+para o git**. Crie a partir do exemplo:
 
 ```bash
-export DB_HOST=127.0.0.1
-export DB_PORT=3306
-export DB_NAME=elos_db
-export DB_USER=seu_usuario
-export DB_PASSWORD=sua_senha
-export ELOS_DEBUG=1        # mostra erros nas respostas da API (só no seu computador)
+cp backend/.env.example backend/.env
+# abra backend/.env e preencha DB_USER, DB_PASSWORD...
 ```
 
 | Variável        | Onde     | Para quê                                                        |
@@ -256,6 +255,7 @@ export ELOS_DEBUG=1        # mostra erros nas respostas da API (só no seu compu
 | `ELOS_GESTORES` | backend  | e-mails (separados por vírgula) que já entram como gestores. Opcional. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | backend | "Entrar com Google" (ver abaixo). Vazias = o botão avisa que não está configurado |
 | `ELOS_API_URL`  | frontend | endereço da API. Vazio = `http://127.0.0.1:8000`                |
+| `ELOS_API_CHAVE` | backend e frontend | mesma chave nos dois. Com ela, a API recusa quem não a envia. Obrigatória se a API ficar num endereço público |
 | `ELOS_SESSOES_DIR` | frontend | pasta das sessões. Vazio = `storage/sessoes/` na raiz do projeto |
 
 **Entrar com Google.** As duas variáveis `GOOGLE_*` vêm de um cliente
@@ -275,26 +275,33 @@ fechar o navegador ou depois de 2 horas sem uso.
 
 ### 3) Servidores
 
-São dois terminais.
-
-**Terminal 1, backend** (com as variáveis acima exportadas):
-
 ```bash
-php -S 127.0.0.1:8000 -t backend/public
+./iniciar-dev.sh
 ```
 
-**Terminal 2, frontend:**
-
-```bash
-php -S 127.0.0.1:8081 -t frontend
-```
+O script lê `backend/.env` e sobe os dois servidores embutidos do PHP:
+a API em `127.0.0.1:8000` e as telas em `127.0.0.1:8081`. **Ctrl+C**
+para os dois.
 
 Acesse **http://127.0.0.1:8081**, crie sua conta em **Criar conta** e
 entre. Num banco vazio, a primeira conta vira gestora automaticamente.
 
-> Os erros do backend aparecem no terminal 1. Se uma tela disser que não
-> conseguiu falar com o servidor, confira se o terminal 1 está rodando e
-> com as variáveis `DB_*` exportadas.
+<details>
+<summary>Prefere subir à mão, em dois terminais?</summary>
+
+```bash
+# Terminal 1, backend (com as variáveis DB_* exportadas)
+php -S 127.0.0.1:8000 -t backend/public
+
+# Terminal 2, frontend
+php -S 127.0.0.1:8081 -t frontend
+```
+
+</details>
+
+> Os erros do backend aparecem no terminal. Se uma tela disser que não
+> conseguiu falar com o servidor, confira se o backend está rodando e
+> com as variáveis `DB_*` certas.
 
 ---
 
@@ -352,22 +359,73 @@ O que já está no sistema:
 - contas novas só entram depois de aprovadas por um gestor;
 - anexos: tamanho e tipo conferidos pelo **conteúdo** do arquivo, salvos
   fora da pasta pública e com nome aleatório;
-- em produção, os erros vão para o log e não para a tela.
+- em produção, os erros vão para o log e não para a tela;
+- cabeçalhos que impedem o ELOS de abrir dentro de outro site
+  (clickjacking) e, sob HTTPS, obrigam o navegador a usar HTTPS;
+- a API pode exigir a chave `ELOS_API_CHAVE`, enviada só pelo frontend;
+- os `.htaccess` bloqueiam `frontend/src/`, arquivos ocultos e tudo do
+  backend fora de `public/`;
+- sair do sistema encerra a sessão no frontend **e** na API.
 
 ---
 
 ## 8. Colocando no ar
 
-- **HTTPS é obrigatório.** Sem ele, as senhas trafegam abertas.
-- **Um só servidor web** (Apache ou Nginx com PHP-FPM):
-  - o site aponta para `frontend/`;
-  - a API aponta para `backend/public/` e fica acessível **só pela própria
-    máquina** (por exemplo, `127.0.0.1:8000`). Se ficar em outro endereço,
-    configure `ELOS_API_URL` no frontend.
-- Variáveis `DB_*` configuradas no PHP-FPM ou no servidor, com
-  `ELOS_DEBUG` vazio.
+### Vale para qualquer hospedagem
+
+- PHP 8.1+, com `pdo_mysql`, `fileinfo` e **`allow_url_fopen` ligado**
+  (o frontend usa para chamar a API).
+- **HTTPS é obrigatório.** Sem ele, as senhas trafegam abertas. O ELOS
+  reconhece HTTPS também atrás de proxy (`X-Forwarded-Proto`).
+- Banco criado com `backend/database/elos.sql`.
+- `ELOS_DEBUG` vazio. Erros vão para o log, e a API responde só
+  "Erro interno do servidor".
 - `backend/storage/` com permissão de escrita para o PHP.
 - **Backup** diário do banco e de `backend/storage/anexos/`.
+- Envie o projeto **sem** `backend/.env`, `cookies*.txt` e o conteúdo de
+  `backend/storage/`.
+
+### Opção A: VPS ou servidor próprio (recomendado)
+
+Um só servidor web serve os dois lados, e a API fica **fechada para a
+internet**, atendendo só a própria máquina:
+
+```text
+internet ──HTTPS──► elos.seusite.com.br  (frontend/)
+                          │
+                          └──► 127.0.0.1:8000  (backend/public/, só local)
+```
+
+Modelos prontos, é só trocar o domínio e as pastas:
+
+- Nginx + PHP-FPM: [`deploy/nginx-elos.conf`](deploy/nginx-elos.conf)
+- Apache: [`deploy/apache-elos.conf`](deploy/apache-elos.conf)
+
+As variáveis `DB_*` ficam na configuração do servidor (pool do PHP-FPM
+ou `SetEnv` do Apache), em arquivos que só o root lê. HTTPS grátis com
+`certbot`.
+
+### Opção B: hospedagem compartilhada (cPanel, hPanel…)
+
+Sem acesso ao servidor, a API não consegue ficar "só local". Ela vai
+para um **subdomínio** e se protege com a chave `ELOS_API_CHAVE`:
+
+```text
+elos.seusite.com.br      → pasta frontend/
+api-elos.seusite.com.br  → pasta backend/public/
+```
+
+1. Crie o banco pelo painel e importe `backend/database/elos.sql`.
+2. Envie `backend/` e `frontend/` para **fora** de `public_html` e
+   aponte cada (sub)domínio para a sua pasta. Se o painel não deixar,
+   o `backend/.htaccess` impede que o resto do backend seja servido.
+3. Gere uma chave: `php -r 'echo bin2hex(random_bytes(32));'`.
+4. No servidor, crie `backend/.env` a partir do `backend/.env.example`:
+   `DB_*`, `ELOS_API_CHAVE`, `ELOS_API_URL=https://api-elos...` e, se
+   usar, as `GOOGLE_*`. O backend e o frontend leem esse arquivo.
+5. Ative o HTTPS dos dois endereços pelo painel.
+
+> O `backend/.env` com as senhas fica só no servidor, nunca no git.
 
 ---
 
