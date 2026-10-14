@@ -1040,6 +1040,11 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                     <a href="evento.php?id=<?= $eventoId ?>#sobre" class="text-link">Cancelar</a>
                                     <button type="submit" class="primary-button">Salvar</button>
                                 </div>
+
+                                <p class="apagar-exposicao">
+                                    Não vai mais acontecer e não precisa ficar guardada?
+                                    <a href="apagar_exposicao.php?id=<?= $eventoId ?>" class="text-link">Apagar exposição</a>
+                                </p>
                             </form>
 
                         <?php else: ?>

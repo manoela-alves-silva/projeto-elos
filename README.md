@@ -320,7 +320,7 @@ exigem sessão. "Gestor" indica as rotas que exigem esse perfil.
 | `/api/usuarios/pendentes` | GET | contas aguardando aprovação. Gestor |
 | `/api/usuarios/pendentes/{id}` | POST, DELETE | aprovar / recusar. Gestor |
 | `/api/eventos` | GET, POST | exposições (`status` já calculado) |
-| `/api/eventos/{id}` | GET, PUT | |
+| `/api/eventos/{id}` | GET, PUT, DELETE | DELETE apaga a exposição e tudo dela (definitivo). Gestor |
 | `/api/eventos/conflitos` | GET | `?local_id=&inicio=&fim=&exceto=` |
 | `/api/eventos/{id}/agenda` | GET, POST, PUT | datas da exposição |
 | `/api/eventos/{id}/tarefas[/{id}]` | GET, POST, PUT, DELETE | checklist |

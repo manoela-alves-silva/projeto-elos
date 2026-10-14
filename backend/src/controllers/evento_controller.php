@@ -47,6 +47,16 @@ final class EventoController
     }
 
     /**
+     * Apaga o evento e tudo o que é dele.
+     *
+     * @return list<string>|null caminhos dos anexos, ou null se não existe
+     */
+    public function delete(int $id): ?array
+    {
+        return $this->repository->delete($id);
+    }
+
+    /**
      * Cria um novo evento.
      *
      * @return array<string, mixed>|null

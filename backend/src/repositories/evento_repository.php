@@ -116,6 +116,49 @@ final class EventoRepository
     }
 
     /**
+     * Apaga a exposição e tudo o que é dela (datas, checklist, cursos,
+     * anexos e as tabelas antigas), numa transação: ou sai tudo, ou nada.
+     * O histórico fica, sem a ligação com a exposição (ON DELETE SET NULL).
+     *
+     * @return list<string>|null caminhos dos anexos (para apagar os
+     *                           arquivos depois), ou null se não existe
+     */
+    public function delete(int $id): ?array
+    {
+        $this->connection->beginTransaction();
+
+        try {
+            $existe = $this->connection->prepare('SELECT id FROM eventos WHERE id = :id FOR UPDATE');
+            $existe->execute(['id' => $id]);
+
+            if ($existe->fetchColumn() === false) {
+                $this->connection->rollBack();
+
+                return null;
+            }
+
+            $anexos = $this->connection->prepare('SELECT caminho FROM anexos WHERE evento_id = :id');
+            $anexos->execute(['id' => $id]);
+            $caminhos = array_map('strval', $anexos->fetchAll(PDO::FETCH_COLUMN));
+
+            foreach (['tarefas', 'agenda_eventos', 'evento_cursos', 'anexos', 'formularios', 'transportes', 'visitas', 'eventos'] as $tabela) {
+                $coluna = $tabela === 'eventos' ? 'id' : 'evento_id';
+                $this->connection
+                    ->prepare("DELETE FROM {$tabela} WHERE {$coluna} = :id")
+                    ->execute(['id' => $id]);
+            }
+
+            $this->connection->commit();
+        } catch (\Throwable $e) {
+            $this->connection->rollBack();
+
+            throw $e;
+        }
+
+        return $caminhos;
+    }
+
+    /**
      * Exposições não canceladas no mesmo local cujo período de ocupação
      * cruza o período informado (datas no formato AAAA-MM-DD).
      *

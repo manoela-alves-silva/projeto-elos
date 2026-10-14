@@ -15,6 +15,7 @@ use function Elos\Frontend\apiLista;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\diaMes;
 use function Elos\Frontend\esc;
+use function Elos\Frontend\flash;
 use function Elos\Frontend\exposicaoAtiva;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\redirecionar;
@@ -52,6 +53,7 @@ $ordenar($encerradas);
 
 $exibidas = $verEncerradas ? $encerradas : $ativas;
 $busca = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
+$mensagem = flash('eventos');
 
 ?>
 <!DOCTYPE html>
@@ -93,6 +95,10 @@ $busca = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
         </header>
 
         <div class="content-wrapper">
+
+            <?php if ($mensagem !== ''): ?>
+                <div class="aviso aviso-ok" role="status"><?= esc($mensagem) ?></div>
+            <?php endif; ?>
 
             <?php if ($apiIndisponivel): ?>
                 <div class="aviso aviso-erro" role="alert">Não foi possível carregar as exposições agora.</div>

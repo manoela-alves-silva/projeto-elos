@@ -32,7 +32,25 @@ final class HistoricoService
 
     public static function registrar(int $eventoId, string $acao, ?string $descricao = null): void
     {
-        if (self::$ativo === null || $eventoId < 1) {
+        if ($eventoId < 1) {
+            return;
+        }
+
+        self::gravar($eventoId, $acao, $descricao);
+    }
+
+    /**
+     * Registro que não pertence a nenhuma exposição (por exemplo, a
+     * exposição que foi apagada): fica no histórico geral.
+     */
+    public static function registrarGeral(string $acao, ?string $descricao = null): void
+    {
+        self::gravar(null, $acao, $descricao);
+    }
+
+    private static function gravar(?int $eventoId, string $acao, ?string $descricao): void
+    {
+        if (self::$ativo === null) {
             return;
         }
 
