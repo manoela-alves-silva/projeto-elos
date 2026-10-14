@@ -1,0 +1,4 @@
+# Arquivos ocultos (.env, .git, .htaccess) nunca são servidos.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

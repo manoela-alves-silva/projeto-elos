@@ -40,6 +40,9 @@ use Elos\Services\AuthorizationService;
 use Elos\Services\HistoricoService;
 use Elos\Services\SessionService;
 
+// Classes e variáveis de backend/.env, antes de tudo que as usa.
+require_once dirname(__DIR__) . '/src/bootstrap.php';
+
 // Datas no horário de Brasília (o padrão do PHP é UTC).
 date_default_timezone_set('America/Sao_Paulo');
 
@@ -48,7 +51,40 @@ date_default_timezone_set('America/Sao_Paulo');
 ini_set('display_errors', getenv('ELOS_DEBUG') === '1' ? '1' : '0');
 ini_set('log_errors', '1');
 
-require_once dirname(__DIR__) . '/src/bootstrap.php';
+// Erro inesperado (ex.: banco fora do ar) vira uma resposta JSON 500 e
+// vai para o log, em vez de uma página em branco para o frontend.
+set_exception_handler(static function (Throwable $erro): void {
+    error_log('[ELOS] ' . $erro);
+
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+    }
+
+    $corpo = ['erro' => 'Erro interno do servidor. Tente de novo em instantes.'];
+
+    if (getenv('ELOS_DEBUG') === '1') {
+        $corpo['detalhe'] = $erro->getMessage();
+    }
+
+    echo json_encode($corpo, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+});
+
+// Chave combinada com o frontend (ELOS_API_CHAVE). Quando definida, a API
+// só atende quem a envia, mesmo se o endereço dela for público (caso da
+// hospedagem compartilhada, onde a API fica num subdomínio).
+$chaveApi = trim((string) getenv('ELOS_API_CHAVE'));
+
+if (
+    $chaveApi !== ''
+    && !hash_equals($chaveApi, (string) ($_SERVER['HTTP_X_ELOS_CHAVE'] ?? ''))
+) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['erro' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 
 $database = Database::fromEnvironment();
 $pdo = $database->getConnection();

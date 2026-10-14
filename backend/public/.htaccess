@@ -1,0 +1,5 @@
+# Apache: toda rota /api/... vai para o index.php (no servidor embutido
+# do PHP isso já acontece sozinho; no Apache, sem isto, dá 404).
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L,QSA]

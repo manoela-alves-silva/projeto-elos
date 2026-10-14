@@ -16,7 +16,9 @@ final class SessionService
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             // Só o frontend (servidor) usa este cookie; nenhum navegador
-            // deveria enviá-lo nem lê-lo.
+            // deveria enviá-lo nem lê-lo. Nome próprio para não se
+            // confundir com o cookie do frontend no mesmo servidor.
+            session_name('ELOS_API');
             session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => '/',
