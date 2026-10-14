@@ -522,6 +522,8 @@ a.lista-datas-texto:hover strong {
     font-weight: 800;
 
     cursor: pointer;
+
+    transition: background 0.2s ease;
 }
 
 .botao-perigo:hover {
