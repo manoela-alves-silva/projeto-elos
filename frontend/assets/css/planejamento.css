@@ -561,3 +561,17 @@ summary::-webkit-details-marker {
     font-size: var(--fs-11);
     font-weight: 700;
 }
+
+/* Link para apagar a exposição: discreto, no fim do formulário de
+   informações (apagar é raro e definitivo). */
+.apagar-exposicao {
+    margin-top: var(--sp-16);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+.apagar-exposicao .text-link {
+    color: var(--red-dark);
+}

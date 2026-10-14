@@ -40,7 +40,7 @@ final class HistoricoRepository
     }
 
     public function create(
-        int $eventoId,
+        ?int $eventoId,
         ?int $usuarioId,
         string $acao,
         ?string $descricao

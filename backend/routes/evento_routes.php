@@ -294,6 +294,39 @@ function handleEventoByIdRequest(
         ]);
     }
 
+    // Apagar é definitivo (quem só quer tirar a mostra de circulação
+    // usa "Exposição cancelada"). Só gestores.
+    if ($method === 'DELETE') {
+        requireRole($authorizationFactory, 'GESTOR');
+
+        $evento = $eventoControllerFactory()->show($id);
+        $caminhos = $evento === null ? null : $eventoControllerFactory()->delete($id);
+
+        if ($caminhos === null) {
+            sendJsonResponse(404, [
+                'erro' => 'Exposição não encontrada.',
+            ]);
+        }
+
+        // Os arquivos saem depois do banco: se algum falhar, sobra só um
+        // arquivo sem uso, nunca um anexo apontando para o nada.
+        $pastaAnexos = dirname(__DIR__) . '/storage/anexos/';
+
+        foreach ($caminhos as $caminho) {
+            $arquivo = $pastaAnexos . basename($caminho);
+
+            if (is_file($arquivo)) {
+                unlink($arquivo);
+            }
+        }
+
+        HistoricoService::registrarGeral('Exposição apagada', (string) $evento['titulo']);
+
+        sendJsonResponse(200, [
+            'mensagem' => 'Exposição apagada.',
+        ]);
+    }
+
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
     ]);
