@@ -65,6 +65,49 @@ final class UsuarioController
     }
 
     /**
+     * Entrada com Google (e-mail já confirmado pelo Google). Conta
+     * existente e aprovada: entra. Conta pendente: continua esperando.
+     * Sem conta: cria uma pendente, como no cadastro normal.
+     *
+     * @return array{usuario: array<string, mixed>, pendente: bool, nova: bool}
+     */
+    public function loginGoogle(string $email, string $nome): array
+    {
+        $usuario = $this->usuarioRepository->findByEmail($email);
+        $nova = false;
+
+        if ($usuario === null) {
+            // Senha sorteada que ninguém conhece: a conta entra pelo Google.
+            $criado = $this->register($nome, $email, bin2hex(random_bytes(24)));
+            $usuario = $criado ?? $this->usuarioRepository->findByEmail($email);
+            $nova = true;
+        }
+
+        if ($usuario === null) {
+            throw new RuntimeException('Não foi possível criar a conta.');
+        }
+
+        unset($usuario['senha'], $usuario['codigo_recuperacao']);
+
+        if ((int) $usuario['ativo'] !== 1) {
+            return ['usuario' => $usuario, 'pendente' => true, 'nova' => $nova];
+        }
+
+        if (
+            $usuario['perfil'] === 'COLABORADOR'
+            && self::emailEhGestorInicial($email)
+            && $this->usuarioRepository->countGestoresAtivos() === 0
+        ) {
+            $this->usuarioRepository->updatePerfil((int) $usuario['id'], 'GESTOR');
+            $usuario['perfil'] = 'GESTOR';
+        }
+
+        $this->sessionService->login($usuario);
+
+        return ['usuario' => $usuario, 'pendente' => false, 'nova' => $nova];
+    }
+
+    /**
      * Relê o usuário da sessão no banco, para que uma troca de perfil
      * (ou uma conta desativada) valha já na próxima requisição.
      */
@@ -138,6 +181,154 @@ final class UsuarioController
     }
 
     /**
+     * A pessoa logada troca a própria senha, confirmando a atual.
+     *
+     * @throws DomainException com o status HTTP como código
+     */
+    public function trocarSenha(string $senhaAtual, string $novaSenha): void
+    {
+        $usuario = $this->usuarioLogadoConferindoSenha($senhaAtual);
+
+        $this->usuarioRepository->updateSenha((int) $usuario['id'], self::protegerSenha($novaSenha));
+    }
+
+    /**
+     * A pessoa logada gera um código de recuperação novo (o anterior
+     * deixa de valer). Devolve o código, que só aparece desta vez.
+     *
+     * @throws DomainException com o status HTTP como código
+     */
+    public function gerarCodigoRecuperacao(string $senhaAtual): string
+    {
+        $usuario = $this->usuarioLogadoConferindoSenha($senhaAtual);
+
+        return $this->novoCodigoRecuperacao((int) $usuario['id']);
+    }
+
+    /**
+     * Quem esqueceu a senha cria uma nova com o e-mail e o código de
+     * recuperação. O código usado deixa de valer e um novo é devolvido.
+     * A mensagem de erro é sempre a mesma, para não revelar se o e-mail
+     * tem conta.
+     *
+     * @throws DomainException (400) se o e-mail ou o código não conferem
+     */
+    public function recuperarSenha(string $email, string $codigo, string $novaSenha): string
+    {
+        $usuario = $this->usuarioRepository->findByEmail($email);
+        $codigoHash = $usuario['codigo_recuperacao'] ?? null;
+
+        if (
+            !is_string($codigoHash)
+            || !password_verify(self::normalizarCodigo($codigo), $codigoHash)
+        ) {
+            throw new DomainException('E-mail ou código de recuperação inválidos.', 400);
+        }
+
+        $id = (int) $usuario['id'];
+        $this->usuarioRepository->updateSenha($id, self::protegerSenha($novaSenha));
+
+        return $this->novoCodigoRecuperacao($id);
+    }
+
+    /**
+     * Um gestor gera uma senha provisória para quem esqueceu a sua.
+     * Devolve a senha, que só aparece uma vez, para o gestor repassar.
+     *
+     * @throws DomainException com o status HTTP como código
+     */
+    public function redefinirSenha(int $id): string
+    {
+        $usuario = $this->usuarioRepository->findById($id);
+
+        if ($usuario === null || (int) $usuario['ativo'] !== 1) {
+            throw new DomainException('Usuário não encontrado.', 404);
+        }
+
+        // Senão um gestor poderia tomar a conta de um administrador.
+        if ($usuario['perfil'] === 'ADMIN') {
+            throw new DomainException('A senha de um administrador não pode ser redefinida por aqui.', 409);
+        }
+
+        $senha = self::sortear(10);
+
+        $this->usuarioRepository->updateSenha($id, self::protegerSenha($senha));
+
+        return $senha;
+    }
+
+    /**
+     * @throws DomainException (401) sem sessão; (400) senha atual errada
+     */
+    private function usuarioLogadoConferindoSenha(string $senhaAtual): array
+    {
+        $atual = $this->sessionService->user();
+        $usuario = $atual === null
+            ? null
+            : $this->usuarioRepository->findById((int) ($atual['id'] ?? 0));
+
+        if ($usuario === null) {
+            throw new DomainException('Sessão expirada. Entre de novo.', 401);
+        }
+
+        if (!password_verify($senhaAtual, (string) $usuario['senha'])) {
+            throw new DomainException('A senha atual não confere.', 400);
+        }
+
+        return $usuario;
+    }
+
+    /**
+     * Sorteia um código no formato abcd-efgh-jkmn, grava o hash e devolve
+     * o código em texto (a única vez em que ele existe fora do banco).
+     */
+    private function novoCodigoRecuperacao(int $id): string
+    {
+        $codigo = implode('-', str_split(self::sortear(12), 4));
+
+        $this->usuarioRepository->updateCodigoRecuperacao(
+            $id,
+            self::protegerSenha(self::normalizarCodigo($codigo))
+        );
+
+        return $codigo;
+    }
+
+    /**
+     * Aceita o código digitado com ou sem hífens, espaços e maiúsculas.
+     */
+    private static function normalizarCodigo(string $codigo): string
+    {
+        return (string) preg_replace('/[^a-z0-9]/', '', strtolower($codigo));
+    }
+
+    /**
+     * Letras e números sorteados, sem os que se confundem (l, 1, o, 0, i).
+     */
+    private static function sortear(int $tamanho): string
+    {
+        $caracteres = 'abcdefghjkmnpqrstuvwxyz23456789';
+        $resultado = '';
+
+        for ($i = 0; $i < $tamanho; $i++) {
+            $resultado .= $caracteres[random_int(0, strlen($caracteres) - 1)];
+        }
+
+        return $resultado;
+    }
+
+    private static function protegerSenha(string $senha): string
+    {
+        $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
+
+        if ($senhaHash === false) {
+            throw new RuntimeException('Não foi possível proteger a senha.');
+        }
+
+        return $senhaHash;
+    }
+
+    /**
      * E-mails em ELOS_GESTORES (variável de ambiente, separados por
      * vírgula) entram como gestores ao se cadastrar.
      */
@@ -200,6 +391,7 @@ final class UsuarioController
             'email' => $email,
             'perfil' => $perfil,
             'ativo' => $ehGestor ? 1 : 0,
+            'codigo_recuperacao' => $this->novoCodigoRecuperacao($id),
         ];
     }
 

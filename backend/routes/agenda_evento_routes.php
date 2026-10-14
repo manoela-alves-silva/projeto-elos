@@ -89,6 +89,12 @@ function handleAgendaEventoRequest(
             }
         }
 
+        $erroDatas = erroNasDatasDaAgenda($campos);
+
+        if ($erroDatas !== null) {
+            sendJsonResponse(400, ['erro' => $erroDatas]);
+        }
+
         $agenda = $agendaEventoControllerFactory()->create(
             $eventoId,
             $montagemInicio,
@@ -182,6 +188,12 @@ function handleAgendaEventoRequest(
             }
         }
 
+        $erroDatas = erroNasDatasDaAgenda($campos);
+
+        if ($erroDatas !== null) {
+            sendJsonResponse(400, ['erro' => $erroDatas]);
+        }
+
         $agenda = $agendaEventoControllerFactory()->update(
             $eventoId,
             $montagemInicio,
@@ -212,6 +224,66 @@ function handleAgendaEventoRequest(
     sendJsonResponse(405, [
         'erro' => 'Método não permitido.',
     ]);
+}
+
+/**
+ * Confere as datas antes de gravar: cada uma precisa existir no
+ * calendário (2026-02-30 não) e nenhum período pode terminar antes de
+ * começar. Devolve a mensagem para a pessoa, ou null se está tudo certo.
+ *
+ * @param array<string, ?string> $campos
+ */
+function erroNasDatasDaAgenda(array $campos): ?string
+{
+    $rotulos = [
+        'montagem_inicio' => 'início da montagem',
+        'montagem_fim' => 'fim da montagem',
+        'abertura' => 'abertura',
+        'permanencia_inicio' => 'início do período em cartaz',
+        'permanencia_fim' => 'fim do período em cartaz',
+        'desmontagem_inicio' => 'início da desmontagem',
+        'desmontagem_fim' => 'fim da desmontagem',
+    ];
+
+    foreach ($rotulos as $campo => $rotulo) {
+        $data = $campos[$campo] ?? null;
+
+        if ($data !== null && !dataValida($data)) {
+            return 'A data de ' . $rotulo . ' não existe. Confira o dia e o mês.';
+        }
+    }
+
+    $horario = $campos['horario'] ?? null;
+
+    if ($horario !== null && !preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $horario)) {
+        return 'Horário inválido. Use o formato 14:30.';
+    }
+
+    foreach ([
+        'montagem' => 'A montagem',
+        'permanencia' => 'O período em cartaz',
+        'desmontagem' => 'A desmontagem',
+    ] as $periodo => $nome) {
+        $inicio = $campos[$periodo . '_inicio'] ?? null;
+        $fim = $campos[$periodo . '_fim'] ?? null;
+
+        // Datas no formato AAAA-MM-DD se comparam como texto.
+        if ($inicio !== null && $fim !== null && $fim < $inicio) {
+            return $nome . ' termina antes de começar. Confira as datas.';
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Data no formato AAAA-MM-DD que existe no calendário.
+ */
+function dataValida(string $data): bool
+{
+    $lida = DateTimeImmutable::createFromFormat('!Y-m-d', $data);
+
+    return $lida !== false && $lida->format('Y-m-d') === $data;
 }
 
 /**

@@ -1,0 +1,59 @@
+/* Minha conta: troca de senha. Só tokens de base.css. */
+
+.conta-senha {
+    max-width: 480px;
+}
+
+.conta-senha .form-elos {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-16);
+
+    padding: var(--sp-16) var(--sp-24) var(--sp-24);
+}
+
+.conta-senha .primary-button {
+    align-self: flex-start;
+}
+
+.conta-senha + .conta-senha {
+    margin-top: var(--sp-20);
+}
+
+.conta-senha .botao-secundario {
+    align-self: flex-start;
+}
+
+.conta-explicacao {
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+}
+
+/* Código de recuperação: aparece uma vez só, então chama atenção. */
+.codigo-recuperacao {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-8);
+
+    margin: var(--sp-16) var(--sp-24) var(--sp-24);
+    padding: var(--sp-16);
+
+    border: 1px solid var(--yellow);
+    border-radius: var(--radius-sm);
+
+    background: var(--yellow-light);
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+}
+
+.codigo-recuperacao code {
+    font-size: var(--fs-20);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+
+    user-select: all;
+}

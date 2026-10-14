@@ -51,7 +51,7 @@ $ordenar($ativas);
 $ordenar($encerradas);
 
 $exibidas = $verEncerradas ? $encerradas : $ativas;
-$busca = trim((string) ($_GET['q'] ?? ''));
+$busca = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
 
 ?>
 <!DOCTYPE html>

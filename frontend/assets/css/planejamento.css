@@ -286,6 +286,7 @@ a.lista-datas-texto:hover strong {
 }
 
 .form-elos input[type="text"],
+.form-elos input[type="password"],
 .form-elos input[type="date"],
 .form-elos input[type="time"],
 .form-elos select,

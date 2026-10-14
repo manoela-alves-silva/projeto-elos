@@ -19,6 +19,18 @@ if (is_array($usuario) && !empty($usuario['id'])) {
 $mensagemErro = '';
 $mensagemInfo = '';
 
+// Aviso deixado pela entrada com Google (google_entrar/google_retorno).
+$aviso = $_SESSION['aviso_login'] ?? null;
+unset($_SESSION['aviso_login']);
+
+if (is_array($aviso) && is_string($aviso['texto'] ?? null)) {
+    if (($aviso['tipo'] ?? '') === 'info') {
+        $mensagemInfo = $aviso['texto'];
+    } else {
+        $mensagemErro = $aviso['texto'];
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim((string) ($_POST['email'] ?? ''));
     $senha = (string) ($_POST['senha'] ?? '');
@@ -49,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'email' => $dados['usuario']['email'] ?? null,
                     'perfil' => $dados['usuario']['perfil'] ?? null,
                 ];
+                \Elos\Frontend\lembrarLogin(($_POST['lembrar'] ?? '') === '1');
 
                 header('Location: ../index.php');
                 exit();
@@ -322,13 +335,12 @@ $emailInformado = escapar(
                     </label>
 
 
-                    <button
-                        type="button"
+                    <a
+                        href="recuperar_senha.php"
                         class="forgot-password"
-                        id="forgotPassword"
                     >
                         Esqueceu a senha?
-                    </button>
+                    </a>
 
                 </div>
 
@@ -356,8 +368,8 @@ $emailInformado = escapar(
             </div>
 
 
-            <button
-                type="button"
+            <a
+                href="google_entrar.php"
                 class="google-button"
                 id="googleButton"
             >
@@ -370,18 +382,7 @@ $emailInformado = escapar(
                     Continuar com o Google
                 </span>
 
-            </button>
-
-
-            <p
-                class="google-notice"
-                id="googleNotice"
-                hidden
-            >
-                O login com Google será habilitado
-                quando a autenticação OAuth do projeto
-                estiver configurada.
-            </p>
+            </a>
 
 
             <p class="login-signup">
@@ -395,14 +396,6 @@ $emailInformado = escapar(
     </main>
 
 </div>
-
-
-<div
-    class="login-toast"
-    id="loginToast"
-    role="status"
-    aria-live="polite"
-></div>
 
 
 <script>
@@ -435,75 +428,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 
-    const forgotPassword = document.getElementById(
-        'forgotPassword'
-    );
+    // "Lembrar de mim" também vale para a entrada com Google.
+    const lembrar = document.querySelector('input[name="lembrar"]');
+    const google = document.getElementById('googleButton');
 
-    const toast = document.getElementById(
-        'loginToast'
-    );
-
-    function mostrarToast(mensagem) {
-
-        if (!toast) {
-            return;
-        }
-
-        toast.textContent = mensagem;
-        toast.classList.add('show');
-
-        window.clearTimeout(
-            mostrarToast.timeout
-        );
-
-        mostrarToast.timeout = window.setTimeout(
-            function () {
-                toast.classList.remove('show');
-            },
-            3500
-        );
-    }
-
-
-    if (forgotPassword) {
-
-        forgotPassword.addEventListener(
-            'click',
-            function () {
-
-                mostrarToast(
-                    'A recuperação de senha será disponibilizada nesta etapa do sistema.'
-                );
-
-            }
-        );
-
-    }
-
-
-    const googleButton = document.getElementById(
-        'googleButton'
-    );
-
-    const googleNotice = document.getElementById(
-        'googleNotice'
-    );
-
-    if (googleButton && googleNotice) {
-
-        googleButton.addEventListener(
-            'click',
-            function () {
-
-                googleNotice.hidden = false;
-
-                mostrarToast(
-                    'O acesso com Google ainda precisa da configuração OAuth.'
-                );
-
-            }
-        );
-
+    if (lembrar && google) {
+        google.addEventListener('click', function () {
+            google.href = 'google_entrar.php' + (lembrar.checked ? '?lembrar=1' : '');
+        });
     }
 
 });

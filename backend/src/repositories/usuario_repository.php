@@ -36,7 +36,7 @@ final class UsuarioRepository
     public function findByEmail(string $email): ?array
     {
         $statement = $this->connection->prepare(
-            'SELECT id, nome, email, senha, perfil, ativo, created_at, updated_at
+            'SELECT id, nome, email, senha, codigo_recuperacao, perfil, ativo, created_at, updated_at
              FROM usuarios
              WHERE email = :email
              LIMIT 1'
@@ -131,6 +131,31 @@ final class UsuarioRepository
         $statement->execute([
             'id' => $id,
             'perfil' => $perfil,
+        ]);
+    }
+
+    public function updateSenha(int $id, string $senhaHash): void
+    {
+        $statement = $this->connection->prepare(
+            'UPDATE usuarios SET senha = :senha WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $id,
+            'senha' => $senhaHash,
+        ]);
+    }
+
+    /**
+     * Grava o hash do código de recuperação (null apaga o código).
+     */
+    public function updateCodigoRecuperacao(int $id, ?string $codigoHash): void
+    {
+        $statement = $this->connection->prepare(
+            'UPDATE usuarios SET codigo_recuperacao = :codigo WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $id,
+            'codigo' => $codigoHash,
         ]);
     }
 

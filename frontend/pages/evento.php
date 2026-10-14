@@ -23,6 +23,8 @@ use function Elos\Frontend\conflitosNoLocal;
 use function Elos\Frontend\classePrioridade;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\dataBr;
+use function Elos\Frontend\dataValida;
+use function Elos\Frontend\erroNasDatas;
 use function Elos\Frontend\dataHoraBr;
 use function Elos\Frontend\diasAte;
 use function Elos\Frontend\distanciaRelativa;
@@ -70,7 +72,7 @@ function lerNecessidade(array $post): array
     $erro = match (true) {
         $valores['titulo'] === '' => 'Escreva o que precisa ser feito.',
         !in_array($valores['prioridade'], PRIORIDADES, true) => 'Escolha a prioridade.',
-        $valores['prazo'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $valores['prazo']) => 'Data inválida.',
+        $valores['prazo'] !== '' && !dataValida($valores['prazo']) => 'Essa data não existe. Confira o dia e o mês.',
         $valores['horario'] !== '' && !preg_match('/^\d{2}:\d{2}$/', $valores['horario']) => 'Horário inválido.',
         default => '',
     };
@@ -183,6 +185,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                 $corpo['tipo_horario'] = in_array($tipoHorario, TIPOS_HORARIO, true) ? $tipoHorario : null;
                 $observacoes = trim((string) ($_POST['observacoes_agenda'] ?? ''));
                 $corpo['observacoes'] = $observacoes !== '' ? $observacoes : null;
+
+                $erroForm = erroNasDatas($corpo);
+
+                if ($erroForm !== '') {
+                    $formComErro = 'datas';
+                    break;
+                }
 
                 if (($_POST['confirmar_conflito'] ?? '') !== '1') {
                     $atual = Api::get('/api/eventos/' . $eventoId)['evento'] ?? [];

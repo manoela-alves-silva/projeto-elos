@@ -10,6 +10,7 @@ namespace Elos\Services;
 final class SessionService
 {
     private const USER_SESSION_KEY = 'usuario';
+    private const VALIDADE_SEGUNDOS = 30 * 24 * 60 * 60;
 
     public function start(): void
     {
@@ -23,9 +24,30 @@ final class SessionService
                 'samesite' => 'Strict',
             ]);
             ini_set('session.use_strict_mode', '1');
+            $this->guardarSessoesNoProjeto();
 
             session_start();
         }
+    }
+
+    /**
+     * Arquivos de sessão em storage/sessoes, valendo 30 dias: na pasta
+     * padrão do sistema eles somem depois de 24 minutos parados, e o
+     * "Lembrar de mim" do frontend perderia o login aqui no backend.
+     * Quem não marcou "Lembrar de mim" sai antes, pelo frontend.
+     */
+    private function guardarSessoesNoProjeto(): void
+    {
+        $diretorio = dirname(__DIR__, 2) . '/storage/sessoes';
+
+        if (!is_dir($diretorio) && !mkdir($diretorio, 0700, true) && !is_dir($diretorio)) {
+            return; // sem a pasta, fica a padrão do PHP
+        }
+
+        session_save_path($diretorio);
+        ini_set('session.gc_maxlifetime', (string) self::VALIDADE_SEGUNDOS);
+        ini_set('session.gc_probability', '1');
+        ini_set('session.gc_divisor', '100');
     }
 
     public function login(array $usuario): void

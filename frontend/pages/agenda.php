@@ -87,7 +87,7 @@ $totalCelulas = (int) ceil(($inicioSemana + $diasNoMes) / 7) * 7;
 $anterior = $primeiroDia->modify('-1 month');
 $seguinte = $primeiroDia->modify('+1 month');
 
-$diaSelecionado = (string) ($_GET['dia'] ?? '');
+$diaSelecionado = is_string($_GET['dia'] ?? null) ? $_GET['dia'] : '';
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $diaSelecionado)) {
     $diaSelecionado = '';
 }

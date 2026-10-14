@@ -310,6 +310,41 @@
 }
 
 
+/* Código de recuperação: aparece uma vez só, então chama atenção. */
+.codigo-recuperacao {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: var(--sp-8);
+
+    margin-bottom: var(--sp-20);
+
+    padding: var(--sp-16);
+
+    border: 1px solid var(--yellow);
+    border-radius: var(--radius-sm);
+
+    background: var(--yellow-light);
+    color: var(--navy);
+
+    font-size: var(--fs-12);
+
+    line-height: 1.45;
+}
+
+
+.codigo-recuperacao code {
+    color: var(--navy);
+
+    font-size: var(--fs-20);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+
+    user-select: all;
+}
+
+
 /* =========================================================
    FORMULÁRIO
    ========================================================= */
@@ -689,6 +724,8 @@
     font-size: var(--fs-13);
 
     font-weight: 600;
+
+    text-decoration: none;
 
     cursor: pointer;
 

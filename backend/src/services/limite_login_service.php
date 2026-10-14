@@ -11,7 +11,7 @@ namespace Elos\Services;
  */
 final class LimiteLoginService
 {
-    private const JANELA_SEGUNDOS = 15 * 60;
+    private const JANELA_SEGUNDOS = 5 * 60;
     private const MAXIMO_POR_EMAIL = 5;
     private const MAXIMO_POR_IP = 20;
 
