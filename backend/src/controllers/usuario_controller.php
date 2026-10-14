@@ -181,6 +181,46 @@ final class UsuarioController
     }
 
     /**
+     * Um gestor exclui a conta de outra pessoa (colaborador ou gestor).
+     * Excluir um gestor é como rebaixar e excluir, então vale a mesma
+     * regra: o sistema não pode ficar sem gestor.
+     *
+     * @throws DomainException com o status HTTP como código
+     */
+    public function excluir(int $id): void
+    {
+        $usuario = $this->usuarioRepository->findById($id);
+
+        if ($usuario === null || (int) $usuario['ativo'] !== 1) {
+            throw new DomainException('Usuário não encontrado.', 404);
+        }
+
+        $atual = $this->sessionService->user();
+
+        if ($atual !== null && (int) ($atual['id'] ?? 0) === $id) {
+            throw new DomainException('Você não pode excluir a própria conta.', 409);
+        }
+
+        if ($usuario['perfil'] === 'ADMIN') {
+            throw new DomainException('Um administrador não pode ser excluído por aqui.', 409);
+        }
+
+        if (
+            $usuario['perfil'] === 'GESTOR'
+            && $this->usuarioRepository->countGestoresAtivos($id) === 0
+        ) {
+            throw new DomainException(
+                'O sistema precisa de pelo menos um gestor. Torne outra pessoa gestora antes.',
+                409
+            );
+        }
+
+        if (!$this->usuarioRepository->deleteAtivo($id)) {
+            throw new DomainException('Usuário não encontrado.', 404);
+        }
+    }
+
+    /**
      * A pessoa logada troca a própria senha, confirmando a atual.
      *
      * @throws DomainException com o status HTTP como código

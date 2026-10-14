@@ -19,8 +19,16 @@
     vertical-align: middle;
 }
 
+.lista-simples li {
+    transition: background 0.2s ease;
+}
+
+.lista-simples li:hover {
+    background: var(--cream-light);
+}
+
 .equipe-email {
-    flex: 1 1 200px;
+    flex: 1 1 140px;
 }
 
 .equipe-acao {

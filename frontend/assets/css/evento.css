@@ -264,6 +264,12 @@
     padding: var(--sp-12) var(--sp-24);
 
     scroll-margin-top: 110px;
+
+    transition: background 0.2s ease;
+}
+
+.item:hover:not(:target) {
+    background: var(--cream-light);
 }
 
 .item + .item {
@@ -515,9 +521,16 @@
 
     gap: var(--sp-16);
 
-    padding: var(--sp-8) 0 var(--sp-8) var(--sp-12);
+    padding: var(--sp-8) var(--sp-12);
 
     border-left: 3px solid var(--border);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+
+    transition: background 0.2s ease;
+}
+
+.data-linha:hover {
+    background: var(--cream-light);
 }
 
 .data-linha + .data-linha {

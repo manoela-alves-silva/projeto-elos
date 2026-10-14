@@ -689,6 +689,10 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 
                     <div class="acoes-cabecalho">
                         <a href="relatorio.php?evento=<?= $eventoId ?>" class="botao-secundario">⎙ Relatório para imprimir</a>
+                        <?php if ($podeGerenciar): ?>
+                            <a href="evento.php?id=<?= $eventoId ?>&amp;editar=info#sobre" class="botao-secundario">✎ Editar informações</a>
+                            <a href="apagar_exposicao.php?id=<?= $eventoId ?>" class="botao-secundario botao-apagar">Apagar exposição</a>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -1040,11 +1044,6 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                     <a href="evento.php?id=<?= $eventoId ?>#sobre" class="text-link">Cancelar</a>
                                     <button type="submit" class="primary-button">Salvar</button>
                                 </div>
-
-                                <p class="apagar-exposicao">
-                                    Não vai mais acontecer e não precisa ficar guardada?
-                                    <a href="apagar_exposicao.php?id=<?= $eventoId ?>" class="text-link">Apagar exposição</a>
-                                </p>
                             </form>
 
                         <?php else: ?>

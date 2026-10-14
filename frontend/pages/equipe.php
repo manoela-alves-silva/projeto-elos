@@ -44,6 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'redefin
     } catch (ApiException $e) {
         $erro = $e->getMessage();
     }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'excluir') {
+    $alvoId = (int) ($_POST['usuario_id'] ?? 0);
+    $nomeAlvo = trim((string) ($_POST['nome'] ?? ''));
+
+    try {
+        Api::delete('/api/usuarios/' . $alvoId);
+        flash('equipe', 'A conta de ' . $nomeAlvo . ' foi excluída.');
+        redirecionar('equipe.php');
+    } catch (ApiException $e) {
+        $erro = $e->getMessage();
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decisao'])) {
     $alvoId = (int) ($_POST['usuario_id'] ?? 0);
     $nomeAlvo = trim((string) ($_POST['nome'] ?? ''));
@@ -164,6 +175,19 @@ $linha = static function (array $pessoa) use ($usuario, $unicoGestor): void {
                     <input type="hidden" name="usuario_id" value="<?= $id ?>">
                     <input type="hidden" name="nome" value="<?= esc($pessoa['nome']) ?>">
                     <button type="submit" name="acao" value="redefinir_senha" class="botao-perigo">Gerar senha</button>
+                </form>
+            </details>
+            <details class="equipe-senha">
+                <summary class="botao-secundario">Excluir</summary>
+                <form method="post" class="equipe-confirmar">
+                    <?= \Elos\Frontend\campoCsrf() ?>
+                    <p>
+                        A conta de <?= esc($pessoa['nome']) ?> será apagada e ela não consegue mais entrar.
+                        As necessidades que estavam com ela continuam com o nome dela como responsável.
+                    </p>
+                    <input type="hidden" name="usuario_id" value="<?= $id ?>">
+                    <input type="hidden" name="nome" value="<?= esc($pessoa['nome']) ?>">
+                    <button type="submit" name="acao" value="excluir" class="botao-perigo">Excluir conta</button>
                 </form>
             </details>
         <?php endif; ?>

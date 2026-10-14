@@ -258,7 +258,8 @@ function handleUserApprovalRequest(
 }
 
 /**
- * Troca o perfil de um usuário (COLABORADOR <-> GESTOR). Só gestores.
+ * Troca o perfil de um usuário (PUT/PATCH, COLABORADOR <-> GESTOR) ou
+ * exclui a conta (DELETE). Só gestores.
  *
  * @param callable(): UsuarioController $controllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
@@ -269,11 +270,21 @@ function handleUserProfileRequest(
     callable $controllerFactory,
     callable $authorizationFactory
 ): never {
-    if (!in_array($method, ['PUT', 'PATCH'], true)) {
+    if (!in_array($method, ['PUT', 'PATCH', 'DELETE'], true)) {
         sendJsonResponse(405, ['erro' => 'Método não permitido.']);
     }
 
     requireRole($authorizationFactory, 'GESTOR');
+
+    if ($method === 'DELETE') {
+        try {
+            $controllerFactory()->excluir($id);
+        } catch (DomainException $e) {
+            sendJsonResponse($e->getCode() ?: 400, ['erro' => $e->getMessage()]);
+        }
+
+        sendJsonResponse(200, ['mensagem' => 'Conta excluída.']);
+    }
 
     $payload = readJsonPayload();
     $perfil = $payload['perfil'] ?? null;

@@ -123,6 +123,40 @@ final class UsuarioRepository
         return $statement->rowCount() > 0;
     }
 
+    /**
+     * Apaga uma conta aprovada. Antes, o nome da pessoa vai para
+     * tarefas.responsavel_nome, para as tarefas dela continuarem
+     * mostrando quem era o responsável (o vínculo vira NULL pela FK).
+     */
+    public function deleteAtivo(int $id): bool
+    {
+        $this->connection->beginTransaction();
+
+        try {
+            $statement = $this->connection->prepare(
+                'UPDATE tarefas t
+                 INNER JOIN usuarios u ON u.id = t.usuario_responsavel_id
+                 SET t.responsavel_nome = COALESCE(NULLIF(t.responsavel_nome, \'\'), u.nome)
+                 WHERE t.usuario_responsavel_id = :id'
+            );
+            $statement->execute(['id' => $id]);
+
+            $statement = $this->connection->prepare(
+                'DELETE FROM usuarios WHERE id = :id AND ativo = 1'
+            );
+            $statement->execute(['id' => $id]);
+            $apagou = $statement->rowCount() > 0;
+
+            $this->connection->commit();
+        } catch (\Throwable $e) {
+            $this->connection->rollBack();
+
+            throw $e;
+        }
+
+        return $apagou;
+    }
+
     public function updatePerfil(int $id, string $perfil): void
     {
         $statement = $this->connection->prepare(
