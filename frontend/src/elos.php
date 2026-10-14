@@ -274,6 +274,49 @@ function conflitosNoLocal(int $localId, array $datas, ?int $excetoId = null): ar
 }
 
 /**
+ * Data AAAA-MM-DD que existe no calendário (2026-02-30 não existe).
+ */
+function dataValida(string $data): bool
+{
+    $lida = \DateTimeImmutable::createFromFormat('!Y-m-d', $data);
+
+    return $lida !== false && $lida->format('Y-m-d') === $data;
+}
+
+/**
+ * Confere as datas da agenda antes de enviar (o backend confere de
+ * novo): cada data precisa existir e nenhum período pode terminar antes
+ * de começar. Devolve a mensagem de erro, ou '' se está tudo certo.
+ *
+ * @param array<string, mixed> $datas campos da agenda (vazio = sem data)
+ */
+function erroNasDatas(array $datas): string
+{
+    foreach (Planejamento::CAMPOS_AGENDA as $campo => [$rotulo]) {
+        $data = (string) ($datas[$campo] ?? '');
+
+        if ($data !== '' && !dataValida($data)) {
+            return 'A data "' . $rotulo . '" não existe. Confira o dia e o mês.';
+        }
+    }
+
+    foreach ([
+        'montagem' => 'A montagem',
+        'permanencia' => 'O período em cartaz',
+        'desmontagem' => 'A desmontagem',
+    ] as $periodo => $nome) {
+        $inicio = (string) ($datas[$periodo . '_inicio'] ?? '');
+        $fim = (string) ($datas[$periodo . '_fim'] ?? '');
+
+        if ($inicio !== '' && $fim !== '' && $fim < $inicio) {
+            return $nome . ' termina antes de começar. Confira as datas.';
+        }
+    }
+
+    return '';
+}
+
+/**
  * Aviso de local ocupado, com botão para salvar mesmo assim. Vai dentro
  * do formulário: o botão reenvia tudo com confirmar_conflito=1.
  *

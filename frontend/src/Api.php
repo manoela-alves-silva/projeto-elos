@@ -8,6 +8,11 @@ namespace Elos\Frontend;
 // fuso padrão do PHP (UTC, que já "vira o dia" às 21h).
 date_default_timezone_set('America/Sao_Paulo');
 
+// Detalhes de erro só na tela com ELOS_DEBUG=1 (desenvolvimento), como
+// no backend. Sem isso eles vão para o log/terminal, nunca para a página.
+ini_set('display_errors', getenv('ELOS_DEBUG') === '1' ? '1' : '0');
+ini_set('log_errors', '1');
+
 /**
  * Abre a sessão do frontend com o cookie protegido: invisível para
  * JavaScript (HttpOnly), não enviado por outros sites em POST
@@ -20,16 +25,22 @@ function iniciarSessao(): void
         return;
     }
 
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'secure' => ($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off',
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
+    session_set_cookie_params(parametrosDoCookie(0));
     ini_set('session.use_strict_mode', '1');
+    guardarSessoesEm('frontend');
 
     session_start();
+
+    // Sem "Lembrar de mim", a sessão acaba depois de um tempo parado.
+    $agora = time();
+    $ultimoAcesso = (int) ($_SESSION['_ultimo_acesso'] ?? $agora);
+
+    if (empty($_SESSION['_lembrar']) && $agora - $ultimoAcesso > SESSAO_INATIVA_SEGUNDOS) {
+        $_SESSION = [];
+        session_regenerate_id(true);
+    }
+
+    $_SESSION['_ultimo_acesso'] = $agora;
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         exigirCsrf();
@@ -41,6 +52,63 @@ function iniciarSessao(): void
  * Um site de fora não tem como saber o valor, então não consegue
  * enviar formulários do ELOS em nome de quem está logado.
  */
+// "Lembrar de mim": quanto tempo a pessoa continua logada.
+const LEMBRAR_SEGUNDOS = 30 * 24 * 60 * 60;
+// Sem "Lembrar de mim": sai depois de 2 horas sem usar o sistema.
+const SESSAO_INATIVA_SEGUNDOS = 2 * 60 * 60;
+
+/**
+ * @return array<string, mixed>
+ */
+function parametrosDoCookie(int $expira): array
+{
+    return [
+        'lifetime' => $expira,
+        'path' => '/',
+        'secure' => ($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ];
+}
+
+/**
+ * Guarda os arquivos de sessão numa pasta do projeto, fora das pastas
+ * públicas, com validade de 30 dias. Na pasta padrão do sistema eles
+ * eram apagados depois de 24 minutos parados, e o "Lembrar de mim" não
+ * teria como funcionar. ELOS_SESSOES_DIR troca a pasta, se preciso.
+ */
+function guardarSessoesEm(string $nome): void
+{
+    $base = getenv('ELOS_SESSOES_DIR');
+    $diretorio = (is_string($base) && trim($base) !== '' ? rtrim(trim($base), '/') : dirname(__DIR__, 2) . '/storage/sessoes')
+        . '/' . $nome;
+
+    if (!is_dir($diretorio) && !mkdir($diretorio, 0700, true) && !is_dir($diretorio)) {
+        return; // sem a pasta, fica a padrão do PHP
+    }
+
+    session_save_path($diretorio);
+    ini_set('session.gc_maxlifetime', (string) LEMBRAR_SEGUNDOS);
+    // Limpeza dos arquivos vencidos de vez em quando (1 a cada 100).
+    ini_set('session.gc_probability', '1');
+    ini_set('session.gc_divisor', '100');
+}
+
+/**
+ * Depois do login: com "Lembrar de mim", o cookie passa a durar 30 dias
+ * (sobrevive a fechar o navegador); sem, some ao fechar o navegador.
+ */
+function lembrarLogin(bool $lembrar): void
+{
+    $_SESSION['_lembrar'] = $lembrar;
+
+    if ($lembrar) {
+        $parametros = parametrosDoCookie(0);
+        unset($parametros['lifetime']);
+        setcookie(session_name(), session_id(), ['expires' => time() + LEMBRAR_SEGUNDOS] + $parametros);
+    }
+}
+
 function tokenCsrf(): string
 {
     iniciarSessao();

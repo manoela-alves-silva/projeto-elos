@@ -22,6 +22,8 @@ require_once __DIR__ . '/eventos_dispatcher_routes.php';
 
 use Elos\Controllers\UsuarioController;
 use Elos\Services\AuthorizationService;
+use Elos\Services\GoogleLoginService;
+use Elos\Services\SessionService;
 
 /**
  * Encaminha as requisições da API para o fluxo correspondente.
@@ -59,6 +61,16 @@ function handleApiRequest(
         handleLogoutRequest($method, $controllerFactory);
     }
 
+    $googleFactory = static fn (): GoogleLoginService => new GoogleLoginService(new SessionService());
+
+    if ($path === '/api/login/google/inicio') {
+        handleGoogleLoginStartRequest($method, $googleFactory);
+    }
+
+    if ($path === '/api/login/google') {
+        handleGoogleLoginRequest($method, $googleFactory, $controllerFactory);
+    }
+
     if ($path === '/api/usuarios') {
         if ($method === 'GET') {
             handleUserIndexRequest($controllerFactory, $authorizationFactory);
@@ -73,6 +85,27 @@ function handleApiRequest(
 
     if (preg_match('#^/api/usuarios/pendentes/(\d+)$#', $path, $matches)) {
         handleUserApprovalRequest(
+            $method,
+            (int) $matches[1],
+            $controllerFactory,
+            $authorizationFactory
+        );
+    }
+
+    if ($path === '/api/recuperar-senha') {
+        handlePasswordRecoveryRequest($method, $controllerFactory);
+    }
+
+    if ($path === '/api/usuarios/codigo-recuperacao') {
+        handleRecoveryCodeRequest($method, $controllerFactory, $authorizationFactory);
+    }
+
+    if ($path === '/api/usuarios/senha') {
+        handleUserPasswordChangeRequest($method, $controllerFactory, $authorizationFactory);
+    }
+
+    if (preg_match('#^/api/usuarios/(\d+)/senha$#', $path, $matches)) {
+        handleUserPasswordResetRequest(
             $method,
             (int) $matches[1],
             $controllerFactory,

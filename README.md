@@ -231,6 +231,7 @@ sugeridas.
 ```bash
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsavel_livre.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-14_codigo_recuperacao.sql
 ```
 
 ### 2) Variáveis de ambiente
@@ -253,7 +254,24 @@ export ELOS_DEBUG=1        # mostra erros nas respostas da API (só no seu compu
 | `DB_*`          | backend  | conexão com o banco (obrigatórias)                              |
 | `ELOS_DEBUG`    | backend  | `1` mostra detalhes de erro; vazio em produção                  |
 | `ELOS_GESTORES` | backend  | e-mails (separados por vírgula) que já entram como gestores. Opcional. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | backend | "Entrar com Google" (ver abaixo). Vazias = o botão avisa que não está configurado |
 | `ELOS_API_URL`  | frontend | endereço da API. Vazio = `http://127.0.0.1:8000`                |
+| `ELOS_SESSOES_DIR` | frontend | pasta das sessões. Vazio = `storage/sessoes/` na raiz do projeto |
+
+**Entrar com Google.** As duas variáveis `GOOGLE_*` vêm de um cliente
+OAuth do tipo "Aplicativo da Web", criado no Google Cloud Console
+(Google Auth Platform → Clientes). Em "URIs de redirecionamento
+autorizados", cadastre o endereço de retorno exatamente como ele é
+acessado, por exemplo `http://127.0.0.1:8081/pages/google_retorno.php`
+(e a versão com `localhost`, se usar). Enquanto o app estiver em modo
+"Testando" no Google, só os e-mails da lista de usuários de teste
+conseguem entrar; quem entra com Google sem ter conta ganha uma conta
+pendente, como no cadastro.
+
+**Sessões.** Os logins ficam guardados em `storage/sessoes/` (frontend)
+e `backend/storage/sessoes/` (backend), criadas sozinhas. "Lembrar de
+mim" mantém a pessoa logada por 30 dias; sem ele, a sessão termina ao
+fechar o navegador ou depois de 2 horas sem uso.
 
 ### 3) Servidores
 
@@ -288,6 +306,7 @@ exigem sessão. "Gestor" indica as rotas que exigem esse perfil.
 | Rota | Métodos | Observação |
 |------|---------|------------|
 | `/api/login`, `/api/logout` | POST | login com limite de tentativas |
+| `/api/login/google/inicio`, `/api/login/google` | POST | entrar com Google (endereço da tela do Google; confirmação do código) |
 | `/api/usuarios` | GET, POST | POST = criar conta (fica pendente) |
 | `/api/usuarios/{id}` | PUT | trocar perfil. Gestor |
 | `/api/usuarios/pendentes` | GET | contas aguardando aprovação. Gestor |
@@ -323,8 +342,13 @@ O que já está no sistema:
   ele, o envio é recusado com "Esta página expirou";
 - cookies de sessão com `HttpOnly` e `SameSite`, `Secure` sob HTTPS, e
   sessão nova a cada login;
-- **login**: 5 erros por e-mail ou 20 por endereço em 15 minutos bloqueiam
-  por 15 minutos;
+- **login**: 5 erros por e-mail ou 20 por endereço em 5 minutos bloqueiam
+  por 5 minutos (vale também para senha atual e código de recuperação);
+- **senha esquecida**: cada conta recebe um **código de recuperação** ao
+  ser criada (ou gera um em **Minha conta**). Com e-mail + código, a
+  pessoa cria uma senha nova em **Esqueceu a senha?**. O código fica com
+  hash no banco e vale uma vez só. Sem o código, um gestor gera uma senha
+  provisória na tela **Equipe**;
 - contas novas só entram depois de aprovadas por um gestor;
 - anexos: tamanho e tipo conferidos pelo **conteúdo** do arquivo, salvos
   fora da pasta pública e com nome aleatório;

@@ -33,6 +33,7 @@ final class MenuLateral
         ['rota' => 'eventos', 'titulo' => 'Exposições', 'icone' => '▣', 'pagina' => 'eventos.php'],
         ['rota' => 'agenda', 'titulo' => 'Calendário', 'icone' => '◷', 'pagina' => 'agenda.php'],
         ['rota' => 'equipe', 'titulo' => 'Equipe', 'icone' => '◎', 'pagina' => 'equipe.php', 'somenteGestor' => true],
+        ['rota' => 'conta', 'titulo' => 'Minha conta', 'icone' => '⚙', 'pagina' => 'minha_conta.php'],
     ];
 
     /**

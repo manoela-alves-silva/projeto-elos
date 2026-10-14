@@ -19,6 +19,7 @@ if (is_array($usuario) && !empty($usuario['id'])) {
 $mensagemErro = '';
 $cadastroConcluido = false;
 $aguardaAprovacao = true;
+$codigoRecuperacao = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = trim((string) ($_POST['nome'] ?? ''));
@@ -50,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $cadastroConcluido = true;
             $aguardaAprovacao = ($resposta['pendente'] ?? true) === true;
+            $codigoRecuperacao = (string) ($resposta['codigo_recuperacao'] ?? '');
         } catch (ApiException $e) {
             $mensagemErro = $e->statusCode === 409
                 ? 'Este e-mail já está cadastrado.'
@@ -225,6 +227,18 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
                         entrar com seu e-mail e senha.
                     <?php endif; ?>
                 </div>
+
+                <?php if ($codigoRecuperacao !== ''): ?>
+                    <div class="codigo-recuperacao" role="status">
+                        <p>Seu código de recuperação:</p>
+                        <code><?= escapar($codigoRecuperacao) ?></code>
+                        <p>
+                            Guarde num lugar seguro. Se esquecer a senha, use
+                            este código em <strong>Esqueceu a senha?</strong>.
+                            Ele só aparece agora.
+                        </p>
+                    </div>
+                <?php endif; ?>
 
                 <a
                     href="login.php"

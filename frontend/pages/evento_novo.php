@@ -20,6 +20,8 @@ use Elos\Frontend\Planejamento;
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\avisoConflito;
 use function Elos\Frontend\conflitosNoLocal;
+use function Elos\Frontend\dataValida;
+use function Elos\Frontend\erroNasDatas;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\flash;
 use function Elos\Frontend\redirecionar;
@@ -100,10 +102,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         default => '',
     };
 
+    // Datas que não existem ou períodos ao contrário: avisa antes de
+    // criar qualquer coisa (senão a exposição ficava criada sem as datas).
+    if ($erro === '') {
+        $erro = erroNasDatas($valores);
+    }
+
     // Uma necessidade com data ou categoria nova precisa dizer o que é.
     foreach ($linhas as $posicao => $linha) {
         if ($erro === '' && $linha['titulo'] === '') {
             $erro = 'Na necessidade ' . ($posicao + 1) . ', escreva o que precisa ser feito.';
+        }
+        if ($erro === '' && $linha['prazo'] !== '' && !dataValida($linha['prazo'])) {
+            $erro = 'Na necessidade ' . ($posicao + 1) . ', a data não existe. Confira o dia e o mês.';
         }
         if ($erro === '' && $linha['categoria_id'] === '__nova__' && $linha['nova_categoria'] === '') {
             $erro = 'Na necessidade ' . ($posicao + 1) . ', escreva o nome da nova categoria.';

@@ -1641,12 +1641,15 @@ button.text-link {
         font-size: var(--fs-8);
     }
 
+    /* Quebra em mais de uma linha: rolando para o lado, com a barra
+       escondida, os últimos itens pareciam cortados. */
     .sidebar-navigation {
         flex-direction: row;
+        flex-wrap: wrap;
 
         gap: var(--sp-8);
 
-        overflow-x: auto;
+        overflow: visible;
     }
 
     .sidebar-item {

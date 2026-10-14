@@ -29,8 +29,22 @@ if (!$usuario['podeGerenciar']) {
 }
 
 $erro = '';
+$senhaProvisoria = null;
+$nomeSenhaProvisoria = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decisao'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'redefinir_senha') {
+    // Sem redirecionar: a senha provisória aparece só nesta resposta e
+    // não fica guardada em lugar nenhum.
+    $alvoId = (int) ($_POST['usuario_id'] ?? 0);
+    $nomeSenhaProvisoria = trim((string) ($_POST['nome'] ?? ''));
+
+    try {
+        $resposta = Api::post('/api/usuarios/' . $alvoId . '/senha');
+        $senhaProvisoria = (string) ($resposta['senha_provisoria'] ?? '');
+    } catch (ApiException $e) {
+        $erro = $e->getMessage();
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decisao'])) {
     $alvoId = (int) ($_POST['usuario_id'] ?? 0);
     $nomeAlvo = trim((string) ($_POST['nome'] ?? ''));
     $aprovar = $_POST['decisao'] === 'aprovar';
@@ -140,6 +154,19 @@ $linha = static function (array $pessoa) use ($usuario, $unicoGestor): void {
                 <button type="submit" class="botao-secundario">Passar para colaborador(a)</button>
             </form>
         <?php endif; ?>
+
+        <?php if (!$souEu && $perfil !== 'ADMIN'): ?>
+            <details class="equipe-senha">
+                <summary class="botao-secundario">Redefinir senha</summary>
+                <form method="post" class="equipe-confirmar">
+                    <?= \Elos\Frontend\campoCsrf() ?>
+                    <p>Gera uma senha provisória para <?= esc($pessoa['nome']) ?>. A senha atual deixa de valer.</p>
+                    <input type="hidden" name="usuario_id" value="<?= $id ?>">
+                    <input type="hidden" name="nome" value="<?= esc($pessoa['nome']) ?>">
+                    <button type="submit" name="acao" value="redefinir_senha" class="botao-perigo">Gerar senha</button>
+                </form>
+            </details>
+        <?php endif; ?>
     </li>
     <?php
 };
@@ -198,6 +225,14 @@ $linha = static function (array $pessoa) use ($usuario, $unicoGestor): void {
 
             <?php if ($erro !== ''): ?>
                 <div class="aviso aviso-erro" role="alert"><?= esc($erro) ?></div>
+            <?php endif; ?>
+
+            <?php if ($senhaProvisoria !== null): ?>
+                <div class="aviso aviso-ok" role="status">
+                    Senha provisória de <strong><?= esc($nomeSenhaProvisoria) ?></strong>:
+                    <code class="equipe-senha-provisoria"><?= esc($senhaProvisoria) ?></code>
+                    <br>Ela só aparece agora. Repasse para a pessoa e peça para trocar em <strong>Minha conta</strong> depois de entrar.
+                </div>
             <?php endif; ?>
 
             <?php if ($apiIndisponivel): ?>

@@ -15,6 +15,7 @@ use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\dataBr;
+use function Elos\Frontend\dataValida;
 use function Elos\Frontend\dataHoraBr;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\exposicaoAtiva;
@@ -34,8 +35,8 @@ usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo
 
 $filtroEvento = (int) ($_GET['evento'] ?? 0);
 $somentePendentes = ($_GET['incluir'] ?? 'tudo') === 'pendentes';
-$de = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_GET['de'] ?? '')) ? (string) $_GET['de'] : '';
-$ate = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_GET['ate'] ?? '')) ? (string) $_GET['ate'] : '';
+$de = is_string($_GET['de'] ?? null) && dataValida($_GET['de']) ? $_GET['de'] : '';
+$ate = is_string($_GET['ate'] ?? null) && dataValida($_GET['ate']) ? $_GET['ate'] : '';
 
 // Uma exposição escolhida, ou todas as que estão em andamento/planejamento.
 $selecionados = array_values(array_filter(

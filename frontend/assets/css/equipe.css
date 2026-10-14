@@ -85,3 +85,24 @@
 
     font-size: var(--fs-12);
 }
+
+.equipe-senha .botao-secundario {
+    min-height: 36px;
+
+    font-size: var(--fs-12);
+}
+
+.equipe-senha-provisoria {
+    padding: var(--sp-2) var(--sp-8);
+
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--navy);
+
+    font-size: var(--fs-16);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+
+    user-select: all;
+}

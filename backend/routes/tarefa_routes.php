@@ -94,9 +94,9 @@ function handleTarefaRequest(
             ]);
         }
 
-        if ($prazo !== null && !is_string($prazo)) {
+        if ($prazo !== null && (!is_string($prazo) || !dataValida($prazo))) {
             sendJsonResponse(400, [
-                'erro' => 'Prazo inválido.',
+                'erro' => 'Prazo inválido. Confira o dia e o mês.',
             ]);
         }
 
@@ -429,9 +429,9 @@ function handleTarefaByIdRequest(
             ]);
         }
 
-        if ($prazo !== null && !is_string($prazo)) {
+        if ($prazo !== null && (!is_string($prazo) || !dataValida($prazo))) {
             sendJsonResponse(400, [
-                'erro' => 'Prazo inválido.',
+                'erro' => 'Prazo inválido. Confira o dia e o mês.',
             ]);
         }
 
