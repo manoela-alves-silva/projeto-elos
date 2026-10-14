@@ -331,6 +331,37 @@ final class Api
             $headers[] = 'Cookie: ' . $_SESSION[self::SESSION_COOKIE_KEY];
         }
 
+        // Hospedagem com um processo PHP só (alwaysdata grátis): a API roda
+        // aqui mesmo, como programa à parte (ELOS_API_CGI = caminho do
+        // php-cgi). Nos outros casos, pedido HTTP normal.
+        $cgi = trim((string) getenv('ELOS_API_CGI'));
+
+        [$statusCode, $headersResposta, $resposta] = $cgi !== ''
+            ? self::enviarPorCgi($cgi, $method, $path, $headers, $payload)
+            : self::enviarPorHttp($method, $path, $headers, $payload);
+
+        self::capturarCookie($headersResposta);
+
+        $dados = json_decode($resposta, true);
+        $dados = is_array($dados) ? $dados : [];
+
+        if ($statusCode >= 400) {
+            $mensagem = is_string($dados['erro'] ?? null)
+                ? $dados['erro']
+                : 'Erro ao comunicar com a API (HTTP ' . $statusCode . ').';
+
+            throw new ApiException($mensagem, $statusCode, $dados);
+        }
+
+        return $dados;
+    }
+
+    /**
+     * @param list<string> $headers
+     * @return array{int, list<string>, string} status, cabeçalhos e corpo
+     */
+    private static function enviarPorHttp(string $method, string $path, array $headers, ?string $payload): array
+    {
         $context = stream_context_create([
             'http' => [
                 'method' => $method,
@@ -358,21 +389,82 @@ final class Api
         // no escopo onde file_get_contents foi chamado.
         $headersResposta = $http_response_header ?? [];
 
-        self::capturarCookie($headersResposta);
+        return [self::extrairStatusCode($headersResposta), $headersResposta, $resposta];
+    }
 
-        $statusCode = self::extrairStatusCode($headersResposta);
-        $dados = json_decode($resposta, true);
-        $dados = is_array($dados) ? $dados : [];
+    /**
+     * Roda backend/public/index.php com o php-cgi, como um servidor web
+     * faria: o pedido vai em variáveis CGI e no stdin, e a resposta volta
+     * com cabeçalhos ("Status: 401...") e corpo.
+     *
+     * @param list<string> $headers
+     * @return array{int, list<string>, string} status, cabeçalhos e corpo
+     */
+    private static function enviarPorCgi(string $cgi, string $method, string $path, array $headers, ?string $payload): array
+    {
+        $indice = dirname(__DIR__, 2) . '/backend/public/index.php';
+        $corpo = $payload ?? '';
 
-        if ($statusCode >= 400) {
-            $mensagem = is_string($dados['erro'] ?? null)
-                ? $dados['erro']
-                : 'Erro ao comunicar com a API (HTTP ' . $statusCode . ').';
+        $ambiente = [
+            'GATEWAY_INTERFACE' => 'CGI/1.1',
+            'SERVER_PROTOCOL' => 'HTTP/1.1',
+            'SERVER_NAME' => 'localhost',
+            'SERVER_PORT' => '80',
+            'REDIRECT_STATUS' => '200',
+            'SCRIPT_FILENAME' => $indice,
+            'SCRIPT_NAME' => '/index.php',
+            'REQUEST_METHOD' => $method,
+            'REQUEST_URI' => $path,
+            'QUERY_STRING' => (string) parse_url($path, PHP_URL_QUERY),
+            // Mesma máquina: o backend aceita o X-Elos-Cliente-IP.
+            'REMOTE_ADDR' => '127.0.0.1',
+            'CONTENT_LENGTH' => (string) strlen($corpo),
+            'PATH' => (string) (getenv('PATH') ?: '/usr/bin:/bin'),
+            'HOME' => (string) getenv('HOME'),
+            'TMPDIR' => (string) (getenv('TMPDIR') ?: sys_get_temp_dir()),
+        ];
 
-            throw new ApiException($mensagem, $statusCode, $dados);
+        foreach ($headers as $header) {
+            [$nome, $valor] = array_map('trim', explode(':', $header, 2)) + [1 => ''];
+            $chave = strtoupper(str_replace('-', '_', $nome));
+            $ambiente[$chave === 'CONTENT_TYPE' ? $chave : 'HTTP_' . $chave] = $valor;
         }
 
-        return $dados;
+        $processo = proc_open(
+            [$cgi],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'a']],
+            $canos,
+            dirname($indice),
+            $ambiente
+        );
+
+        if (!is_resource($processo)) {
+            throw new ApiException('Não foi possível conectar ao servidor do ELOS.', 0);
+        }
+
+        fwrite($canos[0], $corpo);
+        fclose($canos[0]);
+        $saida = (string) stream_get_contents($canos[1]);
+        fclose($canos[1]);
+        proc_close($processo);
+
+        $separador = str_contains($saida, "\r\n\r\n") ? "\r\n\r\n" : "\n\n";
+
+        if (!str_contains($saida, $separador)) {
+            throw new ApiException('Não foi possível conectar ao servidor do ELOS.', 0);
+        }
+
+        [$cabecalho, $resposta] = explode($separador, $saida, 2);
+        $headersResposta = preg_split('/\r?\n/', $cabecalho) ?: [];
+        $status = 200;
+
+        foreach ($headersResposta as $linha) {
+            if (preg_match('/^Status:\s*(\d{3})/i', $linha, $achado)) {
+                $status = (int) $achado[1];
+            }
+        }
+
+        return [$status, $headersResposta, $resposta];
     }
 
     private static function baseUrl(): string

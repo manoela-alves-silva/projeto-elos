@@ -256,6 +256,7 @@ cp backend/.env.example backend/.env
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | backend | "Entrar com Google" (ver abaixo). Vazias = o botão avisa que não está configurado |
 | `ELOS_API_URL`  | frontend | endereço da API. Vazio = `http://127.0.0.1:8000`                |
 | `ELOS_API_CHAVE` | backend e frontend | mesma chave nos dois. Com ela, a API recusa quem não a envia. Obrigatória se a API ficar num endereço público |
+| `ELOS_API_CGI`  | frontend | caminho do `php-cgi` (ex.: `/usr/bin/php-cgi`). Com ele, o frontend roda a API ali mesmo em vez de chamá-la por HTTP: para hospedagens com um processo PHP só, como o plano grátis da alwaysdata |
 | `ELOS_SESSOES_DIR` | frontend | pasta das sessões. Vazio = `storage/sessoes/` na raiz do projeto |
 
 **Entrar com Google.** As duas variáveis `GOOGLE_*` vêm de um cliente
@@ -426,6 +427,19 @@ api-elos.seusite.com.br  → pasta backend/public/
 5. Ative o HTTPS dos dois endereços pelo painel.
 
 > O `backend/.env` com as senhas fica só no servidor, nunca no git.
+
+### Opção C: alwaysdata (grátis), como o ELOS está hospedado hoje
+
+- Site PHP `projeto-elos.alwaysdata.net` com raiz em `elos/frontend/`.
+- O plano grátis tem **um processo PHP só**: o frontend não consegue
+  chamar a API por HTTP (ela ficaria esperando um processo livre e
+  responderia 503). Por isso o `backend/.env` do servidor tem
+  `ELOS_API_CGI=/usr/bin/php-cgi`, e a API não precisa de endereço
+  público.
+- Banco MySQL `projeto-elos_elos`, criado pelo painel e importado com
+  `elos.sql` sem as linhas `CREATE DATABASE`/`USE`.
+- Atualizar: enviar `backend/` e `frontend/` por SSH (sem `.env` e sem
+  `storage/`).
 
 ---
 
