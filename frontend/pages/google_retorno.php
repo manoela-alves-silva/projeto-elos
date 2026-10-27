@@ -12,12 +12,13 @@ use Elos\Frontend\Api;
 use Elos\Frontend\ApiException;
 
 require_once __DIR__ . '/../src/Api.php';
+require_once __DIR__ . '/../src/elos.php';
 
 \Elos\Frontend\iniciarSessao();
 
 $voltarAoLogin = static function (string $tipo, string $texto): never {
     $_SESSION['aviso_login'] = ['tipo' => $tipo, 'texto' => $texto];
-    header('Location: login.php');
+    header('Location: ' . \Elos\Frontend\raizDoSite() . '/entrar');
     exit();
 };
 
@@ -63,5 +64,5 @@ $_SESSION['usuario'] = [
 \Elos\Frontend\lembrarLogin(!empty($_SESSION['_google_lembrar']));
 unset($_SESSION['_google_lembrar']);
 
-header('Location: ../index.php');
+header('Location: ' . \Elos\Frontend\raizDoSite() . '/');
 exit();

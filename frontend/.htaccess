@@ -2,3 +2,18 @@
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
+
+# Endereços limpos: tudo passa pelo roteador.php, menos os arquivos de
+# assets/ (CSS, JS, imagens), que o servidor entrega direto. Assim
+# pages/ e src/ nunca são abertos diretamente pelo navegador.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteRule ^roteador\.php$ - [L]
+
+    RewriteCond %{REQUEST_URI} /assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ roteador.php [L,QSA]
+</IfModule>

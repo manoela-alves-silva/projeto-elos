@@ -413,3 +413,67 @@ function registrarAlteracoesDoEvento(int $id, array $antes, array $depois): void
         HistoricoService::registrar($id, 'Informações alteradas', $descricao);
     }
 }
+
+/**
+ * Identidade visual da exposição: PUT /api/eventos/{id}/identidade
+ * com {"imagem_capa": "<nome do arquivo>"|null, "cor": "#rrggbb"|null}.
+ *
+ * O arquivo da imagem é guardado pelo frontend; aqui fica só o nome.
+ * Rota separada para que editar as informações nunca apague a capa.
+ *
+ * @param callable(): EventoController $eventoControllerFactory
+ * @param callable(): AuthorizationService $authorizationFactory
+ */
+function handleEventoIdentidadeRequest(
+    string $method,
+    int $id,
+    callable $eventoControllerFactory,
+    callable $authorizationFactory
+): never {
+    requireRole($authorizationFactory, 'GESTOR');
+
+    if ($method !== 'PUT') {
+        sendJsonResponse(405, [
+            'erro' => 'Método não permitido.',
+        ]);
+    }
+
+    $payload = readJsonPayload();
+    $imagemCapa = $payload['imagem_capa'] ?? null;
+    $cor = $payload['cor'] ?? null;
+
+    // Nome gerado pelo frontend: 32 caracteres hexadecimais + extensão.
+    if ($imagemCapa !== null && (!is_string($imagemCapa) || preg_match('/^[a-f0-9]{32}\.(jpg|webp)$/', $imagemCapa) !== 1)) {
+        sendJsonResponse(400, [
+            'erro' => 'Imagem de capa inválida.',
+        ]);
+    }
+
+    if ($cor !== null && (!is_string($cor) || preg_match('/^#[0-9a-fA-F]{6}$/', $cor) !== 1)) {
+        sendJsonResponse(400, [
+            'erro' => 'Cor inválida. Use o formato #rrggbb.',
+        ]);
+    }
+
+    $controller = $eventoControllerFactory();
+    $antes = $controller->show($id);
+
+    if ($antes === null) {
+        sendJsonResponse(404, [
+            'erro' => 'Exposição não encontrada.',
+        ]);
+    }
+
+    $evento = $controller->updateIdentidade($id, $imagemCapa, $cor !== null ? strtolower($cor) : null);
+
+    if (($antes['imagem_capa'] ?? null) !== $imagemCapa) {
+        HistoricoService::registrar($id, $imagemCapa === null ? 'Capa removida' : 'Capa alterada');
+    } elseif (($antes['cor'] ?? null) !== ($evento['cor'] ?? null)) {
+        HistoricoService::registrar($id, 'Cor da exposição alterada');
+    }
+
+    sendJsonResponse(200, [
+        'evento' => $evento,
+        'capa_anterior' => $antes['imagem_capa'] ?? null,
+    ]);
+}

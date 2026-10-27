@@ -21,6 +21,22 @@ const MESES = [
 ];
 
 /**
+ * Caminho da raiz do frontend no servidor ("" quando o site está na raiz
+ * do domínio), descoberto pelo endereço do script que está rodando.
+ */
+function raizDoSite(): string
+{
+    if (defined('ELOS_RAIZ')) {
+        return (string) constant('ELOS_RAIZ');
+    }
+
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $raiz = preg_match('#^(.*)/pages/[^/]+$#', $script, $m) === 1 ? $m[1] : dirname($script);
+
+    return rtrim($raiz === '.' ? '' : $raiz, '/');
+}
+
+/**
  * Garante sessão e usuário logado; redireciona para o login se não houver.
  *
  * @return array{id: int, nome: string, perfil: string, primeiroNome: string, podeGerenciar: bool}
@@ -330,7 +346,7 @@ function avisoConflito(array $conflitos, string $textoBotao = 'Salvar mesmo assi
         <ul>
             <?php foreach ($conflitos as $conflito): ?>
                 <li>
-                    <a href="evento.php?id=<?= (int) $conflito['id'] ?>"><?= esc($conflito['titulo']) ?></a>:
+                    <a href="exposicao?id=<?= (int) $conflito['id'] ?>"><?= esc($conflito['titulo']) ?></a>:
                     <?= esc(dataBr($conflito['ocupacao_inicio'])) ?> a <?= esc(dataBr($conflito['ocupacao_fim'])) ?>
                 </li>
             <?php endforeach; ?>

@@ -22,10 +22,10 @@ use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 if (!$usuario['podeGerenciar']) {
-    redirecionar('../index.php');
+    redirecionar('./');
 }
 
 $erro = '';
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'redefin
     try {
         Api::delete('/api/usuarios/' . $alvoId);
         flash('equipe', 'A conta de ' . $nomeAlvo . ' foi excluída.');
-        redirecionar('equipe.php');
+        redirecionar('equipe');
     } catch (ApiException $e) {
         $erro = $e->getMessage();
     }
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'redefin
         flash('equipe', $aprovar
             ? $nomeAlvo . ' já pode entrar no ELOS.'
             : 'O cadastro de ' . $nomeAlvo . ' foi recusado.');
-        redirecionar('equipe.php');
+        redirecionar('equipe');
     } catch (ApiException $e) {
         $erro = $e->getMessage();
     }
@@ -86,13 +86,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'redefin
             // A própria pessoa deixou de ser gestora: sai desta tela.
             $_SESSION['usuario']['perfil'] = $perfil;
             flash('inicio', 'Pronto: agora você é colaborador(a).');
-            redirecionar('../index.php');
+            redirecionar('./');
         }
 
         flash('equipe', $perfil === 'GESTOR'
             ? $nomeAlvo . ' agora é gestor(a).'
             : $nomeAlvo . ' agora é colaborador(a).');
-        redirecionar('equipe.php');
+        redirecionar('equipe');
     } catch (ApiException $e) {
         $erro = $e->getMessage();
     }
@@ -205,10 +205,10 @@ $linha = static function (array $pessoa) use ($usuario, $unicoGestor): void {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/equipe.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/equipe.css?v=2026-10-27">
 </head>
 <body>
 

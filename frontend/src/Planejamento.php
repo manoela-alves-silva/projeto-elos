@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Elos\Frontend;
 
 require_once __DIR__ . '/elos.php';
+require_once __DIR__ . '/Fases.php';
 
 /**
  * Tudo o que uma exposição tem, carregado da API e organizado.
@@ -178,7 +179,7 @@ final class Planejamento
     public function itensDatados(bool $incluirCancelados = false): array
     {
         $itens = [];
-        $base = 'evento.php?id=' . $this->id();
+        $base = 'exposicao?id=' . $this->id();
 
         foreach (self::CAMPOS_AGENDA as $campo => [$rotulo, $grupo]) {
             if (!empty($this->agenda[$campo])) {

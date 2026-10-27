@@ -11,12 +11,15 @@ declare(strict_types=1);
  * categoria: o que não existe não aparece.
  */
 
+use Elos\Frontend\Fases;
+use Elos\Frontend\Identidade;
 use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\dataHoraBr;
+use function Elos\Frontend\diasAte;
 use function Elos\Frontend\diaMes;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\exposicaoAtiva;
@@ -28,8 +31,9 @@ use function Elos\Frontend\rotuloStatusEvento;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/src/Planejamento.php';
+require_once __DIR__ . '/src/Identidade.php';
 
-$usuario = usuarioLogado('pages/login.php');
+$usuario = usuarioLogado('entrar');
 
 $eventos = apiLista('/api/eventos', 'eventos');
 $apiIndisponivel = $eventos === null;
@@ -81,8 +85,26 @@ foreach ($planos as $plano) {
 usort($alertas, static fn(array $a, array $b): int => ($a['prazo'] ?? '') <=> ($b['prazo'] ?? ''));
 usort($minhas, static fn(array $a, array $b): int => ($a['prazo'] ?? '9999-12-31') <=> ($b['prazo'] ?? '9999-12-31'));
 
+// Números de todas as exposições em andamento, para o painel.
+$painel = ['exposicoes' => count($planos), 'pendentes' => 0, 'atrasadas' => 0, 'semana' => 0, 'concluidas' => 0, 'total' => 0];
+foreach ($planos as $plano) {
+    $r = $plano->resumo();
+    $painel['pendentes'] += $r['pendentes'];
+    $painel['atrasadas'] += $r['atrasadas'];
+    $painel['concluidas'] += $r['concluidas'];
+    $painel['total'] += $r['total'];
+    foreach ($plano->necessidades ?? [] as $tarefa) {
+        if (Planejamento::estadoNecessidade($tarefa) === 'pendente' && !empty($tarefa['prazo']) && diasAte((string) $tarefa['prazo']) <= 7) {
+            $painel['semana']++;
+        }
+    }
+}
+$painel['percentual'] = $painel['total'] > 0 ? (int) round($painel['concluidas'] * 100 / $painel['total']) : 0;
+
 if ($foco !== null) {
     $resumo = $foco->resumo();
+    $fasesFoco = Fases::agrupar($foco->necessidades ?? []);
+    $etapasNoGrafico = array_values(array_intersect(array_keys(Fases::ROTULOS_ETAPA), array_column($fasesFoco, 'etapa')));
     $periodo = $foco->periodo();
     $proximas = $foco->proximasAtividades(8);
     $proximoMarco = null;
@@ -104,10 +126,10 @@ if ($foco !== null) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/base.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/planejamento.css">
-    <link rel="stylesheet" href="assets/css/inicio.css">
+    <link rel="stylesheet" href="assets/css/base.css?v=2026-10-27">
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=2026-10-27">
+    <link rel="stylesheet" href="assets/css/planejamento.css?v=2026-10-27">
+    <link rel="stylesheet" href="assets/css/inicio.css?v=2026-10-27">
 </head>
 <body>
 
@@ -118,7 +140,7 @@ if ($foco !== null) {
     <main class="main-content">
 
         <header class="topbar">
-            <form class="topbar-search" action="pages/eventos.php" method="get" role="search">
+            <form class="topbar-search" action="exposicoes" method="get" role="search">
                 <span class="search-icon">⌕</span>
                 <input type="search" name="q" placeholder="Buscar exposição…" aria-label="Buscar exposição">
             </form>
@@ -159,10 +181,10 @@ if ($foco !== null) {
                 </div>
                 <div class="acoes-cabecalho">
                     <?php if ($foco !== null): ?>
-                        <a href="pages/relatorio.php" class="botao-secundario">⎙ Relatório de atividades</a>
+                        <a href="relatorio" class="botao-secundario">⎙ Relatório de atividades</a>
                     <?php endif; ?>
                     <?php if ($usuario['podeGerenciar']): ?>
-                        <a href="pages/evento_novo.php" class="primary-button"><span>+</span> Nova exposição</a>
+                        <a href="nova-exposicao" class="primary-button"><span>+</span> Nova exposição</a>
                     <?php endif; ?>
                 </div>
             </section>
@@ -175,19 +197,49 @@ if ($foco !== null) {
                         <h2>Nenhuma exposição em andamento</h2>
                         <p>Crie uma exposição e diga o que ela precisa. O ELOS organiza as datas, o calendário e as pendências.</p>
                         <?php if ($usuario['podeGerenciar']): ?>
-                            <a href="pages/evento_novo.php" class="primary-button"><span>+</span> Nova exposição</a>
+                            <a href="nova-exposicao" class="primary-button"><span>+</span> Nova exposição</a>
                         <?php endif; ?>
                     </div>
                 </article>
 
             <?php else: ?>
 
+                <!-- PAINEL: todas as exposições em andamento -->
+                <section class="painel-numeros" aria-label="Resumo de todas as exposições em andamento">
+                    <a href="exposicoes" class="painel-numero">
+                        <span class="painel-rotulo">Exposições ativas</span>
+                        <strong><?= $painel['exposicoes'] ?></strong>
+                        <small>em andamento ou planejamento</small>
+                    </a>
+                    <div class="painel-numero">
+                        <span class="painel-rotulo">Pendências</span>
+                        <strong><?= $painel['pendentes'] ?></strong>
+                        <small>somando todas as exposições</small>
+                    </div>
+                    <a href="#alertas" class="painel-numero<?= $painel['atrasadas'] > 0 ? ' alerta' : '' ?>">
+                        <span class="painel-rotulo"><?= $painel['atrasadas'] > 0 ? '⚠ ' : '' ?>Atrasadas</span>
+                        <strong><?= $painel['atrasadas'] ?></strong>
+                        <small><?= $painel['atrasadas'] > 0 ? 'prazo já passou' : 'nenhum prazo vencido' ?></small>
+                    </a>
+                    <div class="painel-numero">
+                        <span class="painel-rotulo">Próximos 7 dias</span>
+                        <strong><?= $painel['semana'] ?></strong>
+                        <small>com prazo nesta semana</small>
+                    </div>
+                    <div class="painel-numero painel-progresso">
+                        <span class="painel-rotulo">Resolvido</span>
+                        <strong><?= $painel['percentual'] ?>%</strong>
+                        <span class="progresso" role="progressbar" aria-label="Resolvido no total" aria-valuenow="<?= $painel['percentual'] ?>" aria-valuemin="0" aria-valuemax="100"><span style="width: <?= $painel['percentual'] ?>%"></span></span>
+                        <small><?= $painel['concluidas'] ?> de <?= $painel['total'] ?> itens</small>
+                    </div>
+                </section>
+
                 <?php if (count($planos) > 1): ?>
                     <nav class="seletor-exposicao" aria-label="Exposição em acompanhamento">
                         <span>Acompanhando:</span>
                         <?php foreach ($planos as $plano): ?>
-                            <a href="?exposicao=<?= $plano->id() ?>" class="<?= $plano->id() === $foco->id() ? 'ativa' : '' ?>" <?= $plano->id() === $foco->id() ? 'aria-current="true"' : '' ?>>
-                                <?= esc($plano->titulo()) ?>
+                            <a href="?exposicao=<?= $plano->id() ?>" class="<?= $plano->id() === $foco->id() ? 'ativa' : '' ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>" <?= $plano->id() === $foco->id() ? 'aria-current="true"' : '' ?>>
+                                <i class="expo-ponto" aria-hidden="true"></i><?= esc($plano->titulo()) ?>
                             </a>
                         <?php endforeach; ?>
                     </nav>
@@ -198,7 +250,7 @@ if ($foco !== null) {
                     <div class="inicio-principal">
 
                         <!-- A EXPOSIÇÃO EM ACOMPANHAMENTO -->
-                        <article class="foco">
+                        <article class="foco identidade<?= Identidade::urlCapa($foco->evento) !== null ? ' com-capa' : '' ?>" style="<?= esc(Identidade::estilo($foco->evento)) ?>">
                             <div class="foco-cabecalho">
                                 <div>
                                     <p class="eyebrow">
@@ -207,7 +259,7 @@ if ($foco !== null) {
                                             <?= esc(rotuloStatusEvento((string) ($foco->evento['status'] ?? ''))) ?>
                                         </span>
                                     </p>
-                                    <h2><a href="pages/evento.php?id=<?= $foco->id() ?>"><?= esc($foco->titulo()) ?></a></h2>
+                                    <h2><a href="exposicao?id=<?= $foco->id() ?>"><?= esc($foco->titulo()) ?></a></h2>
                                     <p class="foco-fatos">
                                         <span>◷ <?= esc(intervaloBr($periodo['inicio'], $periodo['fim'], 'Datas a definir')) ?></span>
                                         <?php if (!empty($foco->evento['local_nome'])): ?>
@@ -215,22 +267,22 @@ if ($foco !== null) {
                                         <?php endif; ?>
                                     </p>
                                 </div>
-                                <a href="pages/evento.php?id=<?= $foco->id() ?>" class="primary-button">Abrir exposição →</a>
+                                <a href="exposicao?id=<?= $foco->id() ?>" class="primary-button">Abrir exposição →</a>
                             </div>
 
                             <div class="foco-numeros">
                                 <?php if ($resumo['total'] > 0): ?>
-                                    <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="numero pendentes">
+                                    <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="numero pendentes">
                                         <strong><?= $resumo['pendentes'] ?></strong>
                                         <span>pendência<?= $resumo['pendentes'] === 1 ? '' : 's' ?></span>
                                     </a>
                                     <?php if ($resumo['atrasadas'] > 0): ?>
-                                        <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="numero atrasadas">
+                                        <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="numero atrasadas">
                                             <strong><?= $resumo['atrasadas'] ?></strong>
                                             <span>atrasada<?= $resumo['atrasadas'] === 1 ? '' : 's' ?></span>
                                         </a>
                                     <?php endif; ?>
-                                    <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="numero concluidas">
+                                    <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="numero concluidas">
                                         <strong><?= $resumo['concluidas'] ?></strong>
                                         <span>concluída<?= $resumo['concluidas'] === 1 ? '' : 's' ?></span>
                                     </a>
@@ -238,7 +290,7 @@ if ($foco !== null) {
                                     <p class="numero-vazio">
                                         Nada no planejamento ainda.
                                         <?php if ($usuario['podeGerenciar']): ?>
-                                            <a href="pages/evento.php?id=<?= $foco->id() ?>#necessidades" class="text-link">Dizer o que esta exposição precisa →</a>
+                                            <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="text-link">Dizer o que esta exposição precisa →</a>
                                         <?php endif; ?>
                                     </p>
                                 <?php endif; ?>
@@ -259,6 +311,54 @@ if ($foco !== null) {
                             <?php endif; ?>
                         </article>
 
+                        <!-- ANDAMENTO POR FASE (gráfico de barras) -->
+                        <?php if ($fasesFoco !== []): ?>
+                            <article class="panel grafico-fases">
+                                <div class="panel-header">
+                                    <div>
+                                        <p class="eyebrow">Da exposição</p>
+                                        <h2>Andamento por fase</h2>
+                                    </div>
+                                    <ul class="grafico-legenda" aria-label="Cores por etapa">
+                                        <?php foreach ($etapasNoGrafico as $etapa): ?>
+                                            <li style="<?= Fases::estiloCor($etapa) ?>"><?= esc(Fases::ROTULOS_ETAPA[$etapa]) ?></li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+
+                                <ol class="grafico-barras">
+                                    <?php foreach ($fasesFoco as $fase): ?>
+                                        <?php
+                                        $pct = $fase['total'] > 0 ? (int) round($fase['feitas'] * 100 / $fase['total']) : 0;
+                                        $dica = $fase['rotulo'] . ': ' . $fase['feitas'] . ' feita' . ($fase['feitas'] === 1 ? '' : 's')
+                                            . ', ' . $fase['pendentes'] . ' pendente' . ($fase['pendentes'] === 1 ? '' : 's')
+                                            . ($fase['atrasadas'] > 0 ? ' (' . $fase['atrasadas'] . ' atrasada' . ($fase['atrasadas'] === 1 ? '' : 's') . ')' : '');
+                                        ?>
+                                        <li style="<?= Fases::estiloCor($fase['etapa']) ?>">
+                                            <a href="exposicao?id=<?= $foco->id() ?>&amp;fase=<?= esc(urlencode($fase['chave'])) ?>#necessidades" aria-label="<?= esc($dica) ?>">
+                                                <span class="barra-nome"><?= esc($fase['rotulo']) ?></span>
+                                                <span class="barra-trilho" aria-hidden="true">
+                                                    <span class="barra-feita" style="width: <?= $pct ?>%"></span>
+                                                </span>
+                                                <span class="barra-valor">
+                                                    <?php if ($fase['pendentes'] === 0): ?>
+                                                        ✓ <?= $fase['feitas'] ?>/<?= $fase['total'] ?>
+                                                    <?php else: ?>
+                                                        <?= $fase['feitas'] ?>/<?= $fase['total'] ?>
+                                                    <?php endif; ?>
+                                                    <?php if ($fase['atrasadas'] > 0): ?>
+                                                        <em><?= $fase['atrasadas'] ?> atrasada<?= $fase['atrasadas'] === 1 ? '' : 's' ?></em>
+                                                    <?php endif; ?>
+                                                </span>
+                                                <span class="barra-dica" role="tooltip"><?= esc($dica) ?></span>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ol>
+                                <p class="grafico-nota">Cada barra mostra quanto da fase já foi resolvido. Clique para ver os itens.</p>
+                            </article>
+                        <?php endif; ?>
+
                         <!-- PRÓXIMAS ATIVIDADES (tudo que tem data) -->
                         <article class="panel">
                             <div class="panel-header">
@@ -266,7 +366,7 @@ if ($foco !== null) {
                                     <p class="eyebrow">Da exposição</p>
                                     <h2>Próximas atividades</h2>
                                 </div>
-                                <a href="pages/agenda.php?evento=<?= $foco->id() ?>" class="text-link">Ver no calendário →</a>
+                                <a href="calendario?evento=<?= $foco->id() ?>" class="text-link">Ver no calendário →</a>
                             </div>
 
                             <?php if ($proximas === []): ?>
@@ -322,7 +422,7 @@ if ($foco !== null) {
                             <?php else: ?>
                                 <div class="alert-list">
                                     <?php foreach (array_slice($alertas, 0, 5) as $alerta): ?>
-                                        <a href="pages/evento.php?id=<?= $alerta['_plano']->id() ?>#item-<?= (int) $alerta['id'] ?>" class="alert-card">
+                                        <a href="exposicao?id=<?= $alerta['_plano']->id() ?>#item-<?= (int) $alerta['id'] ?>" class="alert-card">
                                             <strong><?= esc($alerta['titulo'] ?? '') ?></strong>
                                             <span>
                                                 <?= esc($alerta['_motivo']) ?>
@@ -351,7 +451,7 @@ if ($foco !== null) {
                                 <ul class="lista-minhas">
                                     <?php foreach (array_slice($minhas, 0, 6) as $tarefa): ?>
                                         <li>
-                                            <a href="pages/evento.php?id=<?= $tarefa['_plano']->id() ?>#item-<?= (int) $tarefa['id'] ?>">
+                                            <a href="exposicao?id=<?= $tarefa['_plano']->id() ?>#item-<?= (int) $tarefa['id'] ?>">
                                                 <strong><?= esc($tarefa['titulo'] ?? '') ?></strong>
                                                 <span>
                                                     <?= esc(!empty($tarefa['prazo']) ? diaMes((string) $tarefa['prazo']) : 'Sem data') ?>
@@ -372,15 +472,15 @@ if ($foco !== null) {
                                         <p class="eyebrow">Em andamento</p>
                                         <h2>Outras exposições</h2>
                                     </div>
-                                    <a href="pages/eventos.php" class="text-link">Ver todas →</a>
+                                    <a href="exposicoes" class="text-link">Ver todas →</a>
                                 </div>
                                 <ul class="lista-outras">
                                     <?php foreach ($planos as $plano): ?>
                                         <?php if ($plano->id() === $foco->id()) { continue; } ?>
                                         <?php $r = $plano->resumo(); $p = $plano->periodo(); ?>
                                         <li>
-                                            <a href="?exposicao=<?= $plano->id() ?>">
-                                                <strong><?= esc($plano->titulo()) ?></strong>
+                                            <a href="?exposicao=<?= $plano->id() ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>">
+                                                <strong><i class="expo-ponto" aria-hidden="true"></i><?= esc($plano->titulo()) ?></strong>
                                                 <span><?= esc(intervaloBr($p['inicio'], $p['fim'], 'Datas a definir')) ?></span>
                                                 <?php if ($r['total'] > 0): ?>
                                                     <span class="progresso"><span style="width: <?= $r['percentual'] ?>%"></span></span>

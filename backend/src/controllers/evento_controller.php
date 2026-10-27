@@ -47,6 +47,16 @@ final class EventoController
     }
 
     /**
+     * Troca a capa e a cor da exposição.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function updateIdentidade(int $id, ?string $imagemCapa, ?string $cor): ?array
+    {
+        return $this->repository->updateIdentidade($id, $imagemCapa, $cor);
+    }
+
+    /**
      * Apaga o evento e tudo o que é dele.
      *
      * @return list<string>|null caminhos dos anexos, ou null se não existe

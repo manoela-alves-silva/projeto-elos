@@ -28,7 +28,7 @@ use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 $eventos = apiLista('/api/eventos', 'eventos') ?? [];
 usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo'], (string) $b['titulo']));
@@ -77,18 +77,18 @@ if ($de !== '' || $ate !== '') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/relatorio.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/relatorio.css?v=2026-10-27">
 </head>
 <body class="pagina-relatorio">
 
 <!-- CONTROLES (não saem na impressão) -->
 <header class="relatorio-controles">
-    <a href="<?= $filtroEvento > 0 ? 'evento.php?id=' . $filtroEvento : '../index.php' ?>" class="voltar">← Voltar</a>
+    <a href="<?= $filtroEvento > 0 ? 'exposicao?id=' . $filtroEvento : './' ?>" class="voltar">← Voltar</a>
 
-    <form method="get" action="relatorio.php" class="form-elos relatorio-filtros">
+    <form method="get" action="relatorio" class="form-elos relatorio-filtros">
         <div class="campo">
             <label for="evento">Exposição</label>
             <select id="evento" name="evento">

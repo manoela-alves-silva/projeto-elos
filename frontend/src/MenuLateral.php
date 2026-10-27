@@ -29,15 +29,15 @@ final class MenuLateral
      * Destino relativo à pasta "pages/".
      */
     private const ITENS = [
-        ['rota' => 'inicio', 'titulo' => 'Início', 'icone' => '⌂', 'pagina' => '../index.php'],
-        ['rota' => 'eventos', 'titulo' => 'Exposições', 'icone' => '▣', 'pagina' => 'eventos.php'],
-        ['rota' => 'agenda', 'titulo' => 'Calendário', 'icone' => '◷', 'pagina' => 'agenda.php'],
-        ['rota' => 'equipe', 'titulo' => 'Equipe', 'icone' => '◎', 'pagina' => 'equipe.php', 'somenteGestor' => true],
-        ['rota' => 'conta', 'titulo' => 'Minha conta', 'icone' => '⚙', 'pagina' => 'minha_conta.php'],
+        ['rota' => 'inicio', 'titulo' => 'Início', 'icone' => '⌂', 'pagina' => './'],
+        ['rota' => 'eventos', 'titulo' => 'Exposições', 'icone' => '▣', 'pagina' => 'exposicoes'],
+        ['rota' => 'agenda', 'titulo' => 'Calendário', 'icone' => '◷', 'pagina' => 'calendario'],
+        ['rota' => 'equipe', 'titulo' => 'Equipe', 'icone' => '◎', 'pagina' => 'equipe', 'somenteGestor' => true],
+        ['rota' => 'conta', 'titulo' => 'Minha conta', 'icone' => '⚙', 'pagina' => 'minha-conta'],
     ];
 
     /**
-     * @param bool $naRaiz true para index.php (raiz do frontend); false para arquivos em pages/.
+     * @param bool $naRaiz não é mais usado (os endereços são da raiz); fica pela compatibilidade.
      */
     public static function renderizar(
         string $rotaAtual,
@@ -46,8 +46,10 @@ final class MenuLateral
         string $primeiroNome,
         string $perfilUsuario
     ): void {
-        $hrefInicio = $naRaiz ? 'index.php' : '../index.php';
-        $hrefLogout = $naRaiz ? 'pages/logout.php' : 'logout.php';
+        // Os endereços são todos da raiz do site (ver roteador.php),
+        // então são iguais em qualquer tela.
+        $hrefInicio = raizDoSite() . '/';
+        $hrefLogout = raizDoSite() . '/sair';
         ?>
     <aside class="sidebar">
 
@@ -132,11 +134,7 @@ final class MenuLateral
             return '#';
         }
 
-        if (!$naRaiz) {
-            return $pagina;
-        }
-
-        return $pagina === '../index.php' ? 'index.php' : 'pages/' . $pagina;
+        return raizDoSite() . '/' . ($pagina === './' ? '' : $pagina);
     }
 
     private static function escapar(string $valor): string

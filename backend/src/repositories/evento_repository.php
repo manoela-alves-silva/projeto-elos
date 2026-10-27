@@ -51,6 +51,8 @@ final class EventoRepository
                 e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
+                e.imagem_capa,
+                e.cor,
                 e.created_at,
                 e.updated_at
              FROM eventos e
@@ -91,6 +93,8 @@ final class EventoRepository
                 e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
+                e.imagem_capa,
+                e.cor,
                 e.created_at,
                 e.updated_at
              FROM eventos e
@@ -113,6 +117,26 @@ final class EventoRepository
         $evento = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $evento !== false ? $evento : null;
+    }
+
+    /**
+     * Troca a identidade visual (capa e cor). null limpa o campo.
+     *
+     * @return array<string, mixed>|null o evento atualizado, ou null se não existe
+     */
+    public function updateIdentidade(int $id, ?string $imagemCapa, ?string $cor): ?array
+    {
+        $statement = $this->connection->prepare(
+            'UPDATE eventos SET imagem_capa = :imagem_capa, cor = :cor WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'imagem_capa' => $imagemCapa,
+            'cor' => $cor,
+        ]);
+
+        return $this->findById($id);
     }
 
     /**

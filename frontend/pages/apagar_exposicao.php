@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Elos\Frontend\Api;
 use Elos\Frontend\ApiException;
+use Elos\Frontend\Identidade;
 use Elos\Frontend\MenuLateral;
 
 use function Elos\Frontend\apiLista;
@@ -20,11 +21,12 @@ use function Elos\Frontend\redirecionar;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
+require_once __DIR__ . '/../src/Identidade.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 if (!$usuario['podeGerenciar']) {
-    redirecionar('eventos.php');
+    redirecionar('exposicoes');
 }
 
 $eventoId = (int) ($_GET['id'] ?? 0);
@@ -37,7 +39,7 @@ try {
 }
 
 if (!is_array($evento)) {
-    redirecionar('eventos.php');
+    redirecionar('exposicoes');
 }
 
 $titulo = (string) ($evento['titulo'] ?? '');
@@ -51,8 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             Api::delete('/api/eventos/' . $eventoId);
+            // A imagem de capa fica no frontend: sai junto com a exposição.
+            Identidade::apagarArquivo($evento['imagem_capa'] ?? null);
             flash('eventos', 'Exposição "' . $titulo . '" apagada.');
-            redirecionar('eventos.php');
+            redirecionar('exposicoes');
         } catch (ApiException $e) {
             $erro = $e->getMessage();
         }
@@ -72,10 +76,10 @@ $anexos = count(apiLista('/api/eventos/' . $eventoId . '/anexos', 'anexos') ?? [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/conta.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/conta.css?v=2026-10-27">
 </head>
 <body>
 
@@ -139,7 +143,7 @@ $anexos = count(apiLista('/api/eventos/' . $eventoId . '/anexos', 'anexos') ?? [
                     </div>
 
                     <button type="submit" class="botao-perigo">Apagar exposição</button>
-                    <a href="evento.php?id=<?= $eventoId ?>" class="botao-secundario">Voltar sem apagar</a>
+                    <a href="exposicao?id=<?= $eventoId ?>" class="botao-secundario">Voltar sem apagar</a>
                 </form>
             </article>
 

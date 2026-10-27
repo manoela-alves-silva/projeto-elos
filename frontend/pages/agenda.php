@@ -25,11 +25,11 @@ use const Elos\Frontend\MESES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 // Endereço antigo do editor de agenda: as datas agora são editadas na exposição.
 if ((int) ($_GET['agenda_evento'] ?? 0) > 0) {
-    redirecionar('evento.php?id=' . (int) $_GET['agenda_evento'] . '&editar=datas#datas');
+    redirecionar('exposicao?id=' . (int) $_GET['agenda_evento'] . '&editar=datas#datas');
 }
 
 $eventos = apiLista('/api/eventos', 'eventos');
@@ -135,10 +135,10 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/agenda.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/agenda.css?v=2026-10-27">
 </head>
 <body>
 
@@ -149,7 +149,7 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
     <main class="main-content">
 
         <header class="topbar">
-            <form method="get" action="agenda.php" class="filtro-exposicao form-elos">
+            <form method="get" action="calendario" class="filtro-exposicao form-elos">
                 <input type="hidden" name="ano" value="<?= $ano ?>">
                 <input type="hidden" name="mes" value="<?= $mes ?>">
                 <label for="evento" class="sr-only">Exposição</label>
