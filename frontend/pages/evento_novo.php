@@ -39,10 +39,10 @@ use const Elos\Frontend\PRIORIDADES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 if (!$usuario['podeGerenciar']) {
-    redirecionar('eventos.php');
+    redirecionar('exposicoes');
 }
 
 const CAMPOS_LINHA = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'horario', 'responsavel', 'prioridade'];
@@ -210,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             flash('evento', $mensagem);
-            redirecionar('evento.php?id=' . $eventoId);
+            redirecionar('exposicao?id=' . $eventoId);
         }
     }
 
@@ -285,10 +285,10 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/eventos.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/eventos.css?v=2026-10-27">
 </head>
 <body>
 
@@ -299,7 +299,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
     <main class="main-content">
 
         <header class="topbar">
-            <a href="eventos.php" class="text-link">← Exposições</a>
+            <a href="exposicoes" class="text-link">← Exposições</a>
             <div class="topbar-actions">
                 <div class="topbar-user">
                     <div class="user-avatar small"><?= esc(mb_strtoupper(mb_substr($usuario['nome'], 0, 1))) ?></div>
@@ -329,7 +329,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
                 <div class="aviso aviso-conflito" role="status">O local já está ocupado nessas datas. Veja o aviso no fim da página antes de criar.</div>
             <?php endif; ?>
 
-            <form method="post" action="evento_novo.php" class="form-elos passos">
+            <form method="post" action="nova-exposicao" class="form-elos passos">
                 <?= \Elos\Frontend\campoCsrf() ?>
 
                 <!-- 1. INFORMAÇÕES -->
@@ -441,7 +441,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
 
                 <div class="panel concluir-cadastro">
                     <p>Tudo entra como pendente. Você acompanha e marca o que for resolvido dentro da exposição.</p>
-                    <a href="eventos.php" class="text-link">Cancelar</a>
+                    <a href="exposicoes" class="text-link">Cancelar</a>
                     <button type="submit" class="primary-button">Criar exposição</button>
                 </div>
 
@@ -452,7 +452,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
 </div>
 
 <?php sugestoesDeResponsavel($usuarios); ?>
-<script src="../assets/js/elos.js"></script>
+<script src="../assets/js/elos.js?v=2026-10-27"></script>
 <script>
 (function () {
     const lista = document.getElementById('linhasNecessidades');

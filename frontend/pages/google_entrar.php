@@ -37,6 +37,6 @@ try {
         'texto' => $e->statusCode === 0 ? 'Não foi possível falar com o servidor do ELOS.' : $e->getMessage(),
     ];
 
-    header('Location: login.php');
+    header('Location: entrar');
     exit();
 }

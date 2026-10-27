@@ -575,3 +575,128 @@ summary::-webkit-details-marker {
     background: var(--red);
     color: var(--white);
 }
+
+
+/* =========================================================
+   IDENTIDADE VISUAL DA EXPOSIÇÃO
+
+   Cards com style="--expo-cor: …; --expo-capa: url(…)" (vindos de
+   Identidade::estilo()). Fundo num tom claro da cor da exposição;
+   com capa, a imagem fica à direita e some num degradê para esse
+   fundo, deixando título, datas e números legíveis à esquerda.
+   ========================================================= */
+
+.identidade {
+    --expo-fundo: color-mix(in srgb, var(--expo-cor, var(--navy)) 7%, var(--white));
+
+    position: relative;
+    isolation: isolate;
+
+    overflow: hidden;
+
+    border-left: 5px solid var(--expo-cor, var(--navy));
+
+    background: var(--expo-fundo);
+}
+
+/* a decoração antiga (círculo) dá lugar à identidade */
+.foco.identidade::before {
+    display: none;
+}
+
+.identidade.com-capa::after {
+    content: "";
+
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: -1;
+
+    width: 62%;
+
+    background: var(--expo-capa) center / cover no-repeat;
+
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 35%, #000 70%);
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 35%, #000 70%);
+
+    pointer-events: none;
+}
+
+.identidade .eyebrow:first-child,
+.identidade .expo-cartao-topo .eyebrow {
+    color: var(--expo-cor, var(--turquoise));
+}
+
+/* caixinhas de números: brancas e semitransparentes sobre a capa */
+.identidade .numero,
+.identidade .expo-cartao-proximo,
+.identidade .expo-progresso,
+.identidade .status-badge {
+    background: rgba(255, 255, 255, 0.82);
+
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+.identidade .progresso span,
+.identidade .foco-progresso .progresso span {
+    background: var(--expo-cor, var(--turquoise));
+}
+
+.identidade .progresso {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+/* o texto que fica por cima da imagem ganha um respiro de legibilidade */
+.identidade.com-capa .foco-progresso span,
+.identidade.com-capa .expo-cartao-progresso p {
+    padding: 1px var(--sp-8);
+
+    border-radius: var(--radius-pill);
+
+    background: rgba(255, 255, 255, 0.82);
+}
+
+/* topo da exposição vira card quando tem identidade */
+.expo-cabecalho.identidade {
+    padding: var(--sp-28, 28px);
+
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    box-shadow: var(--shadow-soft);
+}
+
+/* bolinha com a cor da exposição (seletor, listas) */
+.expo-ponto {
+    display: inline-block;
+
+    width: 9px;
+    height: 9px;
+
+    margin-right: 7px;
+
+    border-radius: 50%;
+
+    background: var(--expo-cor, var(--navy));
+
+    vertical-align: 1px;
+}
+
+.seletor-exposicao a.ativa .expo-ponto {
+    box-shadow: 0 0 0 2px var(--white);
+}
+
+@media (max-width: 700px) {
+    .identidade.com-capa::after {
+        width: 100%;
+
+        -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.3) 45%, rgba(0, 0, 0, 0.9) 100%);
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.3) 45%, rgba(0, 0, 0, 0.9) 100%);
+    }
+
+    .expo-cabecalho.identidade {
+        padding: var(--sp-20);
+    }
+}

@@ -66,6 +66,15 @@ function handleEventosDispatcherRequest(
         );
     }
 
+    if (preg_match('#^/api/eventos/(\d+)/identidade$#', $path, $matches)) {
+        handleEventoIdentidadeRequest(
+            $method,
+            (int) $matches[1],
+            $eventoControllerFactory,
+            $authorizationFactory
+        );
+    }
+
     if (preg_match('#^/api/eventos/(\d+)/cursos$#', $path, $matches)) {
         handleEventoCursoRequest(
             $method,

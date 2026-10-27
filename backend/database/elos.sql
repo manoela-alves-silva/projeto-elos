@@ -62,6 +62,9 @@ CREATE TABLE IF NOT EXISTS eventos (
     prioridade ENUM('BAIXA', 'MEDIA', 'ALTA') NOT NULL DEFAULT 'MEDIA',
     status ENUM('PLANEJAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'PLANEJAMENTO',
     observacoes TEXT NULL,
+    -- Identidade visual: arquivo da capa (guardado pelo frontend) e cor (#rrggbb).
+    imagem_capa VARCHAR(100) NULL,
+    cor CHAR(7) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_eventos_tipo_evento (tipo_evento_id),

@@ -18,7 +18,7 @@ require_once __DIR__ . '/../src/Api.php';
 $usuario = $_SESSION['usuario'] ?? null;
 
 if (is_array($usuario) && !empty($usuario['id'])) {
-    header('Location: ../index.php');
+    header('Location: ./');
     exit();
 }
 
@@ -95,12 +95,12 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
     <link
         rel="stylesheet"
-        href="../assets/css/base.css"
+        href="../assets/css/base.css?v=2026-10-27"
     >
 
     <link
         rel="stylesheet"
-        href="../assets/css/login.css"
+        href="../assets/css/login.css?v=2026-10-27"
     >
 </head>
 
@@ -116,7 +116,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
         <div class="sidebar-logo">
             <a
-                href="../index.php"
+                href="./"
                 aria-label="ELOS"
             >
                 <strong class="sidebar-logo-text">
@@ -220,7 +220,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
                 </div>
 
                 <a
-                    href="login.php"
+                    href="entrar"
                     class="login-submit login-submit-link"
                 >
                     Ir para o login
@@ -383,7 +383,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
                 <p class="login-signup">
                     Lembrou a senha?
-                    <a href="login.php">Entrar</a>
+                    <a href="entrar">Entrar</a>
                 </p>
 
             <?php endif; ?>

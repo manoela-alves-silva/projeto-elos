@@ -21,4 +21,5 @@ trap 'kill $BACKEND 2>/dev/null' EXIT
 
 echo "Backend:  http://127.0.0.1:8000"
 echo "Frontend: http://127.0.0.1:8081   (Ctrl+C para parar os dois)"
-php -S 127.0.0.1:8081 -t frontend
+# roteador.php: endereços limpos (/exposicoes, /exposicao?id=5...).
+php -d upload_max_filesize=8M -d post_max_size=10M -S 127.0.0.1:8081 -t frontend frontend/roteador.php
