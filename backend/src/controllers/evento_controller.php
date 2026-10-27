@@ -8,12 +8,6 @@ use Elos\Repositories\EventoRepository;
 
 final class EventoController
 {
-    private const PRIORIDADES = [
-        'BAIXA',
-        'MEDIA',
-        'ALTA',
-    ];
-
     private const STATUS = [
         'PLANEJAMENTO',
         'EM_ANDAMENTO',
@@ -77,19 +71,13 @@ final class EventoController
         int $localId,
         string $titulo,
         ?string $descricao,
-        string $prioridade,
         string $status,
         ?string $observacoes
     ): ?array {
         $titulo = trim($titulo);
-        $prioridade = strtoupper(trim($prioridade));
         $status = strtoupper(trim($status));
 
         if ($titulo === '') {
-            return null;
-        }
-
-        if (!in_array($prioridade, self::PRIORIDADES, true)) {
             return null;
         }
 
@@ -122,7 +110,6 @@ final class EventoController
             $localId,
             $titulo,
             $descricao,
-            $prioridade,
             $status,
             $observacoes
         );
@@ -140,19 +127,13 @@ final class EventoController
         int $localId,
         string $titulo,
         ?string $descricao,
-        string $prioridade,
         string $status,
         ?string $observacoes
     ): ?array {
         $titulo = trim($titulo);
-        $prioridade = strtoupper(trim($prioridade));
         $status = strtoupper(trim($status));
 
         if ($titulo === '') {
-            return null;
-        }
-
-        if (!in_array($prioridade, self::PRIORIDADES, true)) {
             return null;
         }
 
@@ -186,7 +167,6 @@ final class EventoController
             $localId,
             $titulo,
             $descricao,
-            $prioridade,
             $status,
             $observacoes
         );
@@ -202,18 +182,6 @@ final class EventoController
         }
 
         return $this->repository->findConflitos($localId, $inicio, $fim, $excetoId);
-    }
-
-    /**
-     * Verifica se uma prioridade é válida.
-     */
-    public function isValidPriority(string $prioridade): bool
-    {
-        return in_array(
-            strtoupper(trim($prioridade)),
-            self::PRIORIDADES,
-            true
-        );
     }
 
     /**

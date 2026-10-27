@@ -40,9 +40,6 @@ function handleEventoRequest(
         $localId = $payload['local_id'] ?? null;
         $titulo = $payload['titulo'] ?? null;
         $descricao = $payload['descricao'] ?? null;
-        // A exposição não usa mais prioridade (só os itens do checklist);
-        // a coluna continua e recebe o padrão quando não vem nada.
-        $prioridade = $payload['prioridade'] ?? 'MEDIA';
         $status = $payload['status'] ?? null;
         $observacoes = $payload['observacoes'] ?? null;
 
@@ -76,12 +73,6 @@ function handleEventoRequest(
             ]);
         }
 
-        if (!is_string($prioridade) || trim($prioridade) === '') {
-            sendJsonResponse(400, [
-                'erro' => 'Prioridade é obrigatória.',
-            ]);
-        }
-
         if (!is_string($status) || trim($status) === '') {
             sendJsonResponse(400, [
                 'erro' => 'Status é obrigatório.',
@@ -96,12 +87,6 @@ function handleEventoRequest(
 
         $eventoController = $eventoControllerFactory();
 
-        if (!$eventoController->isValidPriority($prioridade)) {
-            sendJsonResponse(400, [
-                'erro' => 'Prioridade inválida.',
-            ]);
-        }
-
         if (!$eventoController->isValidStatus($status)) {
             sendJsonResponse(400, [
                 'erro' => 'Status inválido.',
@@ -114,7 +99,6 @@ function handleEventoRequest(
             $localId,
             $titulo,
             $descricao,
-            $prioridade,
             $status,
             $observacoes
         );
@@ -197,9 +181,6 @@ function handleEventoByIdRequest(
             ? $payload['descricao']
             : $eventoAtual['descricao'];
 
-        $prioridade = $payload['prioridade']
-            ?? (string) $eventoAtual['prioridade'];
-
         $status = $payload['status']
             ?? (string) $eventoAtual['status'];
 
@@ -237,12 +218,6 @@ function handleEventoByIdRequest(
             ]);
         }
 
-        if (!is_string($prioridade) || trim($prioridade) === '') {
-            sendJsonResponse(400, [
-                'erro' => 'Prioridade é obrigatória.',
-            ]);
-        }
-
         if (!is_string($status) || trim($status) === '') {
             sendJsonResponse(400, [
                 'erro' => 'Status é obrigatório.',
@@ -257,12 +232,6 @@ function handleEventoByIdRequest(
 
         $eventoController = $eventoControllerFactory();
 
-        if (!$eventoController->isValidPriority($prioridade)) {
-            sendJsonResponse(400, [
-                'erro' => 'Prioridade inválida.',
-            ]);
-        }
-
         if (!$eventoController->isValidStatus($status)) {
             sendJsonResponse(400, [
                 'erro' => 'Status inválido.',
@@ -276,7 +245,6 @@ function handleEventoByIdRequest(
             $localId,
             $titulo,
             $descricao,
-            $prioridade,
             $status,
             $observacoes
         );

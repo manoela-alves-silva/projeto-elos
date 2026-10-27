@@ -164,10 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     break;
                 }
 
-                // Toda necessidade nasce PENDENTE; etapa não se aplica.
+                // Toda necessidade nasce PENDENTE.
                 $resposta = Api::post(
                     '/api/eventos/' . $eventoId . '/tarefas',
-                    $lida['corpo'] + ['etapa_id' => null, 'descricao' => null, 'status' => 'PENDENTE']
+                    $lida['corpo'] + ['descricao' => null, 'status' => 'PENDENTE']
                 );
                 flash('evento', 'Adicionado: ' . $lida['valores']['titulo'] . '.');
                 redirecionar($base . '#item-' . (int) ($resposta['tarefa']['id'] ?? 0));
@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     break;
                 }
 
-                // Sem etapa_id/status no corpo: o backend mantém os atuais.
+                // Sem status no corpo: o backend mantém o atual.
                 Api::put('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId, $lida['corpo']);
                 flash('evento', 'Alterações salvas.');
                 redirecionar($base . '#item-' . $tarefaId);

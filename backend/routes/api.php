@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/etapa_routes.php';
 require_once __DIR__ . '/categoria_tarefa_routes.php';
 require_once __DIR__ . '/auth_routes.php';
 require_once __DIR__ . '/tipo_evento_routes.php';
@@ -13,9 +12,6 @@ require_once __DIR__ . '/evento_routes.php';
 require_once __DIR__ . '/evento_curso_routes.php';
 require_once __DIR__ . '/agenda_evento_routes.php';
 require_once __DIR__ . '/tarefa_routes.php';
-require_once __DIR__ . '/formulario_routes.php';
-require_once __DIR__ . '/transporte_routes.php';
-require_once __DIR__ . '/visita_routes.php';
 require_once __DIR__ . '/anexo_routes.php';
 require_once __DIR__ . '/historico_routes.php';
 require_once __DIR__ . '/eventos_dispatcher_routes.php';
@@ -41,12 +37,8 @@ function handleApiRequest(
     callable $eventoControllerFactory,
     callable $eventoCursoControllerFactory,
     callable $agendaEventoControllerFactory,
-    callable $etapaControllerFactory,
     callable $categoriaTarefaControllerFactory,
     callable $tarefaControllerFactory,
-    callable $formularioControllerFactory,
-    callable $transporteControllerFactory,
-    callable $visitaControllerFactory,
     callable $anexoControllerFactory,
     callable $historicoControllerFactory
 ): void {
@@ -205,28 +197,8 @@ function handleApiRequest(
             $eventoCursoControllerFactory,
             $agendaEventoControllerFactory,
             $tarefaControllerFactory,
-            $formularioControllerFactory,
-            $transporteControllerFactory,
-            $visitaControllerFactory,
             $anexoControllerFactory,
             $historicoControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if ($path === '/api/etapas') {
-        handleEtapaRequest(
-            $method,
-            $etapaControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/etapas/(\d+)$#', $path, $matches)) {
-        handleEtapaByIdRequest(
-            $method,
-            (int) $matches[1],
-            $etapaControllerFactory,
             $authorizationFactory
         );
     }
