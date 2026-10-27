@@ -21,6 +21,15 @@ lugar só, e o próprio sistema avisa o que está atrasado ou perto do prazo.
 
 > Os GIFs usam dados inventados, só para demonstração.
 
+### Painel com o andamento de cada fase
+
+O Início soma todas as exposições em andamento (pendências, atrasadas,
+prazos da semana e quanto já foi resolvido) e mostra um gráfico com o
+**andamento de cada fase** da exposição em destaque. Clicar numa barra
+abre o checklist já filtrado naquela fase.
+
+![Painel do Início com os números e o gráfico de andamento por fase](docs/gifs/painel.gif)
+
 ### Criar uma exposição
 
 A pessoa preenche o nome, o local, as datas e o que vai precisar. Se o
@@ -31,11 +40,22 @@ e mostra qual exposição está lá.
 
 ### Acompanhar o checklist
 
-Cada exposição tem uma lista do que precisa ser feito. É só marcar o item
-como feito, e a barra de progresso se atualiza. Um item que passa da data
-sem ser concluído aparece como **atrasado** sozinho.
+Cada exposição tem uma lista do que precisa ser feito, organizada em
+**fases** (Curadoria, Montagem, Divulgação…), cada uma com a sua cor e o
+seu progresso. Filtros no topo mostram só uma fase ou só o que vence nos
+próximos 7 dias. É só marcar o item como feito, e o progresso se
+atualiza. Um item que passa da data sem ser concluído aparece como
+**atrasado** sozinho.
 
-![Marcando um item como feito e adicionando uma nova necessidade](docs/gifs/checklist.gif)
+![Filtrando o checklist por fase, marcando um item como feito e adicionando outro](docs/gifs/checklist.gif)
+
+### Cada exposição com a sua identidade
+
+Cada exposição pode ter uma **imagem de capa** e uma cor. A imagem aparece
+nos cards e some num degradê, sem atrapalhar a leitura. Ao enviar a
+imagem, o ELOS sugere uma cor tirada dela.
+
+![Enviando a capa de uma exposição e vendo os cards com a nova identidade](docs/gifs/capa.gif)
 
 ### Calendário que se monta sozinho
 
@@ -114,8 +134,11 @@ exposição, e as outras telas são montadas automaticamente a partir dela:
   ser feito, com categoria, data, horário, responsável, prioridade e
   observações. O responsável pode ser qualquer pessoa, mesmo sem conta no
   sistema (um técnico, um setor, alguém de fora).
-- O **Início** mostra a exposição que está sendo acompanhada, as próximas
+- O **Início** soma todas as exposições em andamento e mostra a exposição
+  que está sendo acompanhada: o andamento de cada fase, as próximas
   atividades e o que está pendente.
+- As **fases** saem da categoria de cada item do checklist (Curadoria,
+  Montagem, Divulgação…), agrupadas em cinco etapas com cores próprias.
 - O **Calendário** junta as datas das exposições e dos itens do checklist.
 - O **Relatório** gera uma versão de cada exposição pronta para imprimir.
 
@@ -281,7 +304,10 @@ projeto-elos/
 │   └── .env.example              modelo das configurações
 │
 └── frontend/
-    ├── index.php                 Início
+    ├── roteador.php              endereços limpos (/exposicoes, /exposicao?id=5…)
+    ├── .htaccess                 manda tudo para o roteador (menos assets/)
+    ├── index.php                 Início: números do painel e andamento por fase
+    ├── capa.php                  entrega a imagem de capa (só para quem está logado)
     ├── pages/
     │   ├── eventos.php           lista de exposições
     │   ├── evento_novo.php       nova exposição
@@ -296,10 +322,13 @@ projeto-elos/
     │   ├── Api.php               conversa com a API, sessão e proteção CSRF
     │   ├── elos.php              funções usadas por várias telas
     │   ├── Planejamento.php      junta datas e checklist de uma exposição
+    │   ├── Fases.php             agrupa o checklist por fase (pela categoria), com cores
+    │   ├── Identidade.php        capa e cor de cada exposição
     │   └── MenuLateral.php       menu (Início, Exposições, Calendário, Equipe)
     ├── assets/css/               base.css + um CSS por tela
     └── assets/js/elos.js
 
+storage/capas/                    imagens de capa das exposições (fora do git)
 docs/gifs/                        GIFs usados neste README
 deploy/                           modelos de Nginx e Apache para VPS
 iniciar-dev.sh                    liga o backend e o frontend no seu computador
@@ -311,7 +340,7 @@ iniciar-dev.sh                    liga o backend e o frontend no seu computador
 
 ### O que você precisa ter instalado
 
-- PHP 8.1 ou mais novo, com as extensões `pdo_mysql` e `fileinfo`;
+- PHP 8.1 ou mais novo (testado no 8.5), com as extensões `pdo_mysql`, `fileinfo` e `gd` (a `gd` reduz as imagens de capa);
 - MySQL ou MariaDB;
 - Git.
 
@@ -334,6 +363,7 @@ datas:
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsavel_livre.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-14_codigo_recuperacao.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-27_identidade_visual.sql
 ```
 
 ### Passo 2: configurar
@@ -396,8 +426,8 @@ banco vazio, a primeira conta já vira gestora.
 # Terminal 1: backend (com as variáveis DB_* exportadas)
 php -S 127.0.0.1:8000 -t backend/public
 
-# Terminal 2: frontend
-php -S 127.0.0.1:8081 -t frontend
+# Terminal 2: frontend (o roteador.php faz os endereços limpos)
+php -S 127.0.0.1:8081 -t frontend frontend/roteador.php
 ```
 
 </details>
@@ -486,7 +516,7 @@ O que o ELOS já faz para se proteger:
 
 ### Vale para qualquer hospedagem
 
-- PHP 8.1+, com `pdo_mysql`, `fileinfo` e **`allow_url_fopen` ligado**
+- PHP 8.1+ (recomendado 8.5), com `pdo_mysql`, `fileinfo`, `gd` e **`allow_url_fopen` ligado**
   (o frontend usa isso para chamar a API).
 - **HTTPS é obrigatório.** Sem ele, as senhas viajam pela internet sem
   proteção. O ELOS reconhece HTTPS também atrás de proxy
@@ -494,8 +524,9 @@ O que o ELOS já faz para se proteger:
 - Banco criado com `backend/database/elos.sql`.
 - `ELOS_DEBUG` vazio. Assim os erros vão para o log, e a API responde só
   "Erro interno do servidor".
-- A pasta `backend/storage/` precisa ter permissão de escrita para o PHP.
-- Faça **backup** diário do banco e de `backend/storage/anexos/`.
+- As pastas `backend/storage/` e `storage/` (sessões e capas) precisam ter permissão de escrita para o PHP.
+- O servidor precisa aceitar `.htaccess` com `mod_rewrite` (endereços limpos). No Nginx, o modelo já faz isso.
+- Faça **backup** diário do banco, de `backend/storage/anexos/` e de `storage/capas/`.
 - Envie o projeto **sem** `backend/.env`, `cookies*.txt` e o conteúdo de
   `backend/storage/`.
 
@@ -552,7 +583,9 @@ api-elos.seusite.com.br  → pasta backend/public/
 - Banco MySQL `projeto-elos_elos`, criado pelo painel e importado com o
   `elos.sql` sem as linhas `CREATE DATABASE`/`USE`.
 - Para atualizar: enviar `backend/` e `frontend/` por SSH (sem o `.env` e
-  sem a pasta `storage/`).
+  sem as pastas `storage/`). Se houver migração nova em
+  `backend/database/migracoes/`, rodar no banco **antes** de enviar o código.
+- Versão do PHP: no painel, em **Ambiente → PHP**.
 
 ---
 
