@@ -41,7 +41,6 @@ final class TarefaController
     public function create(
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -55,7 +54,6 @@ final class TarefaController
         return $this->repository->create(
             $eventoId,
             $usuarioResponsavelId,
-            $etapaId,
             $categoriaId,
             $titulo,
             $descricao,
@@ -77,7 +75,6 @@ final class TarefaController
         int $id,
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -92,7 +89,6 @@ final class TarefaController
             $id,
             $eventoId,
             $usuarioResponsavelId,
-            $etapaId,
             $categoriaId,
             $titulo,
             $descricao,

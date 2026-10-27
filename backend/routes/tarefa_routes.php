@@ -11,7 +11,6 @@ use Elos\Services\HistoricoService;
  *
  * GET: qualquer usuário autenticado pode consultar.
  * POST: somente gestor ou administrador pode cadastrar.
- * A etapa é opcional (checklist de necessidades do evento).
  *
  * @param callable(): TarefaController $tarefaControllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
@@ -44,7 +43,6 @@ function handleTarefaRequest(
         $payload = readJsonPayload();
 
         $usuarioResponsavelId = $payload['usuario_responsavel_id'] ?? null;
-        $etapaId = $payload['etapa_id'] ?? null;
         $categoriaId = $payload['categoria_id'] ?? null;
         $titulo = $payload['titulo'] ?? null;
         $descricao = $payload['descricao'] ?? null;
@@ -62,14 +60,6 @@ function handleTarefaRequest(
         ) {
             sendJsonResponse(400, [
                 'erro' => 'Responsável inválido.',
-            ]);
-        }
-
-        // Etapa é opcional: necessidades do checklist do evento
-        // (ex.: "comprar pregos") não pertencem a uma etapa.
-        if ($etapaId !== null && (!is_int($etapaId) || $etapaId <= 0)) {
-            sendJsonResponse(400, [
-                'erro' => 'Etapa inválida.',
             ]);
         }
 
@@ -148,7 +138,6 @@ function handleTarefaRequest(
         $tarefa = $tarefaController->create(
             $eventoId,
             $usuarioResponsavelId,
-            $etapaId,
             $categoriaId,
             $titulo,
             $descricao,
@@ -348,14 +337,6 @@ function handleTarefaByIdRequest(
                 ? (int) $tarefaAtual['usuario_responsavel_id']
                 : null);
 
-        $etapaId = array_key_exists('etapa_id', $payload)
-            ? $payload['etapa_id']
-            : (
-                $tarefaAtual['etapa_id'] !== null
-                    ? (int) $tarefaAtual['etapa_id']
-                    : null
-            );
-
         $categoriaId = array_key_exists('categoria_id', $payload)
             ? $payload['categoria_id']
             : (
@@ -399,12 +380,6 @@ function handleTarefaByIdRequest(
         ) {
             sendJsonResponse(400, [
                 'erro' => 'Responsável inválido.',
-            ]);
-        }
-
-        if ($etapaId !== null && (!is_int($etapaId) || $etapaId <= 0)) {
-            sendJsonResponse(400, [
-                'erro' => 'Etapa inválida.',
             ]);
         }
 
@@ -482,7 +457,6 @@ function handleTarefaByIdRequest(
             $id,
             $eventoId,
             $usuarioResponsavelId,
-            $etapaId,
             $categoriaId,
             $titulo,
             $descricao,

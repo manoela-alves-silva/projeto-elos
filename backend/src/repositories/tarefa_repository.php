@@ -26,7 +26,6 @@ final class TarefaRepository
                 t.evento_id,
                 t.usuario_responsavel_id,
                 t.responsavel_nome,
-                t.etapa_id,
                 t.categoria_id,
                 t.titulo,
                 t.descricao,
@@ -39,13 +38,10 @@ final class TarefaRepository
                 t.updated_at,
                 u.nome AS usuario_responsavel_nome,
                 COALESCE(u.nome, t.responsavel_nome) AS responsavel_exibicao,
-                e.nome AS etapa_nome,
                 c.nome AS categoria_nome
             FROM tarefas t
             LEFT JOIN usuarios u
                 ON u.id = t.usuario_responsavel_id
-            LEFT JOIN etapas e
-                ON e.id = t.etapa_id
             LEFT JOIN categorias_tarefa c
                 ON c.id = t.categoria_id
             WHERE t.evento_id = :evento_id
@@ -78,7 +74,6 @@ final class TarefaRepository
                 t.evento_id,
                 t.usuario_responsavel_id,
                 t.responsavel_nome,
-                t.etapa_id,
                 t.categoria_id,
                 t.titulo,
                 t.descricao,
@@ -91,13 +86,10 @@ final class TarefaRepository
                 t.updated_at,
                 u.nome AS usuario_responsavel_nome,
                 COALESCE(u.nome, t.responsavel_nome) AS responsavel_exibicao,
-                e.nome AS etapa_nome,
                 c.nome AS categoria_nome
             FROM tarefas t
             LEFT JOIN usuarios u
                 ON u.id = t.usuario_responsavel_id
-            LEFT JOIN etapas e
-                ON e.id = t.etapa_id
             LEFT JOIN categorias_tarefa c
                 ON c.id = t.categoria_id
             WHERE t.id = :id
@@ -120,7 +112,6 @@ final class TarefaRepository
     public function create(
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -135,7 +126,6 @@ final class TarefaRepository
             INSERT INTO tarefas (
                 evento_id,
                 usuario_responsavel_id,
-                etapa_id,
                 categoria_id,
                 titulo,
                 descricao,
@@ -148,7 +138,6 @@ final class TarefaRepository
             ) VALUES (
                 :evento_id,
                 :usuario_responsavel_id,
-                :etapa_id,
                 :categoria_id,
                 :titulo,
                 :descricao,
@@ -166,7 +155,6 @@ final class TarefaRepository
         $success = $statement->execute([
             'evento_id' => $eventoId,
             'usuario_responsavel_id' => $usuarioResponsavelId,
-            'etapa_id' => $etapaId,
             'categoria_id' => $categoriaId,
             'titulo' => $titulo,
             'descricao' => $descricao,
@@ -192,7 +180,6 @@ final class TarefaRepository
         int $id,
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -207,7 +194,6 @@ final class TarefaRepository
             UPDATE tarefas
             SET
                 usuario_responsavel_id = :usuario_responsavel_id,
-                etapa_id = :etapa_id,
                 categoria_id = :categoria_id,
                 titulo = :titulo,
                 descricao = :descricao,
@@ -227,7 +213,6 @@ final class TarefaRepository
             'id' => $id,
             'evento_id' => $eventoId,
             'usuario_responsavel_id' => $usuarioResponsavelId,
-            'etapa_id' => $etapaId,
             'categoria_id' => $categoriaId,
             'titulo' => $titulo,
             'descricao' => $descricao,

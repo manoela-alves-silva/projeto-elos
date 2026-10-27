@@ -7,34 +7,26 @@ use Elos\Controllers\AgendaEventoController;
 use Elos\Controllers\AnexoController;
 use Elos\Controllers\CategoriaTarefaController;
 use Elos\Controllers\CursoController;
-use Elos\Controllers\EtapaController;
 use Elos\Controllers\EventoController;
 use Elos\Controllers\EventoCursoController;
-use Elos\Controllers\FormularioController;
 use Elos\Controllers\HistoricoController;
 use Elos\Controllers\LocalController;
 use Elos\Controllers\ResponsavelController;
 use Elos\Controllers\TarefaController;
 use Elos\Controllers\TipoEventoController;
-use Elos\Controllers\TransporteController;
 use Elos\Controllers\UsuarioController;
-use Elos\Controllers\VisitaController;
 use Elos\Repositories\AgendaEventoRepository;
 use Elos\Repositories\AnexoRepository;
 use Elos\Repositories\CategoriaTarefaRepository;
 use Elos\Repositories\CursoRepository;
-use Elos\Repositories\EtapaRepository;
 use Elos\Repositories\EventoCursoRepository;
 use Elos\Repositories\EventoRepository;
-use Elos\Repositories\FormularioRepository;
 use Elos\Repositories\HistoricoRepository;
 use Elos\Repositories\LocalRepository;
 use Elos\Repositories\ResponsavelRepository;
 use Elos\Repositories\TarefaRepository;
 use Elos\Repositories\TipoEventoRepository;
-use Elos\Repositories\TransporteRepository;
 use Elos\Repositories\UsuarioRepository;
-use Elos\Repositories\VisitaRepository;
 use Elos\Services\AuthService;
 use Elos\Services\AuthorizationService;
 use Elos\Services\HistoricoService;
@@ -146,12 +138,6 @@ $agendaEventoControllerFactory = static function () use ($pdo): AgendaEventoCont
     );
 };
 
-$etapaControllerFactory = static function () use ($pdo): EtapaController {
-    return new EtapaController(
-        new EtapaRepository($pdo)
-    );
-};
-
 $categoriaTarefaControllerFactory = static function () use ($pdo): CategoriaTarefaController {
     return new CategoriaTarefaController(
         new CategoriaTarefaRepository($pdo)
@@ -161,24 +147,6 @@ $categoriaTarefaControllerFactory = static function () use ($pdo): CategoriaTare
 $tarefaControllerFactory = static function () use ($pdo): TarefaController {
     return new TarefaController(
         new TarefaRepository($pdo)
-    );
-};
-
-$formularioControllerFactory = static function () use ($pdo): FormularioController {
-    return new FormularioController(
-        new FormularioRepository($pdo)
-    );
-};
-
-$transporteControllerFactory = static function () use ($pdo): TransporteController {
-    return new TransporteController(
-        new TransporteRepository($pdo)
-    );
-};
-
-$visitaControllerFactory = static function () use ($pdo): VisitaController {
-    return new VisitaController(
-        new VisitaRepository($pdo)
     );
 };
 
@@ -214,12 +182,8 @@ handleApiRequest(
     $eventoControllerFactory,
     $eventoCursoControllerFactory,
     $agendaEventoControllerFactory,
-    $etapaControllerFactory,
     $categoriaTarefaControllerFactory,
     $tarefaControllerFactory,
-    $formularioControllerFactory,
-    $transporteControllerFactory,
-    $visitaControllerFactory,
     $anexoControllerFactory,
     $historicoControllerFactory
 );

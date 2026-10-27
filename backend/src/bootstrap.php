@@ -20,7 +20,6 @@ spl_autoload_register(
         $directoryMap = [
             'Config' => 'config',
             'Controllers' => 'controllers',
-            'Models' => 'models',
             'Repositories' => 'repositories',
             'Services' => 'services',
         ];

@@ -6,11 +6,8 @@ use Elos\Controllers\AgendaEventoController;
 use Elos\Controllers\AnexoController;
 use Elos\Controllers\EventoController;
 use Elos\Controllers\EventoCursoController;
-use Elos\Controllers\FormularioController;
 use Elos\Controllers\HistoricoController;
 use Elos\Controllers\TarefaController;
-use Elos\Controllers\TransporteController;
-use Elos\Controllers\VisitaController;
 use Elos\Services\AuthorizationService;
 
 /**
@@ -20,9 +17,6 @@ use Elos\Services\AuthorizationService;
  * @param callable(): EventoCursoController $eventoCursoControllerFactory
  * @param callable(): AgendaEventoController $agendaEventoControllerFactory
  * @param callable(): TarefaController $tarefaControllerFactory
- * @param callable(): FormularioController $formularioControllerFactory
- * @param callable(): TransporteController $transporteControllerFactory
- * @param callable(): VisitaController $visitaControllerFactory
  * @param callable(): AnexoController $anexoControllerFactory
  * @param callable(): HistoricoController $historicoControllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
@@ -34,9 +28,6 @@ function handleEventosDispatcherRequest(
     callable $eventoCursoControllerFactory,
     callable $agendaEventoControllerFactory,
     callable $tarefaControllerFactory,
-    callable $formularioControllerFactory,
-    callable $transporteControllerFactory,
-    callable $visitaControllerFactory,
     callable $anexoControllerFactory,
     callable $historicoControllerFactory,
     callable $authorizationFactory
@@ -128,63 +119,6 @@ function handleEventosDispatcherRequest(
             (int) $matches[1],
             (int) $matches[2],
             $tarefaControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/formularios$#', $path, $matches)) {
-        handleFormularioRequest(
-            $method,
-            (int) $matches[1],
-            $formularioControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/formularios/(\d+)$#', $path, $matches)) {
-        handleFormularioByIdRequest(
-            $method,
-            (int) $matches[1],
-            (int) $matches[2],
-            $formularioControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/transportes$#', $path, $matches)) {
-        handleTransporteRequest(
-            $method,
-            (int) $matches[1],
-            $transporteControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/transportes/(\d+)$#', $path, $matches)) {
-        handleTransporteByIdRequest(
-            $method,
-            (int) $matches[1],
-            (int) $matches[2],
-            $transporteControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/visitas$#', $path, $matches)) {
-        handleVisitaRequest(
-            $method,
-            (int) $matches[1],
-            $visitaControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/visitas/(\d+)$#', $path, $matches)) {
-        handleVisitaByIdRequest(
-            $method,
-            (int) $matches[1],
-            (int) $matches[2],
-            $visitaControllerFactory,
             $authorizationFactory
         );
     }

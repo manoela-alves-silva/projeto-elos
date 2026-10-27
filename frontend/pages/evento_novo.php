@@ -193,7 +193,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'horario' => preg_match('/^\d{2}:\d{2}$/', $linha['horario']) ? $linha['horario'] : null,
                         'prioridade' => in_array($linha['prioridade'], PRIORIDADES, true) ? $linha['prioridade'] : 'MEDIA',
                         'status' => 'PENDENTE',
-                        'etapa_id' => null,
                         'descricao' => null,
                         'observacoes' => null,
                     ] + resolverResponsavel($linha['responsavel'], $usuariosDoSistema));

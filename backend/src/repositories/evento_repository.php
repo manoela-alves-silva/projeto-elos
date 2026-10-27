@@ -48,7 +48,6 @@ final class EventoRepository
                 l.nome AS local_nome,
                 e.titulo,
                 e.descricao,
-                e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
                 e.imagem_capa,
@@ -90,7 +89,6 @@ final class EventoRepository
                 l.nome AS local_nome,
                 e.titulo,
                 e.descricao,
-                e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
                 e.imagem_capa,
@@ -165,7 +163,7 @@ final class EventoRepository
             $anexos->execute(['id' => $id]);
             $caminhos = array_map('strval', $anexos->fetchAll(PDO::FETCH_COLUMN));
 
-            foreach (['tarefas', 'agenda_eventos', 'evento_cursos', 'anexos', 'formularios', 'transportes', 'visitas', 'eventos'] as $tabela) {
+            foreach (['tarefas', 'agenda_eventos', 'evento_cursos', 'anexos', 'eventos'] as $tabela) {
                 $coluna = $tabela === 'eventos' ? 'id' : 'evento_id';
                 $this->connection
                     ->prepare("DELETE FROM {$tabela} WHERE {$coluna} = :id")
@@ -228,7 +226,6 @@ final class EventoRepository
         int $localId,
         string $titulo,
         ?string $descricao,
-        string $prioridade,
         string $status,
         ?string $observacoes
     ): ?array {
@@ -239,7 +236,6 @@ final class EventoRepository
                 local_id,
                 titulo,
                 descricao,
-                prioridade,
                 status,
                 observacoes
              ) VALUES (
@@ -248,7 +244,6 @@ final class EventoRepository
                 :local_id,
                 :titulo,
                 :descricao,
-                :prioridade,
                 :status,
                 :observacoes
              )'
@@ -260,7 +255,6 @@ final class EventoRepository
             'local_id' => $localId,
             'titulo' => $titulo,
             'descricao' => $descricao,
-            'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
         ]);
@@ -282,7 +276,6 @@ final class EventoRepository
         int $localId,
         string $titulo,
         ?string $descricao,
-        string $prioridade,
         string $status,
         ?string $observacoes
     ): ?array {
@@ -293,7 +286,6 @@ final class EventoRepository
                  local_id = :local_id,
                  titulo = :titulo,
                  descricao = :descricao,
-                 prioridade = :prioridade,
                  status = :status,
                  observacoes = :observacoes
              WHERE id = :id'
@@ -306,7 +298,6 @@ final class EventoRepository
             'local_id' => $localId,
             'titulo' => $titulo,
             'descricao' => $descricao,
-            'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
         ]);
