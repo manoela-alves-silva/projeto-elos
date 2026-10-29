@@ -62,6 +62,41 @@ final class Identidade
     }
 
     /**
+     * Cor de cada tipo de evento (Exposição, Cine Clube...), para a
+     * equipe não confundir um com o outro. Vale a cor gravada no tipo;
+     * sem ela, a combinada pelo nome; senão, uma automática.
+     * Tons diferentes entre si e escuros o bastante para o texto branco.
+     */
+    private const CORES_DOS_TIPOS = [
+        'exposi' => '#2b6cb0',   // azul
+        'cine' => '#b5462b',     // terracota
+        'caf' => '#7a5230',      // café
+        'ar livre' => '#2f7d4f', // verde
+        'acessa' => '#6b46c1',   // violeta
+        'amostra' => '#be185d',  // magenta
+        'talento' => '#be185d',
+    ];
+
+    private const CORES_DOS_TIPOS_AUTOMATICAS = ['#0f766e', '#a16207', '#1e3a8a', '#9d174d', '#4d7c0f'];
+
+    public static function corDoTipo(?string $nome, ?string $cor = null): string
+    {
+        if (is_string($cor) && preg_match('/^#[0-9a-f]{6}$/i', $cor) === 1) {
+            return strtolower($cor);
+        }
+
+        $nome = mb_strtolower(trim((string) $nome));
+
+        foreach (self::CORES_DOS_TIPOS as $termo => $corDoTermo) {
+            if ($nome !== '' && str_contains($nome, $termo)) {
+                return $corDoTermo;
+            }
+        }
+
+        return self::CORES_DOS_TIPOS_AUTOMATICAS[crc32($nome) % count(self::CORES_DOS_TIPOS_AUTOMATICAS)];
+    }
+
+    /**
      * Endereço da capa a partir da raiz do site, ou null se não tem.
      * Precisa ser absoluto: dentro do CSS, um endereço relativo seria
      * lido a partir da pasta do arquivo .css, e não da página.

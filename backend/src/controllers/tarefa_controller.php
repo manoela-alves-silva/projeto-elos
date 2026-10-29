@@ -60,7 +60,8 @@ final class TarefaController
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         return $this->repository->create(
             $eventoId,
@@ -73,7 +74,8 @@ final class TarefaController
             $status,
             $observacoes,
             $responsavelNome,
-            $horario
+            $horario,
+            $prazoDispensado
         );
     }
 
@@ -94,7 +96,8 @@ final class TarefaController
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         return $this->repository->update(
             $id,
@@ -108,7 +111,8 @@ final class TarefaController
             $status,
             $observacoes,
             $responsavelNome,
-            $horario
+            $horario,
+            $prazoDispensado
         );
     }
 

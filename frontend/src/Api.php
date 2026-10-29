@@ -274,6 +274,15 @@ final class Api
     /** @var array<string, ApiException> erros que vieram num lote */
     private static array $errosGet = [];
 
+    // Código do link secreto do painel ao vivo (monitor da produção),
+    // enviado à API no cabeçalho X-Elos-Painel. Ver pages/painel.php.
+    private static string $codigoPainel = '';
+
+    public static function usarCodigoPainel(string $codigo): void
+    {
+        self::$codigoPainel = $codigo;
+    }
+
     public static function get(string $path): array
     {
         if (isset(self::$errosGet[$path])) {
@@ -379,6 +388,10 @@ final class Api
 
         if ($chaveApi !== '') {
             $headers[] = 'X-Elos-Chave: ' . $chaveApi;
+        }
+
+        if (self::$codigoPainel !== '') {
+            $headers[] = 'X-Elos-Painel: ' . self::$codigoPainel;
         }
 
         $payload = null;

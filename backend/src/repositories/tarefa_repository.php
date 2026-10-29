@@ -30,6 +30,7 @@ final class TarefaRepository
                 t.titulo,
                 t.descricao,
                 t.prazo,
+                t.prazo_dispensado,
                 t.horario,
                 t.prioridade,
                 t.status,
@@ -84,6 +85,7 @@ final class TarefaRepository
                 t.titulo,
                 t.descricao,
                 t.prazo,
+                t.prazo_dispensado,
                 t.horario,
                 t.prioridade,
                 t.status,
@@ -136,6 +138,7 @@ final class TarefaRepository
                 t.titulo,
                 t.descricao,
                 t.prazo,
+                t.prazo_dispensado,
                 t.horario,
                 t.prioridade,
                 t.status,
@@ -178,7 +181,8 @@ final class TarefaRepository
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         $sql = '
             INSERT INTO tarefas (
@@ -188,6 +192,7 @@ final class TarefaRepository
                 titulo,
                 descricao,
                 prazo,
+                prazo_dispensado,
                 prioridade,
                 status,
                 observacoes,
@@ -200,6 +205,7 @@ final class TarefaRepository
                 :titulo,
                 :descricao,
                 :prazo,
+                :prazo_dispensado,
                 :prioridade,
                 :status,
                 :observacoes,
@@ -217,6 +223,7 @@ final class TarefaRepository
             'titulo' => $titulo,
             'descricao' => $descricao,
             'prazo' => $prazo,
+            'prazo_dispensado' => $prazo === null && $prazoDispensado ? 1 : 0,
             'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
@@ -246,7 +253,8 @@ final class TarefaRepository
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         $sql = '
             UPDATE tarefas
@@ -256,6 +264,7 @@ final class TarefaRepository
                 titulo = :titulo,
                 descricao = :descricao,
                 prazo = :prazo,
+                prazo_dispensado = :prazo_dispensado,
                 prioridade = :prioridade,
                 status = :status,
                 observacoes = :observacoes,
@@ -275,6 +284,7 @@ final class TarefaRepository
             'titulo' => $titulo,
             'descricao' => $descricao,
             'prazo' => $prazo,
+            'prazo_dispensado' => $prazo === null && $prazoDispensado ? 1 : 0,
             'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
