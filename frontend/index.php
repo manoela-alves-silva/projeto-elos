@@ -61,8 +61,8 @@ foreach ($planos as $plano) {
 }
 $foco ??= $planos[0] ?? null;
 
-// Links do planejamento são relativos a pages/.
-$linkPagina = static fn(string $link): string => 'pages/' . $link;
+// Links do planejamento já são endereços limpos da raiz (exposicao?id=...).
+$linkPagina = static fn(string $link): string => $link;
 
 // O que precisa de atenção em todas as exposições.
 $alertas = [];
