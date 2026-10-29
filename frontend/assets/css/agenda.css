@@ -374,3 +374,78 @@
         font-size: 0;
     }
 }
+
+/* ---------- cor do tipo de evento (exposição, Cine Clube...) ----------
+   A faixa à esquerda de cada marcação mostra de qual tipo de evento ela
+   é; o fundo continua mostrando a fase ou o estado. */
+
+.marker-pill[style*="--cor-tipo"] {
+    border-left: 4px solid var(--cor-tipo);
+}
+
+.bolinha[style*="--cor-tipo"] {
+    box-shadow: 0 0 0 3px var(--white), 0 0 0 5px var(--cor-tipo);
+}
+
+.legenda-tipos li {
+    font-weight: 800;
+}
+
+/* ---------- filtro por projeto (mesmo visual das abas de Exposições) ---------- */
+
+.abas {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8);
+
+    margin-bottom: var(--sp-24);
+}
+
+.abas a {
+    display: inline-flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    min-height: 38px;
+
+    padding: 0 var(--sp-16);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+
+    background: var(--white);
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
+}
+
+.abas a span {
+    min-width: 22px;
+
+    padding: 0 var(--sp-4);
+
+    border-radius: var(--radius-pill);
+
+    background: var(--cream);
+    color: var(--navy);
+
+    font-size: var(--fs-11);
+
+    text-align: center;
+}
+
+.abas a.ativa {
+    border-color: var(--navy);
+
+    background: var(--navy);
+    color: var(--white);
+}
+
+.abas a.ativa span {
+    background: var(--navy-soft);
+    color: var(--white);
+}
+

@@ -5,16 +5,20 @@ declare(strict_types=1);
 /*
  * INÍCIO — a professora entende a situação sem abrir nenhuma aba.
  *
- * Mostra a exposição em acompanhamento (a que está em cartaz ou a
- * próxima), com as próximas atividades, pendências e concluídas. Tudo
- * vem do que foi cadastrado na exposição; nada de cartões fixos por
- * categoria: o que não existe não aparece.
+ * Com cara de galeria: no topo, a parede "Em cartaz", com cada
+ * exposição em andamento como um quadro com a etiqueta de museu.
+ * Embaixo, a exposição em acompanhamento (a que está em cartaz ou a
+ * próxima), com as próximas atividades, pendências e concluídas. Na
+ * lateral, os alertas e os próximos eventos dos outros projetos da
+ * galeria (Cine Clube, Café Cultural...). Tudo vem do que foi
+ * cadastrado; o que não existe não aparece.
  */
 
 use Elos\Frontend\Fases;
 use Elos\Frontend\Identidade;
 use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
+use Elos\Frontend\Projetos;
 
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\slugDaExposicao;
@@ -37,15 +41,27 @@ use function Elos\Frontend\usuarioLogado;
 require_once __DIR__ . '/src/Planejamento.php';
 require_once __DIR__ . '/src/Identidade.php';
 
-preCarregar(['/api/eventos']);
+preCarregar(['/api/eventos', '/api/fichas']);
 $usuario = usuarioLogado('entrar');
 
-$eventos = apiLista('/api/eventos', 'eventos');
-$apiIndisponivel = $eventos === null;
+$todosEventos = apiLista('/api/eventos', 'eventos');
+$apiIndisponivel = $todosEventos === null;
 
-$planos = Planejamento::carregarVarios(
-    array_values(array_filter($eventos ?? [], 'Elos\Frontend\exposicaoAtiva'))
+// Todos os eventos ativos de uma vez (um pedido só); depois separa as
+// exposições (o foco do Início) dos eventos dos outros projetos.
+$planosTodos = Planejamento::carregarVarios(
+    array_values(array_filter($todosEventos ?? [], 'Elos\Frontend\exposicaoAtiva'))
 );
+$planos = array_values(array_filter(
+    $planosTodos,
+    static fn(Planejamento $p): bool => Projetos::doEvento($p->evento) === Projetos::EXPOSICOES
+));
+
+// Ficha dos eventos de projeto (para mostrar o filme, a obra...).
+$fichas = [];
+foreach (apiLista('/api/fichas', 'fichas') ?? [] as $ficha) {
+    $fichas[(int) $ficha['evento_id']] = is_array($ficha['dados'] ?? null) ? $ficha['dados'] : [];
+}
 
 // Em cartaz hoje primeiro; depois as próximas a começar; sem data no fim.
 $hoje = hoje();
@@ -69,10 +85,10 @@ $foco ??= $planos[0] ?? null;
 // Links do planejamento já são endereços completos (/exposicao/nome#...).
 $linkPagina = static fn(string $link): string => $link;
 
-// O que precisa de atenção em todas as exposições.
+// O que precisa de atenção em todos os eventos da galeria.
 $alertas = [];
 $minhas = [];
-foreach ($planos as $plano) {
+foreach ($planosTodos as $plano) {
     foreach ($plano->alertas() as $alerta) {
         $alertas[] = $alerta + ['_plano' => $plano];
     }
@@ -105,6 +121,28 @@ foreach ($planos as $plano) {
 }
 $painel['percentual'] = $painel['total'] > 0 ? (int) round($painel['concluidas'] * 100 / $painel['total']) : 0;
 
+// Também na galeria: os próximos eventos dos outros projetos (de hoje
+// em diante, os sem data no fim).
+$tambem = array_values(array_filter(
+    $planosTodos,
+    static fn(Planejamento $p): bool => Projetos::doEvento($p->evento) !== Projetos::EXPOSICOES
+        && (($p->agenda['abertura'] ?? '') === '' || (string) $p->agenda['abertura'] >= $hoje)
+));
+usort($tambem, static fn(Planejamento $a, Planejamento $b): int =>
+    (($a->agenda['abertura'] ?? '') ?: '9999') . ($a->agenda['horario'] ?? '')
+    <=> (($b->agenda['abertura'] ?? '') ?: '9999') . ($b->agenda['horario'] ?? ''));
+
+/** Projeto, nome a mostrar e cor de um evento (para a lateral e os alertas). */
+$infoDoEvento = static function (Planejamento $plano) use ($fichas): array {
+    $projeto = Projetos::dados(Projetos::doEvento($plano->evento));
+
+    return [
+        'projeto' => $projeto,
+        'nome' => Projetos::tituloDoEvento($projeto, $fichas[$plano->id()] ?? null, $plano->titulo()),
+        'cor' => Identidade::corDoTipo($plano->evento['tipo_evento_nome'] ?? null, $plano->evento['tipo_evento_cor'] ?? null),
+    ];
+};
+
 if ($foco !== null) {
     $resumo = $foco->resumo();
     $fasesFoco = Fases::agrupar($foco->necessidades ?? []);
@@ -133,7 +171,13 @@ if ($foco !== null) {
     <link rel="stylesheet" href="assets/css/base.css?v=2026-10-29">
     <link rel="stylesheet" href="assets/css/dashboard.css?v=2026-10-29">
     <link rel="stylesheet" href="assets/css/planejamento.css?v=2026-10-29">
-    <link rel="stylesheet" href="assets/css/inicio.css?v=2026-10-29">
+    <link rel="stylesheet" href="assets/css/inicio.css?v=2026-10-29b">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="assets/img/icone-180.png">
+    <link rel="manifest" href="assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 <body>
 
@@ -177,15 +221,15 @@ if ($foco !== null) {
 
             <section class="welcome-section">
                 <div>
-                    <p class="eyebrow">Painel ELOS</p>
+                    <p class="eyebrow">Galeria de Arte La Salle</p>
                     <h1>
                         Olá, <?= esc($usuario['primeiroNome']) ?>.
-                        <span><?= $foco !== null ? 'Veja o que precisa de atenção.' : 'Vamos dar movimento às exposições.' ?></span>
+                        <span><?= $foco !== null ? 'Veja o que está em cartaz e o que precisa de atenção.' : 'Vamos dar movimento às exposições.' ?></span>
                     </h1>
                 </div>
                 <div class="acoes-cabecalho">
                     <?php if ($foco !== null): ?>
-                        <a href="relatorio" class="botao-secundario">⎙ Relatório de atividades</a>
+                        <a href="relatorio?projeto=exposicoes" class="botao-secundario">⎙ Relatório de atividades</a>
                     <?php endif; ?>
                     <?php if ($usuario['podeGerenciar']): ?>
                         <a href="nova-exposicao" class="primary-button"><span>+</span> Nova exposição</a>
@@ -207,6 +251,37 @@ if ($foco !== null) {
                 </article>
 
             <?php else: ?>
+
+                <!-- A PAREDE: cada exposição como um quadro, com a etiqueta de museu -->
+                <section class="galeria-parede" aria-label="Exposições em cartaz e em preparação">
+                    <p class="galeria-parede-titulo">Em cartaz e em preparação</p>
+                    <div class="galeria-quadros">
+                        <?php foreach ($planos as $plano): ?>
+                            <?php
+                            $ativo = $plano->id() === $foco->id();
+                            $capa = Identidade::urlCapa($plano->evento);
+                            $p = $plano->periodo();
+                            ?>
+                            <a href="?exposicao=<?= esc(slugDaExposicao($plano->id())) ?>#foco"
+                               class="galeria-obra<?= $ativo ? ' em-foco' : '' ?>"
+                               style="<?= esc(Identidade::estilo($plano->evento)) ?>"
+                               <?= $ativo ? 'aria-current="true"' : '' ?>>
+                                <span class="obra-moldura">
+                                    <span class="obra-tela<?= $capa !== null ? ' com-imagem' : '' ?>">
+                                        <?php if ($capa !== null): ?>
+                                            <img src="<?= esc($capa) ?>" alt="" loading="lazy">
+                                        <?php endif; ?>
+                                    </span>
+                                </span>
+                                <span class="obra-etiqueta">
+                                    <strong><?= esc($plano->titulo()) ?></strong>
+                                    <span><?= esc($plano->evento['tipo_evento_nome'] ?? 'Exposição') ?> · <?= esc(intervaloBr($p['inicio'], $p['fim'], 'datas a definir')) ?></span>
+                                    <span class="obra-situacao <?= classeStatusEvento((string) ($plano->evento['status'] ?? '')) ?>"><?= esc(rotuloStatusEvento((string) ($plano->evento['status'] ?? ''))) ?></span>
+                                </span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
 
                 <!-- PAINEL: todas as exposições em andamento -->
                 <section class="painel-numeros" aria-label="Resumo de todas as exposições em andamento">
@@ -238,23 +313,14 @@ if ($foco !== null) {
                     </div>
                 </section>
 
-                <?php if (count($planos) > 1): ?>
-                    <nav class="seletor-exposicao" aria-label="Exposição em acompanhamento">
-                        <span>Acompanhando:</span>
-                        <?php foreach ($planos as $plano): ?>
-                            <a href="?exposicao=<?= esc(slugDaExposicao($plano->id())) ?>" class="<?= $plano->id() === $foco->id() ? 'ativa' : '' ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>" <?= $plano->id() === $foco->id() ? 'aria-current="true"' : '' ?>>
-                                <i class="expo-ponto" aria-hidden="true"></i><?= esc($plano->titulo()) ?>
-                            </a>
-                        <?php endforeach; ?>
-                    </nav>
-                <?php endif; ?>
+
 
                 <div class="inicio-grade">
 
                     <div class="inicio-principal">
 
                         <!-- A EXPOSIÇÃO EM ACOMPANHAMENTO -->
-                        <article class="foco identidade<?= Identidade::urlCapa($foco->evento) !== null ? ' com-capa' : '' ?>" style="<?= esc(Identidade::estilo($foco->evento)) ?>">
+                        <article id="foco" class="foco identidade<?= Identidade::urlCapa($foco->evento) !== null ? ' com-capa' : '' ?>" style="<?= esc(Identidade::estilo($foco->evento)) ?>">
                             <div class="foco-cabecalho">
                                 <div>
                                     <p class="eyebrow">
@@ -403,7 +469,7 @@ if ($foco !== null) {
 
                     <aside class="inicio-lateral">
 
-                        <!-- ALERTAS (todas as exposições) -->
+                        <!-- ALERTAS (todos os eventos da galeria) -->
                         <article class="panel alert-panel" id="alertas">
                             <div class="panel-header">
                                 <div>
@@ -426,19 +492,64 @@ if ($foco !== null) {
                             <?php else: ?>
                                 <div class="alert-list">
                                     <?php foreach (array_slice($alertas, 0, 5) as $alerta): ?>
-                                        <a href="<?= esc(linkExposicao($alerta['_plano']->id(), [], '#item-' . (int) $alerta['id'])) ?>\" class="alert-card">
+                                        <a href="<?= esc(linkExposicao($alerta['_plano']->id(), [], '#item-' . (int) $alerta['id'])) ?>" class="alert-card">
                                             <strong><?= esc($alerta['titulo'] ?? '') ?></strong>
                                             <span>
                                                 <?= esc($alerta['_motivo']) ?>
                                                 <?= !empty($alerta['prazo']) ? '· ' . esc(dataHoraBr($alerta['prazo'], $alerta['horario'] ?? null)) : '' ?>
                                             </span>
-                                            <small><?= esc($alerta['_plano']->titulo()) ?></small>
+                                            <?php $info = $infoDoEvento($alerta['_plano']); ?>
+                                            <small class="evento-do-item" style="--cor-tipo: <?= esc($info['cor']) ?>"><?= esc($info['nome']) ?><?= $info['projeto']['chave'] !== Projetos::EXPOSICOES ? ' · ' . esc($info['projeto']['nome']) : '' ?></small>
                                         </a>
                                     <?php endforeach; ?>
                                     <?php if (count($alertas) > 5): ?>
                                         <p class="mais">+ <?= count($alertas) - 5 ?> outros alertas</p>
                                     <?php endif; ?>
                                 </div>
+                            <?php endif; ?>
+                        </article>
+
+                        <!-- TAMBÉM NA GALERIA: próximos eventos dos outros projetos -->
+                        <article class="panel tambem-na-galeria">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="eyebrow">Também na galeria</p>
+                                    <h2>Próximos eventos</h2>
+                                </div>
+                                <a href="calendario" class="text-link">Calendário →</a>
+                            </div>
+
+                            <?php if ($tambem === []): ?>
+                                <p class="lateral-vazio">Nenhum evento dos outros projetos marcado.</p>
+                            <?php else: ?>
+                                <ul class="lista-tambem">
+                                    <?php foreach (array_slice($tambem, 0, 5) as $plano): ?>
+                                        <?php
+                                        $info = $infoDoEvento($plano);
+                                        $r = $plano->resumo();
+                                        $dia = (string) ($plano->agenda['abertura'] ?? '');
+                                        ?>
+                                        <li style="--cor-tipo: <?= esc($info['cor']) ?>">
+                                            <a href="<?= esc(linkExposicao($plano->id())) ?>">
+                                                <span class="tambem-dia">
+                                                    <?php if ($dia !== ''): ?>
+                                                        <strong><?= esc(substr($dia, 8, 2)) ?></strong>
+                                                        <span><?= esc(mesAbreviado($dia)) ?></span>
+                                                    <?php else: ?>
+                                                        <strong>?</strong>
+                                                    <?php endif; ?>
+                                                </span>
+                                                <span class="tambem-texto">
+                                                    <small><?= esc(($info['projeto']['icone'] ?? '') . ' ' . $info['projeto']['nome']) ?><?= !empty($plano->agenda['horario']) ? ' · ' . esc(str_replace(':', 'h', substr((string) $plano->agenda['horario'], 0, 5))) : '' ?></small>
+                                                    <strong><?= esc($info['nome']) ?></strong>
+                                                    <span class="tambem-andamento<?= $r['atrasadas'] > 0 ? ' com-atraso' : '' ?>">
+                                                        <?= $r['total'] > 0 ? $r['concluidas'] . ' de ' . $r['total'] . ' prontos' . ($r['atrasadas'] > 0 ? ' · ' . $r['atrasadas'] . ' atrasado' . ($r['atrasadas'] === 1 ? '' : 's') : '') : 'checklist vazio' ?>
+                                                    </span>
+                                                </span>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
                             <?php endif; ?>
                         </article>
 
@@ -455,43 +566,12 @@ if ($foco !== null) {
                                 <ul class="lista-minhas">
                                     <?php foreach (array_slice($minhas, 0, 6) as $tarefa): ?>
                                         <li>
-                                            <a href="<?= esc(linkExposicao($tarefa['_plano']->id(), [], '#item-' . (int) $tarefa['id'])) ?>\">
+                                            <a href="<?= esc(linkExposicao($tarefa['_plano']->id(), [], '#item-' . (int) $tarefa['id'])) ?>">
                                                 <strong><?= esc($tarefa['titulo'] ?? '') ?></strong>
                                                 <span>
                                                     <?= esc(!empty($tarefa['prazo']) ? diaMes((string) $tarefa['prazo']) : 'Sem data') ?>
-                                                    · <?= esc($tarefa['_plano']->titulo()) ?>
+                                                    · <?= esc($infoDoEvento($tarefa['_plano'])['nome']) ?>
                                                 </span>
-                                            </a>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </article>
-                        <?php endif; ?>
-
-                        <!-- OUTRAS EXPOSIÇÕES -->
-                        <?php if (count($planos) > 1): ?>
-                            <article class="panel">
-                                <div class="panel-header">
-                                    <div>
-                                        <p class="eyebrow">Em andamento</p>
-                                        <h2>Outras exposições</h2>
-                                    </div>
-                                    <a href="exposicoes" class="text-link">Ver todas →</a>
-                                </div>
-                                <ul class="lista-outras">
-                                    <?php foreach ($planos as $plano): ?>
-                                        <?php if ($plano->id() === $foco->id()) { continue; } ?>
-                                        <?php $r = $plano->resumo(); $p = $plano->periodo(); ?>
-                                        <li>
-                                            <a href="?exposicao=<?= esc(slugDaExposicao($plano->id())) ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>">
-                                                <strong><i class="expo-ponto" aria-hidden="true"></i><?= esc($plano->titulo()) ?></strong>
-                                                <span><?= esc(intervaloBr($p['inicio'], $p['fim'], 'Datas a definir')) ?></span>
-                                                <?php if ($r['total'] > 0): ?>
-                                                    <span class="progresso"><span style="width: <?= $r['percentual'] ?>%"></span></span>
-                                                    <small><?= $r['pendentes'] ?> pendente<?= $r['pendentes'] === 1 ? '' : 's' ?><?= $r['atrasadas'] > 0 ? ' · ' . $r['atrasadas'] . ' atrasada' . ($r['atrasadas'] === 1 ? '' : 's') : '' ?></small>
-                                                <?php else: ?>
-                                                    <small>Nada no planejamento ainda</small>
-                                                <?php endif; ?>
                                             </a>
                                         </li>
                                     <?php endforeach; ?>

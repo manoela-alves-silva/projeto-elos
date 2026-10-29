@@ -1,0 +1,154 @@
+/* =========================================================
+   ELOS — TEMA CAFÉ CULTURAL
+
+   O destaque vira uma página: papel creme com linhas suaves de
+   caderno e a marca de uma xícara de café no canto, a capa do livro
+   com lombada, o título em letra de livro (Lora) e um marcador de
+   página com o dia e o horário. A estrutura vem de projeto.css; aqui
+   só as cores e os enfeites.
+   ========================================================= */
+
+.tema-cafe {
+    --cafe: #7a5230;
+    --cafe-escuro: #4a3020;
+    --papel: #fbf6ec;
+
+    --tema-fundo:
+        /* a marca da xícara, no canto */
+        radial-gradient(circle at calc(100% - 70px) 54px, transparent 30px, rgba(122, 82, 48, 0.10) 31px, rgba(122, 82, 48, 0.05) 36px, transparent 37px),
+        /* linhas do caderno */
+        repeating-linear-gradient(180deg, transparent 0 31px, rgba(122, 82, 48, 0.07) 31px 32px),
+        var(--papel);
+    --tema-texto: var(--cafe-escuro);
+    --tema-texto-2: #8a6f5c;
+    --tema-luz: var(--cafe);
+    --tema-cor: var(--cafe);
+    --tema-borda-botao: rgba(122, 82, 48, 0.3);
+
+    --bilhete-fundo: var(--cafe);
+    --bilhete-texto: var(--papel);
+}
+
+.tema-cafe .projeto-cabecalho,
+.tema-cafe .projeto-destaque {
+    border: 1px solid #eadfcd;
+
+    box-shadow: var(--shadow-soft);
+}
+
+/* título em letra de livro */
+.tema-cafe .projeto-cabecalho h1,
+.tema-cafe .projeto-destaque h2,
+.tema-cafe .projeto-capa-vazia,
+.tema-cafe .projeto-cartao-capa span {
+    font-family: 'Lora', Georgia, serif;
+    font-weight: 600;
+}
+
+.tema-cafe .projeto-pessoa {
+    font-family: 'Lora', Georgia, serif;
+    font-size: var(--fs-16);
+    font-style: italic;
+    font-weight: 500;
+}
+
+.tema-cafe .projeto-pessoa span {
+    font-family: var(--font-sans);
+    font-size: var(--fs-12);
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* capa do livro: lombada à esquerda e cantos de livro */
+.tema-cafe .projeto-capa,
+.tema-cafe .projeto-cartao-capa {
+    position: relative;
+
+    background: linear-gradient(165deg, var(--expo-cor, var(--cafe)), var(--cafe-escuro) 110%);
+}
+
+.tema-cafe .projeto-capa {
+    border-radius: 3px 10px 10px 3px;
+
+    box-shadow: 8px 12px 24px rgba(74, 48, 32, 0.28);
+}
+
+.tema-cafe .projeto-capa::before,
+.tema-cafe .projeto-cartao-capa::before {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+
+    width: 12px;
+
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.35), rgba(255, 255, 255, 0.12) 70%, transparent);
+
+    pointer-events: none;
+}
+
+.tema-cafe .projeto-cartao-capa {
+    padding-left: var(--sp-24);
+}
+
+/* marcador de página com o dia */
+.tema-cafe .projeto-bilhete {
+    padding-bottom: var(--sp-32);
+
+    border-radius: 6px 6px 0 0;
+
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 18px), 0 100%);
+
+    box-shadow: none;
+}
+
+.tema-cafe .bilhete-semana,
+.tema-cafe .bilhete-quando {
+    color: #f3dcbc;
+}
+
+.tema-cafe .bilhete-mes,
+.tema-cafe .bilhete-local,
+.tema-cafe .bilhete-andamento {
+    color: rgba(251, 246, 236, 0.8);
+}
+
+.tema-cafe .bilhete-andamento {
+    border-top-color: rgba(251, 246, 236, 0.25);
+}
+
+.tema-cafe .bilhete-andamento b {
+    color: #ffd2c4;
+}
+
+.tema-cafe .bilhete-hora {
+    background: var(--papel);
+    color: var(--cafe);
+}
+
+.tema-cafe .projeto-etiqueta::before {
+    content: "✎ ";
+}
+
+/* o arabesco antes dos títulos das seções */
+.tema-cafe .projeto-secao-titulo::before {
+    content: "❦";
+
+    color: var(--cafe);
+
+    font-size: var(--fs-20);
+}
+
+@media (max-width: 1000px) {
+    .tema-cafe .projeto-bilhete {
+        padding-bottom: var(--sp-16);
+
+        border-radius: 12px;
+
+        clip-path: none;
+    }
+}

@@ -102,6 +102,12 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
         rel="stylesheet"
         href="../assets/css/login.css?v=2026-10-29"
     >
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 
 <body class="login-page">

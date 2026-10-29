@@ -1,0 +1,718 @@
+/* =========================================================
+   ELOS — PROJETOS DA GALERIA (estrutura comum)
+
+   Cine Clube, Café Cultural...: o fundo creme e os cartões brancos do
+   ELOS continuam; cada evento ganha um destaque com a capa (cartaz,
+   capa do livro), a ficha e um "bilhete" com o dia e o horário.
+
+   Aqui fica só a estrutura. As cores e os enfeites de cada projeto
+   ficam no CSS do tema (cinema.css, cafe.css), que define as
+   variáveis abaixo e pode acrescentar detalhes.
+   ========================================================= */
+
+[class*="tema-"] {
+    /* destaque (cabeçalho do evento e próximo evento na lista) */
+    --tema-fundo: var(--navy);
+    --tema-texto: var(--white);
+    --tema-texto-2: rgba(255, 255, 255, 0.72);
+    --tema-luz: var(--yellow);              /* sobretítulo, detalhes */
+    --tema-cor: var(--turquoise);           /* cor do projeto */
+    --tema-borda-botao: rgba(255, 255, 255, 0.28);
+
+    /* bilhete com o dia */
+    --bilhete-fundo: var(--cream);
+    --bilhete-texto: var(--navy);
+}
+
+.tema-cinema .welcome-section .eyebrow,
+.tema-cafe .welcome-section .eyebrow {
+    color: var(--tema-cor);
+}
+
+/* botões do topo da lista (relatório, novo) */
+.projeto-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-8);
+}
+
+/* ---------- destaque: cabeçalho do evento e próximo da lista ---------- */
+
+.projeto-cabecalho,
+.projeto-destaque {
+    position: relative;
+
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) 190px;
+    align-items: center;
+
+    gap: var(--sp-28);
+
+    margin-bottom: var(--sp-24);
+    padding: var(--sp-40) var(--sp-32);
+
+    overflow: hidden;
+
+    border-radius: 18px;
+
+    background: var(--tema-fundo);
+    color: var(--tema-texto);
+
+    box-shadow: var(--shadow-elevated);
+    text-decoration: none;
+}
+
+.projeto-destaque {
+    transition: transform 0.2s ease;
+}
+
+.projeto-destaque:hover {
+    transform: translateY(-2px);
+}
+
+/* ---------- capa ---------- */
+
+.projeto-capa {
+    position: relative;
+
+    aspect-ratio: 2 / 3;
+
+    display: flex;
+    align-items: flex-end;
+
+    padding: var(--sp-12);
+
+    overflow: hidden;
+
+    border-radius: 10px;
+
+    background: linear-gradient(160deg, var(--expo-cor, var(--tema-cor)), #000 120%);
+    color: var(--white);
+
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.projeto-capa.com-imagem {
+    padding: 0;
+}
+
+.projeto-capa img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.projeto-capa-vazia {
+    font-family: var(--font-display);
+    font-size: var(--fs-16);
+    font-weight: 700;
+    line-height: 1.15;
+
+    overflow-wrap: anywhere;
+}
+
+/* ---------- ficha ---------- */
+
+.projeto-ficha {
+    min-width: 0;
+}
+
+.projeto-sobretitulo {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: var(--sp-12);
+
+    margin-bottom: var(--sp-8);
+
+    color: var(--tema-luz);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.projeto-cabecalho h1,
+.projeto-destaque h2 {
+    color: var(--tema-texto);
+
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 2.6vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.12;
+
+    overflow-wrap: anywhere;
+}
+
+.projeto-subtitulo {
+    margin-top: var(--sp-4);
+
+    color: var(--tema-texto-2);
+
+    font-size: var(--fs-14);
+}
+
+.projeto-tecnica {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8) var(--sp-12);
+
+    margin-top: var(--sp-12);
+
+    color: var(--tema-texto-2);
+
+    font-size: var(--fs-13);
+}
+
+.projeto-pessoa {
+    margin-top: var(--sp-8);
+
+    color: var(--tema-texto);
+
+    font-size: var(--fs-14);
+    font-weight: 600;
+}
+
+.projeto-pessoa a {
+    color: inherit;
+
+    text-decoration: underline;
+    text-decoration-color: var(--tema-luz);
+    text-underline-offset: 3px;
+}
+
+.projeto-pessoa span {
+    color: var(--tema-texto-2);
+
+    font-weight: 500;
+}
+
+.projeto-etiqueta {
+    display: inline-block;
+
+    margin-top: var(--sp-12);
+    padding: var(--sp-4) var(--sp-12);
+
+    border: 1px solid currentColor;
+    border-radius: var(--radius-pill);
+
+    color: var(--tema-luz);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+}
+
+/* lista em destaque (ex.: a programação da Amostra de Talentos) */
+.projeto-lineup {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-4) var(--sp-12);
+
+    margin-top: var(--sp-12);
+
+    color: var(--tema-texto);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
+
+    list-style: none;
+}
+
+.projeto-lineup li + li::before {
+    content: "•";
+
+    margin-right: var(--sp-12);
+
+    color: var(--tema-luz);
+}
+
+/* selo (ex.: classificação indicativa do filme) */
+.selo {
+    display: inline-grid;
+    place-items: center;
+
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+
+    border-radius: 6px;
+
+    background: var(--tema-cor);
+    color: var(--white);
+
+    font-size: var(--fs-13);
+    font-weight: 900;
+}
+
+/* botões sobre o destaque */
+.projeto-cabecalho .acoes-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8);
+
+    margin-top: var(--sp-20);
+}
+
+.projeto-cabecalho .botao-secundario {
+    border-color: var(--tema-borda-botao);
+
+    background: transparent;
+    color: var(--tema-texto);
+}
+
+.projeto-cabecalho .botao-secundario:hover {
+    border-color: var(--tema-luz);
+
+    color: var(--tema-luz);
+}
+
+/* ---------- bilhete com o dia ---------- */
+
+.projeto-bilhete {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: var(--sp-2);
+
+    padding: var(--sp-20) var(--sp-16);
+
+    border-radius: 12px;
+
+    background: var(--bilhete-fundo);
+    color: var(--bilhete-texto);
+
+    text-align: center;
+}
+
+.bilhete-semana,
+.bilhete-quando {
+    color: var(--tema-cor);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.bilhete-dia {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.bilhete-sem-data {
+    color: var(--text-muted);
+}
+
+.bilhete-mes {
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.bilhete-hora {
+    margin-top: var(--sp-8);
+    padding: var(--sp-4) var(--sp-12);
+
+    border-radius: var(--radius-pill);
+
+    background: var(--navy);
+    color: var(--yellow);
+
+    font-size: var(--fs-14);
+    font-weight: 800;
+}
+
+.bilhete-local {
+    margin-top: var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 600;
+}
+
+.bilhete-andamento {
+    margin-top: var(--sp-8);
+    padding-top: var(--sp-8);
+
+    border-top: 1px solid var(--border);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 600;
+}
+
+.bilhete-andamento b {
+    color: var(--red-dark);
+}
+
+/* no destaque da lista, o bilhete é mais enxuto */
+.projeto-destaque .projeto-bilhete {
+    gap: var(--sp-8);
+}
+
+.projeto-destaque .bilhete-quando {
+    font-size: var(--fs-13);
+    letter-spacing: 0.06em;
+}
+
+/* ---------- lista: seções, cartões e anteriores ---------- */
+
+.projeto-secao {
+    margin-bottom: var(--sp-32);
+}
+
+.projeto-secao-titulo {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-12);
+
+    margin-bottom: var(--sp-16);
+
+    color: var(--navy);
+
+    font-family: var(--font-display);
+    font-size: var(--fs-18);
+    font-weight: 700;
+}
+
+.projeto-cartoes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+
+    gap: var(--sp-20);
+}
+
+.projeto-cartao {
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    border: 1px solid var(--border);
+    border-radius: 14px;
+
+    background: var(--white);
+    color: inherit;
+
+    box-shadow: var(--shadow-card);
+    text-decoration: none;
+
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.projeto-cartao:hover {
+    transform: translateY(-3px);
+
+    box-shadow: var(--shadow-soft);
+}
+
+.projeto-cartao-capa {
+    aspect-ratio: 2 / 3;
+
+    display: flex;
+    align-items: flex-end;
+
+    padding: var(--sp-16);
+
+    background: linear-gradient(170deg, var(--expo-cor, var(--tema-cor)), #12151d 95%);
+    color: var(--white);
+}
+
+.projeto-cartao-capa.com-imagem {
+    padding: 0;
+}
+
+.projeto-cartao-capa img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.projeto-cartao-capa span {
+    font-family: var(--font-display);
+    font-size: var(--fs-20);
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.projeto-cartao-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-4);
+
+    padding: var(--sp-12) var(--sp-16) var(--sp-16);
+}
+
+.projeto-cartao-quando {
+    color: var(--tema-cor);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.projeto-cartao-info strong {
+    color: var(--navy);
+
+    font-size: var(--fs-14);
+    line-height: 1.3;
+}
+
+.projeto-cartao-pessoa,
+.projeto-cartao-andamento {
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+}
+
+.projeto-cartao-andamento.com-atraso {
+    color: var(--red-dark);
+    font-weight: 700;
+}
+
+.projeto-anteriores {
+    overflow: hidden;
+
+    border: 1px solid var(--border);
+    border-radius: 14px;
+
+    background: var(--white);
+
+    list-style: none;
+}
+
+.projeto-anteriores li + li {
+    border-top: 1px solid var(--border);
+}
+
+.projeto-anteriores a {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8) var(--sp-16);
+
+    padding: var(--sp-12) var(--sp-20);
+
+    color: var(--navy);
+
+    text-decoration: none;
+}
+
+.projeto-anteriores a:hover {
+    background: var(--cream-light);
+}
+
+.anterior-quando {
+    min-width: 140px;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.anterior-pessoa {
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+/* ---------- ficha na lateral ---------- */
+
+.ficha-projeto .data-linha-lista {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.ficha-projeto .data-linha-lista ol {
+    margin: var(--sp-4) 0 0;
+    padding-left: var(--sp-20);
+
+    text-align: left;
+}
+
+.ficha-projeto .data-linha-lista li + li {
+    margin-top: var(--sp-4);
+}
+
+.ficha-projeto .a-definir {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ---------- formulários: número, caixa de marcar, checklist padrão ---------- */
+
+.form-elos input[type="number"] {
+    width: 100%;
+    min-height: 42px;
+
+    padding: 0 var(--sp-12);
+
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--text);
+
+    font-size: var(--fs-13);
+
+    outline: none;
+}
+
+.form-elos input[type="number"]:focus {
+    border-color: var(--turquoise);
+
+    box-shadow: 0 0 0 3px rgba(53, 167, 167, 0.12);
+}
+
+.form-elos .opcao-ficha {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+
+    grid-column: 1 / -1;
+
+    gap: var(--sp-8);
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.form-elos .opcao-ficha input {
+    width: 18px;
+    height: 18px;
+
+    accent-color: var(--navy);
+}
+
+.passo-checklist {
+    display: block;
+}
+
+.opcao-checklist {
+    display: flex;
+    align-items: flex-start;
+
+    gap: var(--sp-8);
+
+    color: var(--navy);
+
+    font-size: var(--fs-14);
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.opcao-checklist input {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+
+    accent-color: var(--navy);
+}
+
+.checklist-previa {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+
+    gap: var(--sp-8) var(--sp-20);
+
+    margin: var(--sp-16) 0 var(--sp-12);
+    padding-left: var(--sp-28);
+
+    list-style: none;
+}
+
+.checklist-previa li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+
+    gap: var(--sp-12);
+
+    padding-bottom: var(--sp-8);
+
+    border-bottom: 1px dashed var(--border);
+
+    color: var(--text);
+
+    font-size: var(--fs-13);
+}
+
+.checklist-previa small {
+    flex-shrink: 0;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
+}
+
+/* ---------- telas menores ---------- */
+
+@media (max-width: 1000px) {
+    .projeto-cabecalho,
+    .projeto-destaque {
+        grid-template-columns: 110px minmax(0, 1fr);
+
+        padding: var(--sp-32) var(--sp-20);
+    }
+
+    .projeto-bilhete {
+        grid-column: 1 / -1;
+
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+
+        gap: var(--sp-8) var(--sp-16);
+    }
+
+    .bilhete-dia {
+        font-size: 2rem;
+    }
+
+    .bilhete-andamento {
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .projeto-cabecalho,
+    .projeto-destaque {
+        grid-template-columns: 1fr;
+    }
+
+    .projeto-capa {
+        width: 140px;
+    }
+}

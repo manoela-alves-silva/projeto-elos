@@ -219,7 +219,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$tipos = apiLista('/api/tipos-evento', 'tipos_evento') ?? [];
+// Só tipos de exposição (o Cine Clube cria as sessões na área dele).
+$tipos = array_values(array_filter(
+    apiLista('/api/tipos-evento', 'tipos_evento') ?? [],
+    static fn(array $t): bool => \Elos\Frontend\Projetos::doTipo((string) ($t['nome'] ?? '')) === \Elos\Frontend\Projetos::EXPOSICOES
+));
 $responsaveis = apiLista('/api/responsaveis', 'responsaveis') ?? [];
 $locais = apiLista('/api/locais', 'locais') ?? [];
 $cursos = apiLista('/api/cursos', 'cursos') ?? [];
@@ -281,6 +285,12 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
     <title>Nova exposição | ELOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

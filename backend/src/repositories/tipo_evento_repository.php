@@ -21,7 +21,7 @@ final class TipoEventoRepository
     public function findAllActive(): array
     {
         $statement = $this->connection->prepare(
-            'SELECT id, nome, ativo
+            'SELECT id, nome, cor, ativo
              FROM tipos_evento
              WHERE ativo = 1
              ORDER BY nome ASC'
@@ -40,7 +40,7 @@ final class TipoEventoRepository
     public function findById(int $id): ?array
     {
         $statement = $this->connection->prepare(
-            'SELECT id, nome, ativo
+            'SELECT id, nome, cor, ativo
              FROM tipos_evento
              WHERE id = :id
              LIMIT 1'

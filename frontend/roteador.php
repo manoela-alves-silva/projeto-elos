@@ -29,6 +29,7 @@ const ROTAS = [
     'apagar-exposicao' => 'pages/apagar_exposicao.php',
     'calendario' => 'pages/agenda.php',
     'relatorio' => 'pages/relatorio.php',
+    'painel' => 'pages/painel.php',
     'equipe' => 'pages/equipe.php',
     'minha-conta' => 'pages/minha_conta.php',
     'capa' => 'capa.php',
@@ -61,7 +62,40 @@ if (preg_match('#^(exposicao|apagar-exposicao)/([a-z0-9-]{1,120})$#', $caminho, 
     $caminho = $partes[1];
 }
 
-$arquivo = ROTAS[$caminho] ?? null;
+// Projetos da galeria (Cine Clube, Café Cultural...), descritos em
+// src/Projetos.php. Cada um tem três endereços:
+//   /cine-clube               lista dos eventos do projeto
+//   /cine-clube/nova-sessao   criar um evento
+//   /cine-clube/nome-do-filme o evento (mesma página da exposição:
+//                             checklist, anexos, histórico), com o visual
+//                             e a ficha do projeto
+require_once __DIR__ . '/src/Projetos.php';
+
+foreach (\Elos\Frontend\Projetos::comArea() as $chaveProjeto) {
+    $projeto = \Elos\Frontend\Projetos::dados($chaveProjeto);
+
+    if ($caminho === $projeto['lista'] || $caminho === $projeto['lista'] . '/' . $projeto['rota_nova']) {
+        define('ELOS_PROJETO', $chaveProjeto);
+        $arquivoProjeto = $caminho === $projeto['lista'] ? 'pages/projeto_lista.php' : 'pages/projeto_novo.php';
+        break;
+    }
+
+    if (preg_match('#^' . preg_quote($projeto['pagina'], '#') . '/([a-z0-9-]{1,120})$#', $caminho, $partes) === 1) {
+        define('ELOS_SLUG_EXPOSICAO', $partes[1]);
+        define('ELOS_PAGINA_PROJETO', $projeto['pagina']);
+        $caminho = 'exposicao';
+        break;
+    }
+}
+unset($projeto, $chaveProjeto);
+
+// Painel ao vivo pelo link secreto do monitor: /painel/<código>.
+if (preg_match('#^painel/([A-Za-z0-9_-]{43})$#', $caminho, $partes) === 1) {
+    define('ELOS_CODIGO_PAINEL', $partes[1]);
+    $caminho = 'painel';
+}
+
+$arquivo = $arquivoProjeto ?? ROTAS[$caminho] ?? null;
 
 if ($arquivo === null) {
     // Endereço antigo? Redireciona para o novo (só GET; POST é atendido no lugar).
@@ -90,6 +124,7 @@ if ($arquivo === null) {
     header('Content-Type: text/html; charset=UTF-8');
     echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
         . '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        . '<link rel="icon" href="' . htmlspecialchars($raiz, ENT_QUOTES, 'UTF-8') . '/assets/img/favicon.svg" type="image/svg+xml">'
         . '<title>Página não encontrada | ELOS</title></head>'
         . '<body style="font-family: sans-serif; padding: 32px;">'
         . '<h1>Página não encontrada</h1>'

@@ -15,6 +15,8 @@ require_once __DIR__ . '/tarefa_routes.php';
 require_once __DIR__ . '/anexo_routes.php';
 require_once __DIR__ . '/historico_routes.php';
 require_once __DIR__ . '/eventos_dispatcher_routes.php';
+require_once __DIR__ . '/painel_routes.php';
+require_once __DIR__ . '/evento_ficha_routes.php';
 
 use Elos\Controllers\UsuarioController;
 use Elos\Services\AuthorizationService;
@@ -40,13 +42,27 @@ function handleApiRequest(
     callable $categoriaTarefaControllerFactory,
     callable $tarefaControllerFactory,
     callable $anexoControllerFactory,
-    callable $historicoControllerFactory
+    callable $historicoControllerFactory,
+    callable $painelControllerFactory,
+    callable $eventoFichaControllerFactory
 ): void {
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
     if ($path === '/api/lote') {
         handleLoteRequest($method, func_get_args());
+    }
+
+    if ($path === '/api/painel') {
+        handlePainelRequest($method, $painelControllerFactory, $authorizationFactory);
+    }
+
+    if ($path === '/api/painel/codigo') {
+        handlePainelCodigoRequest($method, $painelControllerFactory, $authorizationFactory);
+    }
+
+    if ($path === '/api/fichas') {
+        handleFichasRequest($method, $eventoFichaControllerFactory, $authorizationFactory);
     }
 
     if ($path === '/api/login') {
@@ -204,7 +220,8 @@ function handleApiRequest(
             $tarefaControllerFactory,
             $anexoControllerFactory,
             $historicoControllerFactory,
-            $authorizationFactory
+            $authorizationFactory,
+            $eventoFichaControllerFactory
         );
     }
 
@@ -350,7 +367,9 @@ function handleLoteRequest(string $method, array $fabricas): never
     $permitidos = [
         '#^/api/(usuarios|tipos-evento|responsaveis|cursos|locais|categorias-tarefa|eventos)$#',
         '#^/api/eventos/planejamento$#',
-        '#^/api/eventos/\d+(/(agenda|tarefas|cursos|anexos|historico))?$#',
+        '#^/api/painel$#',
+        '#^/api/fichas$#',
+        '#^/api/eventos/\d+(/(agenda|tarefas|cursos|anexos|historico|ficha))?$#',
     ];
 
     $uriOriginal = $_SERVER['REQUEST_URI'] ?? '/';

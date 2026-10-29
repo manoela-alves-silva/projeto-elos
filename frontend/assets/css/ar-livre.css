@@ -1,0 +1,136 @@
+/* =========================================================
+   ELOS — TEMA ARTE AO AR LIVRE
+
+   Atividade na Varanda Cultural, no intervalo: o destaque é claro,
+   como um dia ao ar livre, com manchas de tinta nas cores da barra
+   lateral do ELOS (amarelo, azul, turquesa). A capa vira uma tela de
+   pintura com moldura branca, o título ganha um traço de marca-texto
+   e o dia fica numa etiqueta presa no varal. A estrutura vem de
+   projeto.css; aqui só as cores e os enfeites.
+   ========================================================= */
+
+.tema-ar-livre {
+    --verde: #2f7d4f;
+
+    --tema-fundo: #f3f8f2;
+    --tema-texto: var(--navy);
+    --tema-texto-2: #5d7480;
+    --tema-luz: var(--verde);
+    --tema-cor: var(--verde);
+    --tema-borda-botao: rgba(18, 61, 89, 0.22);
+
+    --bilhete-fundo: var(--white);
+    --bilhete-texto: var(--navy);
+}
+
+/* manchas de tinta (as formas da barra lateral do ELOS) */
+.tema-ar-livre .projeto-cabecalho,
+.tema-ar-livre .projeto-destaque {
+    border: 1px solid #dfe9dc;
+
+    background:
+        radial-gradient(60px 48px at calc(100% - 40px) 26px, rgba(244, 197, 66, 0.55) 98%, transparent),
+        radial-gradient(70px 52px at calc(100% - 120px) calc(100% - 4px), rgba(90, 159, 190, 0.35) 98%, transparent),
+        radial-gradient(54px 44px at 12px calc(100% - 6px), rgba(53, 167, 167, 0.30) 98%, transparent),
+        linear-gradient(160deg, #eef6f7, #f6f3e6);
+
+    box-shadow: var(--shadow-soft);
+}
+
+/* título com traço de marca-texto */
+.tema-ar-livre .projeto-cabecalho h1,
+.tema-ar-livre .projeto-destaque h2 {
+    display: inline;
+
+    background: linear-gradient(transparent 60%, rgba(244, 197, 66, 0.55) 60%);
+
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/* capa: tela de pintura com moldura branca */
+.tema-ar-livre .projeto-capa {
+    border: 7px solid var(--white);
+    border-radius: 4px;
+
+    background:
+        radial-gradient(circle at 30% 30%, rgba(244, 197, 66, 0.9) 0 18%, transparent 19%),
+        radial-gradient(circle at 70% 60%, rgba(90, 159, 190, 0.9) 0 22%, transparent 23%),
+        linear-gradient(160deg, var(--expo-cor, var(--verde)), #1f4d33);
+
+    box-shadow: 0 12px 26px rgba(18, 61, 89, 0.22);
+
+    transform: rotate(-2deg);
+}
+
+.tema-ar-livre .projeto-cartao-capa {
+    background:
+        radial-gradient(circle at 30% 30%, rgba(244, 197, 66, 0.9) 0 16%, transparent 17%),
+        radial-gradient(circle at 72% 55%, rgba(90, 159, 190, 0.9) 0 20%, transparent 21%),
+        linear-gradient(160deg, var(--expo-cor, var(--verde)), #1f4d33);
+
+    box-shadow: inset 0 0 0 7px var(--white);
+}
+
+/* etiqueta do varal: um prendedor em cima e um pouco torta */
+.tema-ar-livre .projeto-bilhete {
+    margin-top: var(--sp-12);
+
+    border: 1px solid #e3e8e0;
+
+    box-shadow: 0 10px 22px rgba(18, 61, 89, 0.12);
+
+    transform: rotate(2deg);
+}
+
+.tema-ar-livre .projeto-bilhete::before {
+    content: "";
+
+    position: absolute;
+    top: -14px;
+    left: 50%;
+
+    width: 12px;
+    height: 26px;
+
+    border-radius: 3px;
+
+    background: linear-gradient(90deg, #b88a5a, #d9b07e);
+
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+
+    transform: translateX(-50%);
+}
+
+.tema-ar-livre .bilhete-semana {
+    color: var(--verde);
+
+    font-family: 'Caveat', cursive;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.tema-ar-livre .projeto-destaque .bilhete-quando {
+    color: var(--verde);
+}
+
+.tema-ar-livre .botao-apagar {
+    color: var(--red-dark);
+}
+
+/* a florzinha antes dos títulos das seções */
+.tema-ar-livre .projeto-secao-titulo::before {
+    content: "✿";
+
+    color: var(--verde);
+
+    font-size: var(--fs-20);
+}
+
+@media (max-width: 1000px) {
+    .tema-ar-livre .projeto-bilhete {
+        transform: none;
+    }
+}

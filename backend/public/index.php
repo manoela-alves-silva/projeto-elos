@@ -11,7 +11,9 @@ use Elos\Controllers\EventoController;
 use Elos\Controllers\EventoCursoController;
 use Elos\Controllers\HistoricoController;
 use Elos\Controllers\LocalController;
+use Elos\Controllers\PainelController;
 use Elos\Controllers\ResponsavelController;
+use Elos\Controllers\EventoFichaController;
 use Elos\Controllers\TarefaController;
 use Elos\Controllers\TipoEventoController;
 use Elos\Controllers\UsuarioController;
@@ -23,7 +25,9 @@ use Elos\Repositories\EventoCursoRepository;
 use Elos\Repositories\EventoRepository;
 use Elos\Repositories\HistoricoRepository;
 use Elos\Repositories\LocalRepository;
+use Elos\Repositories\PainelRepository;
 use Elos\Repositories\ResponsavelRepository;
+use Elos\Repositories\EventoFichaRepository;
 use Elos\Repositories\TarefaRepository;
 use Elos\Repositories\TipoEventoRepository;
 use Elos\Repositories\UsuarioRepository;
@@ -162,6 +166,18 @@ $historicoControllerFactory = static function () use ($pdo): HistoricoController
     );
 };
 
+$painelControllerFactory = static function () use ($pdo): PainelController {
+    return new PainelController(
+        new PainelRepository($pdo)
+    );
+};
+
+$eventoFichaControllerFactory = static function () use ($pdo): EventoFichaController {
+    return new EventoFichaController(
+        new EventoFichaRepository($pdo)
+    );
+};
+
 $authorizationFactory = static function () use ($sessionService): AuthorizationService {
     return new AuthorizationService($sessionService);
 };
@@ -185,5 +201,7 @@ handleApiRequest(
     $categoriaTarefaControllerFactory,
     $tarefaControllerFactory,
     $anexoControllerFactory,
-    $historicoControllerFactory
+    $historicoControllerFactory,
+    $painelControllerFactory,
+    $eventoFichaControllerFactory
 );

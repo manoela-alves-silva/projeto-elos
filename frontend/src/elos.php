@@ -11,6 +11,7 @@ namespace Elos\Frontend;
 
 require_once __DIR__ . '/Api.php';
 require_once __DIR__ . '/MenuLateral.php';
+require_once __DIR__ . '/Projetos.php';
 
 const PRIORIDADES = ['BAIXA', 'MEDIA', 'ALTA'];
 const STATUS_EVENTO = ['PLANEJAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO'];
@@ -190,6 +191,11 @@ function linkExposicao(int $id, array $params = [], string $ancora = '', string 
 {
     $slug = slugsDasExposicoes()[$id] ?? null;
 
+    // Cada evento abre na área do seu projeto (/cine-clube/nome...).
+    if ($pagina === 'exposicao') {
+        $pagina = paginaDoEvento($id);
+    }
+
     if ($slug === null) {
         $params = ['id' => $id] + $params;
     }
@@ -198,6 +204,21 @@ function linkExposicao(int $id, array $params = [], string $ancora = '', string 
     $ancora = $ancora !== '' ? '#' . ltrim($ancora, '#') : '';
 
     return raizDoSite() . '/' . $pagina . ($slug !== null ? '/' . $slug : '') . $consulta . $ancora;
+}
+
+/**
+ * Endereço base da página de um evento, pelo projeto dele: "exposicao"
+ * para as exposições, "cine-clube" para as sessões do Cine Clube...
+ */
+function paginaDoEvento(int $id): string
+{
+    foreach (apiLista('/api/eventos', 'eventos') ?? [] as $evento) {
+        if ((int) ($evento['id'] ?? 0) === $id) {
+            return Projetos::dados(Projetos::doEvento($evento))['pagina'];
+        }
+    }
+
+    return 'exposicao';
 }
 
 /**

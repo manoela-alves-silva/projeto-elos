@@ -31,7 +31,12 @@ final class MenuLateral
     private const ITENS = [
         ['rota' => 'inicio', 'titulo' => 'Início', 'icone' => '⌂', 'pagina' => './'],
         ['rota' => 'eventos', 'titulo' => 'Exposições', 'icone' => '▣', 'pagina' => 'exposicoes'],
+        ['rota' => 'cine-clube', 'titulo' => 'Cine Clube', 'icone' => '▶', 'pagina' => 'cine-clube'],
+        ['rota' => 'cafe-cultural', 'titulo' => 'Café Cultural', 'icone' => '❦', 'pagina' => 'cafe-cultural'],
+        ['rota' => 'arte-ao-ar-livre', 'titulo' => 'Arte ao Ar Livre', 'icone' => '✿', 'pagina' => 'arte-ao-ar-livre'],
+        ['rota' => 'amostra-de-talentos', 'titulo' => 'Amostra de Talentos', 'icone' => '★', 'pagina' => 'amostra-de-talentos'],
         ['rota' => 'agenda', 'titulo' => 'Calendário', 'icone' => '◷', 'pagina' => 'calendario'],
+        ['rota' => 'painel', 'titulo' => 'Painel ao vivo', 'icone' => '◉', 'pagina' => 'painel'],
         ['rota' => 'equipe', 'titulo' => 'Equipe', 'icone' => '◎', 'pagina' => 'equipe', 'somenteGestor' => true],
         ['rota' => 'conta', 'titulo' => 'Minha conta', 'icone' => '⚙', 'pagina' => 'minha-conta'],
     ];

@@ -473,3 +473,15 @@ tr.estado-concluido .col-descricao { color: var(--text-soft); }
         break-before: page;
     }
 }
+
+/* Tipo do evento ao lado do nome, quando o relatório tem vários projetos. */
+.folha-projeto {
+    margin-left: 8px;
+
+    color: var(--text-soft);
+
+    font-size: 0.6em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}

@@ -53,6 +53,8 @@ function handleTarefaRequest(
         // Responsável em texto livre (qualquer pessoa, mesmo sem conta).
         $responsavelNome = $payload['responsavel_nome'] ?? null;
         $horario = normalizarHorarioTarefa($payload['horario'] ?? null);
+        // "Não precisa de prazo": tira o item do lembrete do painel.
+        $prazoDispensado = ($payload['prazo_dispensado'] ?? false) === true;
 
         if (
             $usuarioResponsavelId !== null
@@ -146,7 +148,8 @@ function handleTarefaRequest(
             $status,
             $observacoes,
             $responsavelNome,
-            $horario
+            $horario,
+            $prazoDispensado
         );
 
         if ($tarefa === null) {
@@ -374,6 +377,10 @@ function handleTarefaByIdRequest(
             ? normalizarHorarioTarefa($payload['horario'])
             : $tarefaAtual['horario'];
 
+        $prazoDispensado = array_key_exists('prazo_dispensado', $payload)
+            ? $payload['prazo_dispensado'] === true
+            : (bool) ($tarefaAtual['prazo_dispensado'] ?? false);
+
         if (
             $usuarioResponsavelId !== null
             && (!is_int($usuarioResponsavelId) || $usuarioResponsavelId <= 0)
@@ -465,7 +472,8 @@ function handleTarefaByIdRequest(
             $status,
             $observacoes,
             $responsavelNome,
-            $horario
+            $horario,
+            $prazoDispensado
         );
 
         if ($tarefa === null) {
