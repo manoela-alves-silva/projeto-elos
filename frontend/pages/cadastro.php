@@ -104,12 +104,12 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
     <link
         rel="stylesheet"
-        href="../assets/css/base.css?v=2026-10-27"
+        href="../assets/css/base.css?v=2026-10-29"
     >
 
     <link
         rel="stylesheet"
-        href="../assets/css/login.css?v=2026-10-27"
+        href="../assets/css/login.css?v=2026-10-29"
     >
 </head>
 

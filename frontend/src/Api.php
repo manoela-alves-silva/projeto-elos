@@ -266,9 +266,14 @@ final class Api
     // Não é o mesmo cookie do usuário no frontend — são sessões distintas.
     private const SESSION_COOKIE_KEY = '_elos_backend_cookie';
 
+    // Respostas de GET já recebidas nesta página. A mesma lista (ex.:
+    // usuários) costuma ser pedida mais de uma vez; assim vai só um
+    // pedido. Qualquer POST/PUT/DELETE limpa, para nada ficar velho.
+    private static array $cacheGet = [];
+
     public static function get(string $path): array
     {
-        return self::request('GET', $path);
+        return self::$cacheGet[$path] ??= self::request('GET', $path);
     }
 
     public static function post(string $path, array $body = []): array
@@ -294,11 +299,16 @@ final class Api
     {
         self::garantirSessao();
         unset($_SESSION[self::SESSION_COOKIE_KEY]);
+        self::$cacheGet = [];
     }
 
     private static function request(string $method, string $path, ?array $body = null): array
     {
         self::garantirSessao();
+
+        if ($method !== 'GET') {
+            self::$cacheGet = [];
+        }
 
         $headers = ['Accept: application/json'];
 

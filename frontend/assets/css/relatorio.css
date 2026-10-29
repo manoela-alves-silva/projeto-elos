@@ -308,7 +308,58 @@
 
 tr.estado-atrasado .col-situacao { color: var(--red); }
 tr.estado-concluido .col-situacao { color: var(--on-green); }
-tr.estado-concluido td:nth-child(3) { color: var(--text-soft); }
+tr.estado-concluido .col-descricao { color: var(--text-soft); }
+
+/* ---------- checklist por fase ---------- */
+
+.fase-grupo .fase-cabecalho th {
+    padding: var(--sp-16) var(--sp-8) var(--sp-8);
+
+    border-bottom: 1px solid var(--fase-cor, var(--navy));
+    box-shadow: inset 4px 0 0 var(--fase-cor, var(--navy));
+
+    background: var(--fase-fundo, var(--cream-light));
+    color: var(--navy);
+
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.fase-grupo:first-of-type .fase-cabecalho th {
+    padding-top: var(--sp-8);
+}
+
+.fase-nome {
+    padding-left: var(--sp-8);
+
+    font-size: var(--fs-13);
+    font-weight: 800;
+}
+
+.fase-etapa {
+    margin-left: var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-10);
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fase-andamento {
+    float: right;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
+}
+
+.item-categoria {
+    font-style: italic;
+}
 
 .folha-vazio {
     padding: var(--sp-12) 0;
@@ -411,6 +462,10 @@ tr.estado-concluido td:nth-child(3) { color: var(--text-soft); }
     }
 
     .folha h3 {
+        break-after: avoid;
+    }
+
+    .fase-cabecalho {
         break-after: avoid;
     }
 
