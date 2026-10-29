@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
 CREATE TABLE IF NOT EXISTS tipos_evento (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL UNIQUE,
+    -- Cor do tipo no painel ao vivo (#rrggbb); vazia = automática.
+    cor CHAR(7) NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -122,6 +124,8 @@ CREATE TABLE IF NOT EXISTS tarefas (
     titulo VARCHAR(200) NOT NULL,
     descricao TEXT NULL,
     prazo DATE NULL,
+    -- 1 = o item não precisa de prazo (fica fora do lembrete do painel).
+    prazo_dispensado TINYINT(1) NOT NULL DEFAULT 0,
     -- Horário opcional do item (visita, transporte, entrega...).
     horario TIME NULL,
     prioridade ENUM('BAIXA', 'MEDIA', 'ALTA') NOT NULL DEFAULT 'MEDIA',
@@ -171,6 +175,36 @@ CREATE TABLE IF NOT EXISTS historico (
         REFERENCES usuarios (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Ficha de um evento de projeto (Cine Clube, Café Cultural...): os
+-- campos próprios do projeto, em JSON. Os campos de cada projeto são
+-- definidos em frontend/src/Projetos.php.
+CREATE TABLE IF NOT EXISTS evento_ficha (
+    evento_id INT UNSIGNED NOT NULL PRIMARY KEY,
+    dados TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_evento_ficha_evento FOREIGN KEY (evento_id)
+        REFERENCES eventos (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tipos de evento com área própria no ELOS.
+INSERT IGNORE INTO tipos_evento (nome, cor) VALUES
+    ('Exposição de Arte', '#2b6cb0'),
+    ('Cine Clube', '#b5462b'),
+    ('Café Cultural', '#7a5230'),
+    ('Arte ao Ar Livre', '#2f7d4f'),
+    ('Amostra de Talentos', '#be185d');
+
+-- Link secreto do painel ao vivo (monitor da produção). Só o hash
+-- SHA-256 do código fica guardado; gerar um link novo apaga o anterior.
+CREATE TABLE IF NOT EXISTS painel_acesso (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    codigo_hash CHAR(64) NOT NULL UNIQUE,
+    criado_por INT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_painel_acesso_usuario FOREIGN KEY (criado_por)
+        REFERENCES usuarios (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Categorias sugeridas para o checklist de necessidades do evento.
 -- O frontend agrupa os itens em fases a partir do nome da categoria
 -- (frontend/src/Fases.php). São só um ponto de partida: novas categorias são criadas pela API
@@ -192,4 +226,16 @@ INSERT IGNORE INTO categorias_tarefa (nome) VALUES
     ('Alimentação'),
     ('Equipamentos'),
     ('Documentação'),
+    ('Escolha do filme'),
+    ('Direitos de exibição'),
+    ('Projeção e som'),
+    ('Mediação e debate'),
+    ('Recepção do público'),
+    ('Convidados'),
+    ('Livros e autógrafos'),
+    ('Espaço e ambientação'),
+    ('Proposta da atividade'),
+    ('Materiais'),
+    ('Inscrições'),
+    ('Som e palco'),
     ('Outro');

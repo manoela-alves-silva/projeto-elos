@@ -1,0 +1,111 @@
+/* =========================================================
+   ELOS — TEMA CINE CLUBE
+
+   O destaque vira uma tela de cinema: fundo escuro, as perfurações
+   da película em cima e embaixo, o cartaz do filme, o selo da
+   classificação indicativa e um ingresso com o dia e o horário.
+   A estrutura vem de projeto.css; aqui só as cores e os enfeites.
+   ========================================================= */
+
+.tema-cinema {
+    --tema-fundo: #12151d;
+    --tema-texto: #eef1f5;
+    --tema-texto-2: #a9b3c1;
+    --tema-luz: #f4c542;
+    --tema-cor: #b5462b;
+}
+
+/* a tela, com um brilho da cor do filme (calculado aqui, onde está --expo-cor) */
+.tema-cinema .projeto-cabecalho,
+.tema-cinema .projeto-destaque {
+    background:
+        radial-gradient(120% 90% at 30% 0%, color-mix(in srgb, var(--expo-cor, #b5462b) 35%, transparent), transparent 65%),
+        linear-gradient(160deg, #1c2230, #12151d);
+}
+
+/* perfurações da película, em cima e embaixo */
+.tema-cinema .projeto-cabecalho::before,
+.tema-cinema .projeto-cabecalho::after,
+.tema-cinema .projeto-destaque::before,
+.tema-cinema .projeto-destaque::after {
+    content: "";
+
+    position: absolute;
+    left: 0;
+    right: 0;
+
+    height: 14px;
+
+    background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 14px, transparent 14px 28px);
+    background-size: 28px 8px;
+    background-repeat: repeat-x;
+    background-position: 10px center;
+
+    pointer-events: none;
+}
+
+.tema-cinema .projeto-cabecalho::before,
+.tema-cinema .projeto-destaque::before {
+    top: 8px;
+}
+
+.tema-cinema .projeto-cabecalho::after,
+.tema-cinema .projeto-destaque::after {
+    bottom: 8px;
+}
+
+.tema-cinema .projeto-capa {
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.tema-cinema .botao-apagar {
+    color: #f3b4a8;
+}
+
+/* Classificação indicativa: as cores oficiais do selo brasileiro. */
+.tema-cinema .selo-l { background: #1f9e45; }
+.tema-cinema .selo-10 { background: #1c7ed6; }
+.tema-cinema .selo-12 { background: #e0b100; color: #1d1d1d; }
+.tema-cinema .selo-14 { background: #e8590c; }
+.tema-cinema .selo-16 { background: #d6332f; }
+.tema-cinema .selo-18 { background: #111111; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
+
+/* ingresso: os dois "furos" do canhoto e a linha picotada */
+.tema-cinema .projeto-bilhete {
+    -webkit-mask: radial-gradient(circle 10px at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+                  radial-gradient(circle 10px at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+    mask: radial-gradient(circle 10px at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+          radial-gradient(circle 10px at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+}
+
+.tema-cinema .projeto-bilhete::before {
+    content: "";
+
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: 8px;
+
+    border-left: 2px dashed var(--border);
+}
+
+/* a "plaquinha de luzes" antes dos títulos das seções */
+.tema-cinema .projeto-secao-titulo::before {
+    content: "";
+
+    width: 28px;
+    height: 10px;
+
+    background: radial-gradient(circle, #f4c542 2.5px, transparent 3px) 0 0 / 7px 10px repeat-x;
+}
+
+@media (max-width: 1000px) {
+    .tema-cinema .projeto-bilhete {
+        -webkit-mask: none;
+        mask: none;
+    }
+
+    .tema-cinema .projeto-bilhete::before {
+        display: none;
+    }
+}

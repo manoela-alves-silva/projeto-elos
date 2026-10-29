@@ -7,6 +7,7 @@ use Elos\Controllers\AnexoController;
 use Elos\Controllers\EventoController;
 use Elos\Controllers\EventoCursoController;
 use Elos\Controllers\HistoricoController;
+use Elos\Controllers\EventoFichaController;
 use Elos\Controllers\TarefaController;
 use Elos\Services\AuthorizationService;
 
@@ -20,6 +21,7 @@ use Elos\Services\AuthorizationService;
  * @param callable(): AnexoController $anexoControllerFactory
  * @param callable(): HistoricoController $historicoControllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
+ * @param callable(): EventoFichaController $eventoFichaControllerFactory
  */
 function handleEventosDispatcherRequest(
     string $method,
@@ -30,7 +32,8 @@ function handleEventosDispatcherRequest(
     callable $tarefaControllerFactory,
     callable $anexoControllerFactory,
     callable $historicoControllerFactory,
-    callable $authorizationFactory
+    callable $authorizationFactory,
+    callable $eventoFichaControllerFactory
 ): bool {
     if ($path === '/api/eventos') {
         handleEventoRequest(
@@ -147,6 +150,16 @@ function handleEventosDispatcherRequest(
             (int) $matches[1],
             (int) $matches[2],
             $anexoControllerFactory,
+            $authorizationFactory
+        );
+    }
+
+    if (preg_match('#^/api/eventos/(\d+)/ficha$#', $path, $matches)) {
+        handleEventoFichaRequest(
+            $method,
+            (int) $matches[1],
+            $eventoFichaControllerFactory,
+            $eventoControllerFactory,
             $authorizationFactory
         );
     }

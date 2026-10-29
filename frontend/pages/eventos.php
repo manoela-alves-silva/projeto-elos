@@ -37,6 +37,10 @@ if (($_GET['painel'] ?? '') === 'novo') {
 }
 
 $eventos = apiLista('/api/eventos', 'eventos');
+// Só as exposições: as sessões do Cine Clube têm a área delas.
+if ($eventos !== null) {
+    $eventos = \Elos\Frontend\Projetos::filtrar($eventos, \Elos\Frontend\Projetos::EXPOSICOES);
+}
 $apiIndisponivel = $eventos === null;
 
 $planos = Planejamento::carregarVarios($eventos ?? []);
@@ -74,6 +78,12 @@ $mensagem = flash('eventos');
     <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
     <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
     <link rel="stylesheet" href="../assets/css/eventos.css?v=2026-10-29">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 <body>
 

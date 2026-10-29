@@ -1,0 +1,138 @@
+/* =========================================================
+   ELOS — TEMA AMOSTRA DE TALENTOS
+
+   O destaque vira um palco: fundo de teatro com um holofote, as
+   cortinas vermelhas nas laterais, o chão de madeira, a programação
+   em dourado como num cartaz de show e o dia numa credencial de
+   bastidor. A estrutura vem de projeto.css; aqui só as cores e os
+   enfeites.
+   ========================================================= */
+
+.tema-palco {
+    --magenta: #be185d;
+    --dourado: #f6c96b;
+
+    --tema-fundo: #1d0b19;
+    --tema-texto: #fbeff5;
+    --tema-texto-2: #d6b9c8;
+    --tema-luz: var(--dourado);
+    --tema-cor: var(--magenta);
+    --tema-borda-botao: rgba(255, 255, 255, 0.28);
+
+    --bilhete-fundo: var(--white);
+    --bilhete-texto: var(--navy);
+}
+
+/* o palco: holofote de cima e o chão de madeira embaixo */
+.tema-palco .projeto-cabecalho,
+.tema-palco .projeto-destaque {
+    padding-left: calc(var(--sp-32) + 30px);
+    padding-right: calc(var(--sp-32) + 30px);
+
+    border-bottom: 8px solid #6b3f22;
+
+    background:
+        radial-gradient(40% 120% at 45% -20%, rgba(255, 236, 190, 0.28), transparent 70%),
+        linear-gradient(180deg, #2a0f24, #170914);
+}
+
+/* as cortinas, uma de cada lado */
+.tema-palco .projeto-cabecalho::before,
+.tema-palco .projeto-cabecalho::after,
+.tema-palco .projeto-destaque::before,
+.tema-palco .projeto-destaque::after {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    bottom: 0;
+
+    width: 30px;
+
+    background: repeating-linear-gradient(90deg, #7d1532 0 6px, #a8233f 6px 11px, #8e1b3a 11px 15px);
+
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.45);
+
+    pointer-events: none;
+}
+
+.tema-palco .projeto-cabecalho::before,
+.tema-palco .projeto-destaque::before {
+    left: 0;
+
+    border-radius: 0 0 40% 0;
+}
+
+.tema-palco .projeto-cabecalho::after,
+.tema-palco .projeto-destaque::after {
+    right: 0;
+
+    border-radius: 0 0 0 40%;
+}
+
+/* programação em dourado, como num cartaz de show */
+.tema-palco .projeto-lineup {
+    color: var(--dourado);
+
+    font-size: var(--fs-14);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.tema-palco .projeto-lineup li + li::before {
+    content: "★";
+
+    color: var(--magenta);
+}
+
+/* capa: o cartaz da edição */
+.tema-palco .projeto-capa,
+.tema-palco .projeto-cartao-capa {
+    background:
+        radial-gradient(circle at 50% 0, rgba(255, 236, 190, 0.45), transparent 60%),
+        linear-gradient(170deg, var(--magenta), #2a0f24);
+}
+
+/* credencial de bastidor: faixa magenta e o furo do cordão */
+.tema-palco .projeto-bilhete {
+    padding-top: var(--sp-32);
+
+    border-top: 16px solid var(--magenta);
+
+    -webkit-mask: radial-gradient(circle 6px at 50% 8px, transparent 98%, #000);
+    mask: radial-gradient(circle 6px at 50% 8px, transparent 98%, #000);
+}
+
+.tema-palco .bilhete-semana,
+.tema-palco .projeto-destaque .bilhete-quando {
+    color: var(--magenta);
+}
+
+.tema-palco .botao-apagar {
+    color: #f3b4c8;
+}
+
+/* a estrela antes dos títulos das seções */
+.tema-palco .projeto-secao-titulo::before {
+    content: "★";
+
+    color: var(--magenta);
+
+    font-size: var(--fs-18);
+}
+
+@media (max-width: 600px) {
+    .tema-palco .projeto-cabecalho,
+    .tema-palco .projeto-destaque {
+        padding-left: calc(var(--sp-20) + 24px);
+        padding-right: calc(var(--sp-20) + 24px);
+    }
+
+    .tema-palco .projeto-cabecalho::before,
+    .tema-palco .projeto-cabecalho::after,
+    .tema-palco .projeto-destaque::before,
+    .tema-palco .projeto-destaque::after {
+        width: 22px;
+    }
+}
