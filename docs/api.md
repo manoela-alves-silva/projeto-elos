@@ -20,6 +20,7 @@ perfil pode usar.
 | `/api/eventos` | GET, POST | exposições (`status` já vem calculado) |
 | `/api/eventos/{id}` | GET, PUT, DELETE | DELETE apaga a exposição e tudo dela (definitivo). Gestor |
 | `/api/eventos/conflitos` | GET | `?local_id=&inicio=&fim=&exceto=` |
+| `/api/eventos/planejamento` | GET | `?ids=1,2,3`: datas e checklist de várias exposições numa resposta só |
 | `/api/eventos/{id}/agenda` | GET, POST, PUT | datas da exposição |
 | `/api/eventos/{id}/tarefas[/{id}]` | GET, POST, PUT, DELETE | checklist |
 | `/api/eventos/{id}/tarefas/{id}/status` | PUT | marcar como feito (colaborador: só os seus) |
@@ -27,6 +28,22 @@ perfil pode usar.
 | `/api/eventos/{id}/anexos[/{id}]` | GET, POST, DELETE | até 10 MB. PDF, imagens, Office/LibreOffice, TXT, CSV |
 | `/api/eventos/{id}/historico` | GET, POST | gravado automaticamente pelas outras rotas |
 | `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
+| `/api/lote` | GET | `?caminhos[]=...&caminhos[]=...`: até 20 leituras numa resposta só (ver abaixo) |
+
+### Vários pedidos de uma vez
+
+Na hospedagem atual, cada pedido à API abre um processo PHP novo. Por isso
+as telas que precisam de muitos dados juntam os pedidos:
+
+- `/api/eventos/planejamento` traz as datas e o checklist de várias
+  exposições (Início, Exposições, Calendário e Relatório).
+- `/api/lote` responde vários GETs de uma vez (a página da exposição usa).
+  Cada caminho passa pelas mesmas rotas e permissões de sempre, e a
+  resposta traz `caminho`, `status` e `dados` de cada um. Só aceita
+  leituras das listas e das exposições, nunca gravações.
+
+No frontend, `Api::preCarregar()` faz esse pedido e guarda as respostas.
+Se a rota falhar, cada dado é buscado sozinho, como antes.
 
 Os detalhes de cada rota (campos aceitos e respostas) estão nos arquivos
 de `backend/routes/`.
