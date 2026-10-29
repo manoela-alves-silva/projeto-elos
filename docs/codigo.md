@@ -44,7 +44,7 @@ projeto-elos/
 │   └── .env.example              modelo das configurações
 │
 └── frontend/
-    ├── roteador.php              endereços limpos (/exposicoes, /exposicao?id=5…)
+    ├── roteador.php              endereços limpos (/exposicoes, /exposicao/luz-e-memoria…)
     ├── .htaccess                 manda tudo para o roteador (menos assets/)
     ├── index.php                 Início: números do painel e andamento por fase
     ├── capa.php                  entrega a imagem de capa (só para quem está logado)
@@ -84,10 +84,10 @@ do checklist como feito.
 
 ```text
 1. Navegador     clica na caixinha do item
-                 → envia o formulário para /exposicao?id=5
+                 → envia o formulário para /exposicao/luz-e-memoria
 
-2. Roteador      frontend/roteador.php vê "/exposicao" e abre
-                 frontend/pages/evento.php
+2. Roteador      frontend/roteador.php vê "/exposicao/<nome>" e abre
+                 frontend/pages/evento.php, que acha a exposição pelo nome
 
 3. Tela          evento.php confere a chave CSRF, lê "marcar_necessidade"
                  e pede à API (frontend/src/Api.php):
