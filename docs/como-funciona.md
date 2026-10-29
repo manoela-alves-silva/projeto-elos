@@ -36,8 +36,9 @@ montadas automaticamente a partir dela:
 - As **fases** saem da categoria de cada item do checklist (Curadoria,
   Montagem, Divulgação…), agrupadas em cinco etapas com cores próprias.
 - O **Calendário** junta as datas das exposições e dos itens do checklist.
-- O **Relatório** gera uma versão de cada exposição pronta para imprimir,
-  com o checklist agrupado por fase e o andamento de cada uma.
+- O **Relatório** gera uma versão pronta para imprimir de cada evento
+  (exposições e projetos), com o checklist agrupado por fase e o
+  andamento de cada um. Dá para escolher o projeto e o evento.
 - Cada exposição tem um endereço com o próprio nome
   (`/exposicao/luz-e-memoria`), tirado do título. Se o título mudar, o
   endereço muda junto; os endereços antigos com número continuam
@@ -95,6 +96,68 @@ com data e horário.
 
 Ninguém marca um item como "atrasado". Se ele não foi concluído até a
 data, o sistema mostra como atrasado sozinho.
+
+### Projetos da galeria (Cine Clube, Café Cultural, Arte ao Ar Livre, Amostra de Talentos)
+
+Além das exposições, cada projeto da galeria tem área própria no menu:
+**Cine Clube** (`/cine-clube`), **Café Cultural** (`/cafe-cultural`),
+**Arte ao Ar Livre** (`/arte-ao-ar-livre`) e **Amostra de Talentos**
+(`/amostra-de-talentos`).
+Cada sessão ou encontro é um evento do tipo do projeto, com o mesmo
+checklist, anexos e histórico das exposições, e com:
+
+- uma **ficha** própria do projeto: no Cine Clube, o filme, a direção, o
+  ano, a duração, a classificação indicativa e quem conduz o debate; no
+  Café Cultural, a obra, o autor, o gênero, a editora, a mediação e se
+  terá sessão de autógrafos; no Arte ao Ar Livre, a atividade, a
+  linguagem, a exposição que inspira, quem conduz, o público e os
+  materiais; na Amostra de Talentos, o nome da edição, a programação
+  (uma apresentação por linha), quem apresenta, quem organiza junto com
+  a galeria e o público;
+- um **dia e horário** no lugar das datas de montagem;
+- um visual próprio: tela de cinema no Cine Clube, página de livro no
+  Café Cultural, tela de pintura e varal no Arte ao Ar Livre, palco com
+  cortinas na Amostra de Talentos.
+
+Ao criar, dá para gerar o checklist padrão do projeto, com os prazos
+contados a partir do dia do evento.
+
+Os projetos são descritos em `frontend/src/Projetos.php` (campos da
+ficha, nomes, checklist padrão, textos) e a ficha fica guardada na
+tabela `evento_ficha`, em JSON. Projeto novo: uma entrada nesse arquivo,
+o tipo no banco e o CSS do tema (`assets/css/<tema>.css`).
+
+A lista de Exposições só mostra exposições. O Início tem as exposições
+em destaque (a parede "Em cartaz", com cada exposição como um quadro) e,
+na lateral, os próximos eventos dos outros projetos; os alertas valem
+para todos. O Calendário, o Relatório e o painel ao vivo mostram tudo da
+galeria; no Calendário e no Relatório dá para escolher o projeto.
+
+### Painel ao vivo
+
+O endereço `/painel` mostra, numa tela feita para ficar aberta num monitor
+o dia todo, só o que a produção precisa fazer, em três colunas:
+
+- **Atrasados**: o prazo já passou. Pulsam devagar até alguém concluir.
+- **Prioridade alta**: itens marcados como Alta com prazo nos próximos 30 dias.
+- **Pendentes**: prazo hoje ou nos próximos 7 dias.
+
+Cada item aparece numa coluna só. Dentro da coluna, os itens vêm
+agrupados por evento: o nome do evento aparece uma vez, com a cor e o
+nome do tipo (Exposição, Cine Clube...) e quantos dias faltam. Coluna
+que não cabe na tela é dividida em páginas, que trocam sozinhas a cada
+12 segundos (as bolinhas embaixo mostram em qual página está). A tela se atualiza a cada 30 segundos e avisa
+quando entra um item novo ou quando alguém conclui um.
+
+Os itens de prioridade alta **sem prazo** não entram nas colunas: uma faixa
+fina no rodapé mostra quantos são e um exemplo, que troca a cada 8
+segundos. Item que
+não tem data para acontecer pode ser marcado no checklist como **Não
+precisa de prazo** e sai desse lembrete.
+
+O monitor não precisa da conta de ninguém: um gestor gera, no próprio
+painel, um link secreto (`/painel/<código>`) que só mostra o painel.
+Gerar outro link derruba o anterior. O banco guarda só o hash do código.
 
 ### Histórico automático
 
