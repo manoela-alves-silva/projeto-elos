@@ -266,9 +266,68 @@ final class Api
     // Não é o mesmo cookie do usuário no frontend — são sessões distintas.
     private const SESSION_COOKIE_KEY = '_elos_backend_cookie';
 
+    // Respostas de GET já recebidas nesta página. A mesma lista (ex.:
+    // usuários) costuma ser pedida mais de uma vez; assim vai só um
+    // pedido. Qualquer POST/PUT/DELETE limpa, para nada ficar velho.
+    private static array $cacheGet = [];
+
+    /** @var array<string, ApiException> erros que vieram num lote */
+    private static array $errosGet = [];
+
     public static function get(string $path): array
     {
-        return self::request('GET', $path);
+        if (isset(self::$errosGet[$path])) {
+            throw self::$errosGet[$path];
+        }
+
+        return self::$cacheGet[$path] ??= self::request('GET', $path);
+    }
+
+    /**
+     * Busca vários GETs num pedido só (rota /api/lote) e guarda as
+     * respostas: os Api::get() seguintes desses caminhos não vão mais
+     * à API. Se o lote falhar, nada muda — cada get() busca como antes.
+     *
+     * @param list<string> $paths
+     */
+    public static function preCarregar(array $paths): void
+    {
+        $faltam = array_values(array_unique(array_filter(
+            $paths,
+            static fn(string $p): bool => !isset(self::$cacheGet[$p]) && !isset(self::$errosGet[$p])
+        )));
+
+        if (count($faltam) < 2) {
+            return;
+        }
+
+        try {
+            $dados = self::request('GET', '/api/lote?' . http_build_query(['caminhos' => $faltam]));
+        } catch (ApiException) {
+            return;
+        }
+
+        foreach ($dados['respostas'] ?? [] as $resposta) {
+            $caminho = $resposta['caminho'] ?? null;
+
+            if (!is_array($resposta) || !in_array($caminho, $faltam, true)) {
+                continue;
+            }
+
+            $status = (int) ($resposta['status'] ?? 0);
+            $corpo = is_array($resposta['dados'] ?? null) ? $resposta['dados'] : [];
+
+            if ($status >= 200 && $status < 400) {
+                self::$cacheGet[$caminho] = $corpo;
+            } elseif ($status !== 500) {
+                // 500 fica de fora: o get() tenta de novo sozinho.
+                self::$errosGet[$caminho] = new ApiException(
+                    is_string($corpo['erro'] ?? null) ? $corpo['erro'] : 'Erro ao comunicar com a API (HTTP ' . $status . ').',
+                    $status,
+                    $corpo
+                );
+            }
+        }
     }
 
     public static function post(string $path, array $body = []): array
@@ -294,11 +353,16 @@ final class Api
     {
         self::garantirSessao();
         unset($_SESSION[self::SESSION_COOKIE_KEY]);
+        self::$cacheGet = self::$errosGet = [];
     }
 
     private static function request(string $method, string $path, ?array $body = null): array
     {
         self::garantirSessao();
+
+        if ($method !== 'GET') {
+            self::$cacheGet = self::$errosGet = [];
+        }
 
         $headers = ['Accept: application/json'];
 

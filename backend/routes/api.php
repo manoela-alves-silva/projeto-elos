@@ -45,6 +45,10 @@ function handleApiRequest(
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
+    if ($path === '/api/lote') {
+        handleLoteRequest($method, func_get_args());
+    }
+
     if ($path === '/api/login') {
         handleLoginRequest($method, $controllerFactory);
     }
@@ -187,6 +191,7 @@ function handleApiRequest(
         && (
             $path === '/api/eventos'
             || $path === '/api/eventos/conflitos'
+            || $path === '/api/eventos/planejamento'
             || preg_match('#^/api/eventos/(\d+)($|/.*)$#', $path)
         )
     ) {
@@ -284,6 +289,11 @@ function sendJsonResponse(
     int $statusCode,
     array $data
 ): never {
+    // Dentro de um lote, a resposta volta para quem montou o lote.
+    if (!empty($GLOBALS['ELOS_EM_LOTE'])) {
+        throw new RespostaDoLote($statusCode, $data);
+    }
+
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
 
@@ -293,4 +303,95 @@ function sendJsonResponse(
     );
 
     exit;
+}
+
+/**
+ * Resposta de um pedido feito dentro de um lote (ver handleLoteRequest).
+ */
+final class RespostaDoLote extends RuntimeException
+{
+    /** @param array<string, mixed> $dados */
+    public function __construct(
+        public readonly int $status,
+        public readonly array $dados
+    ) {
+        parent::__construct('Resposta do lote');
+    }
+}
+
+/**
+ * Vários GETs numa ida só.
+ *
+ * GET /api/lote?caminhos[]=/api/eventos/5&caminhos[]=/api/eventos/5/tarefas
+ *
+ * Na hospedagem, cada pedido à API abre um processo PHP novo; a página
+ * de uma exposição fazia uns 12. Aqui cada caminho passa pelas mesmas
+ * rotas e permissões de sempre, só que dentro de um pedido.
+ * Só aceita leituras de listas e de exposições (nada que grave).
+ *
+ * @param list<callable> $fabricas  Os mesmos argumentos de handleApiRequest.
+ */
+function handleLoteRequest(string $method, array $fabricas): never
+{
+    if ($method !== 'GET') {
+        sendJsonResponse(405, [
+            'erro' => 'Método não permitido.',
+        ]);
+    }
+
+    $caminhos = $_GET['caminhos'] ?? null;
+
+    if (!is_array($caminhos) || $caminhos === [] || count($caminhos) > 20) {
+        sendJsonResponse(400, [
+            'erro' => 'Informe de 1 a 20 caminhos.',
+        ]);
+    }
+
+    $permitidos = [
+        '#^/api/(usuarios|tipos-evento|responsaveis|cursos|locais|categorias-tarefa|eventos)$#',
+        '#^/api/eventos/planejamento$#',
+        '#^/api/eventos/\d+(/(agenda|tarefas|cursos|anexos|historico))?$#',
+    ];
+
+    $uriOriginal = $_SERVER['REQUEST_URI'] ?? '/';
+    $getOriginal = $_GET;
+    $respostas = [];
+
+    foreach (array_values(array_unique(array_filter($caminhos, 'is_string'))) as $caminho) {
+        $rota = (string) parse_url($caminho, PHP_URL_PATH);
+        $aceito = false;
+
+        foreach ($permitidos as $padrao) {
+            $aceito = $aceito || preg_match($padrao, $rota) === 1;
+        }
+
+        if (!$aceito) {
+            $respostas[] = ['caminho' => $caminho, 'status' => 400, 'dados' => ['erro' => 'Caminho não permitido no lote.']];
+            continue;
+        }
+
+        $_SERVER['REQUEST_URI'] = $caminho;
+        parse_str((string) parse_url($caminho, PHP_URL_QUERY), $consulta);
+        $_GET = $consulta;
+        $GLOBALS['ELOS_EM_LOTE'] = true;
+        ob_start();
+
+        try {
+            handleApiRequest(...$fabricas);
+        } catch (RespostaDoLote $resposta) {
+            $respostas[] = ['caminho' => $caminho, 'status' => $resposta->status, 'dados' => $resposta->dados];
+        } catch (Throwable $erro) {
+            error_log('ELOS lote ' . $rota . ': ' . $erro);
+            $respostas[] = ['caminho' => $caminho, 'status' => 500, 'dados' => ['erro' => 'Erro interno do servidor.']];
+        } finally {
+            ob_end_clean();
+            $GLOBALS['ELOS_EM_LOTE'] = false;
+            $_SERVER['REQUEST_URI'] = $uriOriginal;
+            $_GET = $getOriginal;
+        }
+    }
+
+    sendJsonResponse(200, [
+        'respostas' => $respostas,
+    ]);
 }

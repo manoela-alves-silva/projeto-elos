@@ -17,6 +17,8 @@ use Elos\Frontend\MenuLateral;
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\flash;
+use function Elos\Frontend\exposicaoDoEndereco;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\redirecionar;
 use function Elos\Frontend\usuarioLogado;
 
@@ -29,7 +31,7 @@ if (!$usuario['podeGerenciar']) {
     redirecionar('exposicoes');
 }
 
-$eventoId = (int) ($_GET['id'] ?? 0);
+$eventoId = exposicaoDoEndereco('apagar-exposicao');
 $evento = null;
 
 try {
@@ -71,15 +73,18 @@ $anexos = count(apiLista('/api/eventos/' . $eventoId . '/anexos', 'anexos') ?? [
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <!-- O endereço tem o nome da exposição (/exposicao/nome): os links
+         relativos continuam valendo a partir da raiz do site. -->
+    <base href="<?= esc(\Elos\Frontend\raizDoSite()) ?>/">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apagar exposição | ELOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/conta.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/conta.css?v=2026-10-29">
 </head>
 <body>
 
@@ -123,7 +128,7 @@ $anexos = count(apiLista('/api/eventos/' . $eventoId . '/anexos', 'anexos') ?? [
                     <h2>O que será apagado</h2>
                 </div>
 
-                <form method="post" class="form-elos">
+                <form method="post" action="<?= esc(linkExposicao($eventoId, [], '', 'apagar-exposicao')) ?>" class="form-elos">
                     <?= \Elos\Frontend\campoCsrf() ?>
 
                     <ul class="conta-explicacao">
@@ -143,7 +148,7 @@ $anexos = count(apiLista('/api/eventos/' . $eventoId . '/anexos', 'anexos') ?? [
                     </div>
 
                     <button type="submit" class="botao-perigo">Apagar exposição</button>
-                    <a href="exposicao?id=<?= $eventoId ?>" class="botao-secundario">Voltar sem apagar</a>
+                    <a href="<?= esc(linkExposicao($eventoId)) ?>" class="botao-secundario">Voltar sem apagar</a>
                 </form>
             </article>
 

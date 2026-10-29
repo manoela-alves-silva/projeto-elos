@@ -62,6 +62,64 @@ final class TarefaRepository
     }
 
     /**
+     * Tarefas de vários eventos numa consulta só, agrupadas pelo id do
+     * evento (mesma ordem de findByEventoId).
+     *
+     * @param list<int> $eventoIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    public function findByEventoIds(array $eventoIds): array
+    {
+        if ($eventoIds === []) {
+            return [];
+        }
+
+        $sql = sprintf('
+            SELECT
+                t.id,
+                t.evento_id,
+                t.usuario_responsavel_id,
+                t.responsavel_nome,
+                t.categoria_id,
+                t.titulo,
+                t.descricao,
+                t.prazo,
+                t.horario,
+                t.prioridade,
+                t.status,
+                t.observacoes,
+                t.created_at,
+                t.updated_at,
+                u.nome AS usuario_responsavel_nome,
+                COALESCE(u.nome, t.responsavel_nome) AS responsavel_exibicao,
+                c.nome AS categoria_nome
+            FROM tarefas t
+            LEFT JOIN usuarios u
+                ON u.id = t.usuario_responsavel_id
+            LEFT JOIN categorias_tarefa c
+                ON c.id = t.categoria_id
+            WHERE t.evento_id IN (%s)
+            ORDER BY
+                t.prazo IS NULL,
+                t.prazo ASC,
+                t.horario IS NULL,
+                t.horario ASC,
+                t.id ASC
+        ', implode(', ', array_fill(0, count($eventoIds), '?')));
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($eventoIds);
+
+        $tarefas = array_fill_keys($eventoIds, []);
+
+        foreach ($statement->fetchAll() as $tarefa) {
+            $tarefas[(int) $tarefa['evento_id']][] = $tarefa;
+        }
+
+        return $tarefas;
+    }
+
+    /**
      * Busca uma tarefa pelo ID.
      *
      * @return array<string, mixed>|null

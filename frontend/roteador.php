@@ -7,7 +7,8 @@ declare(strict_types=1);
  *
  * Toda visita passa por aqui (pelo .htaccess no Apache, ou como roteador
  * do "php -S" no computador). O endereço que aparece no navegador não
- * mostra pastas nem ".php": /exposicao?id=5 abre pages/evento.php.
+ * mostra pastas nem ".php": /exposicao/luz-e-memoria abre pages/evento.php
+ * (o endereço antigo /exposicao?id=5 redireciona para o com o nome).
  *
  * Endereços antigos (/pages/evento.php?id=5) continuam funcionando:
  * são redirecionados para o endereço novo, então favoritos e links
@@ -54,11 +55,23 @@ if (PHP_SAPI === 'cli-server' && str_starts_with($caminho, 'assets/') && is_file
     return false;
 }
 
+// Exposição pelo nome: /exposicao/luz-e-memoria (a página descobre o id).
+if (preg_match('#^(exposicao|apagar-exposicao)/([a-z0-9-]{1,120})$#', $caminho, $partes) === 1) {
+    define('ELOS_SLUG_EXPOSICAO', $partes[2]);
+    $caminho = $partes[1];
+}
+
 $arquivo = ROTAS[$caminho] ?? null;
 
 if ($arquivo === null) {
     // Endereço antigo? Redireciona para o novo (só GET; POST é atendido no lugar).
     $antigo = array_search($caminho, ROTAS, true);
+
+    // "pages/exposicao" (endereço limpo com a pasta na frente, que o
+    // Início chegou a gerar): também redireciona para o certo.
+    if ($antigo === false && str_starts_with($caminho, 'pages/') && isset(ROTAS[substr($caminho, 6)])) {
+        $antigo = substr($caminho, 6);
+    }
 
     if (in_array($caminho, SEM_REDIRECIONAR, true)) {
         $arquivo = $caminho;
@@ -68,7 +81,7 @@ if ($arquivo === null) {
             header('Location: ' . $raiz . '/' . $antigo . ($consulta !== '' ? '?' . $consulta : ''), true, 301);
             exit();
         }
-        $arquivo = $caminho;
+        $arquivo = ROTAS[$antigo];
     }
 }
 

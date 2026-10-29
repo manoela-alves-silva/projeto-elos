@@ -36,7 +36,12 @@ montadas automaticamente a partir dela:
 - As **fases** saem da categoria de cada item do checklist (Curadoria,
   Montagem, Divulgação…), agrupadas em cinco etapas com cores próprias.
 - O **Calendário** junta as datas das exposições e dos itens do checklist.
-- O **Relatório** gera uma versão de cada exposição pronta para imprimir.
+- O **Relatório** gera uma versão de cada exposição pronta para imprimir,
+  com o checklist agrupado por fase e o andamento de cada uma.
+- Cada exposição tem um endereço com o próprio nome
+  (`/exposicao/luz-e-memoria`), tirado do título. Se o título mudar, o
+  endereço muda junto; os endereços antigos com número continuam
+  funcionando.
 
 ---
 

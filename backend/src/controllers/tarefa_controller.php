@@ -24,6 +24,17 @@ final class TarefaController
     }
 
     /**
+     * Tarefas de vários eventos, agrupadas pelo id do evento.
+     *
+     * @param list<int> $eventoIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    public function indexByEventos(array $eventoIds): array
+    {
+        return $this->repository->findByEventoIds($eventoIds);
+    }
+
+    /**
      * Busca uma tarefa pelo ID.
      *
      * @return array<string, mixed>|null

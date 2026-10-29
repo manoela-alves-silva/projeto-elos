@@ -68,6 +68,55 @@ final class Planejamento
         );
     }
 
+    /**
+     * Carrega várias exposições com um pedido só à API (em vez de dois
+     * por exposição). Se a API ainda não tiver a rota de lote, carrega
+     * uma por uma, como antes.
+     *
+     * @param list<array<string, mixed>> $eventos
+     * @return list<self> na mesma ordem de $eventos
+     */
+    public static function carregarVarios(array $eventos): array
+    {
+        $eventos = array_values($eventos);
+
+        if ($eventos === []) {
+            return [];
+        }
+
+        $ids = array_map(static fn(array $e): int => (int) ($e['id'] ?? 0), $eventos);
+
+        try {
+            $dados = Api::get('/api/eventos/planejamento?ids=' . implode(',', $ids));
+        } catch (ApiException) {
+            return array_map(static fn(array $e): self => self::carregar($e), $eventos);
+        }
+
+        $porEvento = [];
+        foreach ($dados['planejamento'] ?? [] as $item) {
+            if (is_array($item)) {
+                $porEvento[(int) ($item['evento_id'] ?? 0)] = $item;
+            }
+        }
+
+        return array_map(static function (array $evento) use ($porEvento): self {
+            $item = $porEvento[(int) ($evento['id'] ?? 0)] ?? null;
+
+            if ($item === null) {
+                return self::carregar($evento);
+            }
+
+            $tarefas = is_array($item['tarefas'] ?? null) ? array_values(array_filter($item['tarefas'], 'is_array')) : [];
+
+            return new self(
+                $evento,
+                is_array($item['agenda'] ?? null) ? $item['agenda'] : null,
+                false,
+                self::ordenarNecessidades($tarefas)
+            );
+        }, $eventos);
+    }
+
     public function id(): int
     {
         return (int) ($this->evento['id'] ?? 0);
@@ -179,7 +228,7 @@ final class Planejamento
     public function itensDatados(bool $incluirCancelados = false): array
     {
         $itens = [];
-        $base = 'exposicao?id=' . $this->id();
+        $base = linkExposicao($this->id());
 
         foreach (self::CAMPOS_AGENDA as $campo => [$rotulo, $grupo]) {
             if (!empty($this->agenda[$campo])) {

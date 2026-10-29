@@ -13,6 +13,7 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\diaMes;
 use function Elos\Frontend\esc;
@@ -21,11 +22,13 @@ use function Elos\Frontend\exposicaoAtiva;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\redirecionar;
 use function Elos\Frontend\rotuloStatusEvento;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 require_once __DIR__ . '/../src/Identidade.php';
 
+preCarregar(['/api/eventos']);
 $usuario = usuarioLogado('entrar');
 
 // Endereço antigo do cadastro: agora é um fluxo próprio.
@@ -36,7 +39,7 @@ if (($_GET['painel'] ?? '') === 'novo') {
 $eventos = apiLista('/api/eventos', 'eventos');
 $apiIndisponivel = $eventos === null;
 
-$planos = array_map(static fn(array $evento): Planejamento => Planejamento::carregar($evento), $eventos ?? []);
+$planos = Planejamento::carregarVarios($eventos ?? []);
 
 $verEncerradas = ($_GET['ver'] ?? '') === 'encerradas';
 $ativas = array_values(array_filter($planos, static fn(Planejamento $p): bool => exposicaoAtiva($p->evento)));
@@ -67,10 +70,10 @@ $mensagem = flash('eventos');
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/eventos.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/eventos.css?v=2026-10-29">
 </head>
 <body>
 
@@ -158,7 +161,7 @@ $mensagem = flash('eventos');
                         $proximo = $plano->proximasAtividades(1)[0] ?? null;
                         ?>
                         <a
-                            href="exposicao?id=<?= $plano->id() ?>"
+                            href="<?= esc(linkExposicao($plano->id())) ?>"
                             class="expo-cartao identidade<?= Identidade::urlCapa($evento) !== null ? ' com-capa' : '' ?>"
                             style="<?= esc(Identidade::estilo($evento)) ?>"
                             data-busca="<?= esc(mb_strtolower(($evento['titulo'] ?? '') . ' ' . ($evento['local_nome'] ?? '') . ' ' . ($evento['tipo_evento_nome'] ?? '') . ' ' . ($evento['responsavel_nome'] ?? ''))) ?>"

@@ -15,21 +15,26 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\slugDaExposicao;
+use function Elos\Frontend\idDaExposicaoNoParametro;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\dataBr;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\hoje;
 use function Elos\Frontend\redirecionar;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 use const Elos\Frontend\MESES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
+preCarregar(['/api/eventos']);
 $usuario = usuarioLogado('entrar');
 
 // Endereço antigo do editor de agenda: as datas agora são editadas na exposição.
 if ((int) ($_GET['agenda_evento'] ?? 0) > 0) {
-    redirecionar('exposicao?id=' . (int) $_GET['agenda_evento'] . '&editar=datas#datas');
+    redirecionar(linkExposicao((int) $_GET['agenda_evento'], ['editar' => 'datas'], '#datas'));
 }
 
 $eventos = apiLista('/api/eventos', 'eventos');
@@ -39,13 +44,11 @@ $apiIndisponivel = $eventos === null;
 $eventos = array_values(array_filter($eventos ?? [], static fn(array $e): bool => ($e['status'] ?? '') !== 'CANCELADO'));
 usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo'], (string) $b['titulo']));
 
-$filtroEvento = (int) ($_GET['evento'] ?? 0);
-$planos = [];
-foreach ($eventos as $evento) {
-    if ($filtroEvento === 0 || (int) $evento['id'] === $filtroEvento) {
-        $planos[] = Planejamento::carregar($evento);
-    }
-}
+$filtroEvento = idDaExposicaoNoParametro($_GET['evento'] ?? '');
+$planos = Planejamento::carregarVarios(array_filter(
+    $eventos,
+    static fn(array $e): bool => $filtroEvento === 0 || (int) $e['id'] === $filtroEvento
+));
 
 // Itens por dia e dias em cartaz.
 $itensPorDia = [];
@@ -97,7 +100,7 @@ function linkCalendario(int $ano, int $mes, int $evento, ?string $dia = null): s
 {
     $parametros = ['ano' => $ano, 'mes' => $mes];
     if ($evento > 0) {
-        $parametros['evento'] = $evento;
+        $parametros['evento'] = slugDaExposicao($evento);
     }
     if ($dia !== null) {
         $parametros['dia'] = $dia;
@@ -135,10 +138,10 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/agenda.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/agenda.css?v=2026-10-29">
 </head>
 <body>
 
@@ -154,9 +157,9 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                 <input type="hidden" name="mes" value="<?= $mes ?>">
                 <label for="evento" class="sr-only">Exposição</label>
                 <select id="evento" name="evento" onchange="this.form.submit()">
-                    <option value="0">Todas as exposições</option>
+                    <option value="">Todas as exposições</option>
                     <?php foreach ($eventos as $evento): ?>
-                        <option value="<?= (int) $evento['id'] ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
+                        <option value="<?= esc(slugDaExposicao((int) $evento['id'])) ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <noscript><button type="submit" class="text-link">Filtrar</button></noscript>

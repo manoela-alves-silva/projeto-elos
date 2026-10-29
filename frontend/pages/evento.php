@@ -19,6 +19,7 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiGet;
+use function Elos\Frontend\slugDaExposicao;
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\avisoConflito;
 use function Elos\Frontend\conflitosNoLocal;
@@ -31,6 +32,8 @@ use function Elos\Frontend\dataHoraBr;
 use function Elos\Frontend\diasAte;
 use function Elos\Frontend\distanciaRelativa;
 use function Elos\Frontend\esc;
+use function Elos\Frontend\exposicaoDoEndereco;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\flash;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\mesAbreviado;
@@ -46,12 +49,26 @@ use function Elos\Frontend\sugestoesDeResponsavel;
 use function Elos\Frontend\rotuloPrioridade;
 use function Elos\Frontend\rotuloStatusEvento;
 use function Elos\Frontend\rotuloTipoHorario;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 use const Elos\Frontend\PRIORIDADES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 require_once __DIR__ . '/../src/Identidade.php';
+
+// Tudo que a página usa em dois pedidos à API (antes eram uns 12):
+// primeiro a lista de exposições (para achar a exposição pelo nome do
+// endereço), depois tudo dela.
+preCarregar(['/api/eventos']);
+$idPedido = exposicaoDoEndereco();
+if ($idPedido > 0) {
+    $base = '/api/eventos/' . $idPedido;
+    $listasDeGestor = in_array($_SESSION['usuario']['perfil'] ?? '', ['GESTOR', 'ADMIN'], true)
+        ? ['/api/categorias-tarefa', '/api/tipos-evento', '/api/responsaveis', '/api/locais', '/api/cursos']
+        : [];
+    preCarregar([$base, $base . '/agenda', $base . '/tarefas', $base . '/cursos', $base . '/anexos', $base . '/historico', ...$listasDeGestor]);
+}
 
 $usuario = usuarioLogado('entrar');
 $podeGerenciar = $usuario['podeGerenciar'];
@@ -71,7 +88,9 @@ function enderecoComFiltro(int $eventoId): string
         }
     }
 
-    return 'exposicao?' . http_build_query($params);
+    unset($params['id']);
+
+    return linkExposicao($eventoId, $params);
 }
 
 const TIPOS_HORARIO = ['HORARIO_ESPECIFICO', 'DIA_TODO', 'TURNO_MANHA', 'TURNO_NOITE', 'MANHA_E_NOITE'];
@@ -126,7 +145,7 @@ function lerNecessidade(array $post): array
 // Ações (POST → redireciona de volta para a seção certa)
 // ---------------------------------------------------------------
 
-$eventoId = (int) ($_GET['id'] ?? 0);
+$eventoId = exposicaoDoEndereco();
 $erroForm = '';         // mensagem do formulário que falhou
 $formComErro = '';      // qual reabrir: nova | item-N | info | datas | geral
 $valoresNova = array_fill_keys(CAMPOS_NECESSIDADE, '') + [];
@@ -137,7 +156,6 @@ $conflitos = [];        // local ocupado: reabre o formulário com o aviso
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
     $acao = (string) ($_POST['acao'] ?? '');
     $tarefaId = (int) ($_POST['tarefa_id'] ?? 0);
-    $base = enderecoComFiltro($eventoId);
 
     try {
         if ($acao === 'marcar_necessidade') {
@@ -146,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
             $novoStatus = ($_POST['novo_status'] ?? '') === 'CONCLUIDA' ? 'CONCLUIDA' : 'PENDENTE';
             Api::put('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId . '/status', ['status' => $novoStatus]);
             flash('evento', $novoStatus === 'CONCLUIDA' ? 'Marcado como concluído.' : 'Voltou para pendente.');
-            redirecionar($base . '#item-' . $tarefaId);
+            redirecionar(enderecoComFiltro($eventoId) . '#item-' . $tarefaId);
         }
 
         if (!$podeGerenciar) {
@@ -170,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     $lida['corpo'] + ['descricao' => null, 'status' => 'PENDENTE']
                 );
                 flash('evento', 'Adicionado: ' . $lida['valores']['titulo'] . '.');
-                redirecionar($base . '#item-' . (int) ($resposta['tarefa']['id'] ?? 0));
+                redirecionar(enderecoComFiltro($eventoId) . '#item-' . (int) ($resposta['tarefa']['id'] ?? 0));
 
             case 'editar_necessidade':
                 $lida = lerNecessidade($_POST);
@@ -185,12 +203,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                 // Sem status no corpo: o backend mantém o atual.
                 Api::put('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId, $lida['corpo']);
                 flash('evento', 'Alterações salvas.');
-                redirecionar($base . '#item-' . $tarefaId);
+                redirecionar(enderecoComFiltro($eventoId) . '#item-' . $tarefaId);
 
             case 'remover_necessidade':
                 Api::delete('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId);
                 flash('evento', 'Removido do planejamento.');
-                redirecionar($base . '#necessidades');
+                redirecionar(enderecoComFiltro($eventoId) . '#necessidades');
 
             case 'salvar_datas':
                 $corpo = [];
@@ -244,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     : Api::post('/api/eventos/' . $eventoId . '/agenda', $corpo);
 
                 flash('evento', 'Datas salvas. O calendário já acompanha.');
-                redirecionar($base . '#datas');
+                redirecionar(enderecoComFiltro($eventoId) . '#datas');
 
             case 'salvar_informacoes':
                 $titulo = trim((string) ($_POST['titulo'] ?? ''));
@@ -311,7 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
 
                 flash('evento', 'Informações da exposição salvas.'
                     . ($cursosEscolhidos['falhas'] !== [] ? ' Não foi possível adicionar: ' . implode(', ', $cursosEscolhidos['falhas']) . '.' : ''));
-                redirecionar($base);
+                redirecionar(enderecoComFiltro($eventoId));
 
             case 'salvar_identidade':
                 // Capa e cor. A imagem é guardada aqui no frontend; a API
@@ -367,7 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                 }
 
                 flash('evento', 'Identidade visual salva.');
-                redirecionar($base);
+                redirecionar(enderecoComFiltro($eventoId));
 
             default:
                 $erroForm = 'Ação inválida.';
@@ -404,7 +422,7 @@ $evento = null;
 $erroEvento = '';
 
 if ($eventoId <= 0) {
-    $erroEvento = 'Nenhuma exposição foi informada.';
+    $erroEvento = defined('ELOS_SLUG_EXPOSICAO') ? 'Exposição não encontrada. Ela pode ter mudado de nome: procure na lista de exposições.' : 'Nenhuma exposição foi informada.';
 } else {
     try {
         $dadosEvento = Api::get('/api/eventos/' . $eventoId);
@@ -465,7 +483,7 @@ if ($evento !== null) {
     }
 
     $linkFiltro = static fn(array $params): string =>
-        'exposicao?' . http_build_query(['id' => $eventoId] + $params) . '#necessidades';
+        linkExposicao($eventoId, $params, '#necessidades');
 
     // Listas dos formulários (só para quem pode editar).
     $categorias = $usuarios = $tipos = $responsaveis = $locais = $cursos = [];
@@ -708,15 +726,18 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <!-- O endereço tem o nome da exposição (/exposicao/nome): os links
+         relativos continuam valendo a partir da raiz do site. -->
+    <base href="<?= esc(\Elos\Frontend\raizDoSite()) ?>/">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($tituloPagina) ?> | ELOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/evento.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/evento.css?v=2026-10-29">
 </head>
 <body>
 
@@ -786,11 +807,11 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                     </ul>
 
                     <div class="acoes-cabecalho">
-                        <a href="relatorio?evento=<?= $eventoId ?>" class="botao-secundario">⎙ Relatório para imprimir</a>
+                        <a href="relatorio?evento=<?= esc(slugDaExposicao($eventoId)) ?>" class="botao-secundario">⎙ Relatório para imprimir</a>
                         <?php if ($podeGerenciar): ?>
-                            <a href="exposicao?id=<?= $eventoId ?>&amp;editar=info#sobre" class="botao-secundario">✎ Editar informações</a>
-                            <a href="exposicao?id=<?= $eventoId ?>&amp;editar=identidade#identidade" class="botao-secundario">◐ Capa e cor</a>
-                            <a href="apagar-exposicao?id=<?= $eventoId ?>" class="botao-secundario botao-apagar">Apagar exposição</a>
+                            <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'info'], 'sobre')) ?>" class="botao-secundario">✎ Editar informações</a>
+                            <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'identidade'], 'identidade')) ?>" class="botao-secundario">◐ Capa e cor</a>
+                            <a href="<?= esc(linkExposicao($eventoId, [], '', 'apagar-exposicao')) ?>" class="botao-secundario botao-apagar">Apagar exposição</a>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -822,9 +843,9 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                 <article class="panel painel-identidade" id="identidade">
                     <div class="panel-header">
                         <div><p class="eyebrow">Identidade visual</p><h2>Capa e cor da exposição</h2></div>
-                        <a href="exposicao?id=<?= $eventoId ?>" class="text-link">Cancelar</a>
+                        <a href="<?= esc(linkExposicao($eventoId)) ?>" class="text-link">Cancelar</a>
                     </div>
-                    <form method="post" action="exposicao?id=<?= $eventoId ?>" enctype="multipart/form-data" class="form-elos form-identidade">
+                    <form method="post" action="<?= esc(linkExposicao($eventoId)) ?>" enctype="multipart/form-data" class="form-elos form-identidade">
                         <?= \Elos\Frontend\campoCsrf() ?>
                         <input type="hidden" name="acao" value="salvar_identidade">
                         <input type="hidden" name="cor_mudou" value="0" class="js-cor-mudou">
@@ -1079,13 +1100,13 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                         <div class="panel-header">
                             <div><p class="eyebrow">Agenda</p><h2>Datas da exposição</h2></div>
                             <?php if ($podeGerenciar && !$editarDatas): ?>
-                                <a href="exposicao?id=<?= $eventoId ?>&editar=datas#datas" class="text-link">Editar</a>
+                                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'datas'], 'datas')) ?>" class="text-link">Editar</a>
                             <?php endif; ?>
                         </div>
 
                         <?php if ($editarDatas): ?>
 
-                            <form method="post" action="exposicao?id=<?= $eventoId ?>" class="form-elos form-lateral">
+                            <form method="post" action="<?= esc(linkExposicao($eventoId)) ?>" class="form-elos form-lateral">
                                 <?= \Elos\Frontend\campoCsrf() ?>
                                 <input type="hidden" name="acao" value="salvar_datas">
                                 <?php if ($formComErro === 'datas' && $erroForm !== ''): ?>
@@ -1129,7 +1150,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 </div>
                                 <?php if ($formComErro === 'datas' && $conflitos !== []) { avisoConflito($conflitos); } ?>
                                 <div class="form-botoes">
-                                    <a href="exposicao?id=<?= $eventoId ?>#datas" class="text-link">Cancelar</a>
+                                    <a href="<?= esc(linkExposicao($eventoId, [], 'datas')) ?>" class="text-link">Cancelar</a>
                                     <button type="submit" class="primary-button">Salvar datas</button>
                                 </div>
                             </form>
@@ -1143,7 +1164,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                             <p class="lateral-vazio">
                                 Nenhuma data definida.
                                 <?php if ($podeGerenciar): ?>
-                                    <a href="exposicao?id=<?= $eventoId ?>&editar=datas#datas" class="text-link">Definir datas</a>
+                                    <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'datas'], 'datas')) ?>" class="text-link">Definir datas</a>
                                 <?php endif; ?>
                             </p>
 
@@ -1180,7 +1201,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                     <article class="panel">
                         <?php
                         $mesCalendario = $periodo['inicio'] ?? ($proximas[0]['data'] ?? null);
-                        $linkCalendario = 'calendario?evento=' . $eventoId
+                        $linkCalendario = 'calendario?evento=' . rawurlencode(slugDaExposicao($eventoId))
                             . ($mesCalendario ? '&ano=' . substr((string) $mesCalendario, 0, 4) . '&mes=' . (int) substr((string) $mesCalendario, 5, 2) : '');
                         ?>
                         <div class="panel-header">
@@ -1198,7 +1219,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                             <strong><?= esc(substr($item['data'], 8, 2)) ?></strong>
                                             <span><?= esc(mesAbreviado($item['data'])) ?></span>
                                         </span>
-                                        <a href="<?= esc(substr($item['link'], strpos($item['link'], '#'))) ?>" class="lista-datas-texto">
+                                        <a href="<?= esc(linkExposicao($eventoId, [], substr($item['link'], strpos($item['link'], '#') ?: strlen($item['link'])))) ?>" class="lista-datas-texto">
                                             <small><?= esc($item['categoria']) ?><?= $item['horario'] ? ' · ' . esc($item['horario']) : '' ?></small>
                                             <strong><?= esc($item['titulo']) ?></strong>
                                         </a>
@@ -1215,7 +1236,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                         <div class="panel-header">
                             <div><p class="eyebrow">Visão geral</p><h2>Sobre a exposição</h2></div>
                             <?php if ($podeGerenciar && !$editarInfo): ?>
-                                <a href="exposicao?id=<?= $eventoId ?>&editar=info#sobre" class="text-link">Editar</a>
+                                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'info'], 'sobre')) ?>" class="text-link">Editar</a>
                             <?php endif; ?>
                         </div>
 
@@ -1229,7 +1250,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 ? array_map('intval', (array) ($info['cursos'] ?? []))
                                 : array_map(static fn(array $c): int => (int) $c['id'], $cursosDoEvento);
                             ?>
-                            <form method="post" action="exposicao?id=<?= $eventoId ?>" class="form-elos form-lateral">
+                            <form method="post" action="<?= esc(linkExposicao($eventoId)) ?>" class="form-elos form-lateral">
                                 <?= \Elos\Frontend\campoCsrf() ?>
                                 <input type="hidden" name="acao" value="salvar_informacoes">
                                 <?php if ($formComErro === 'info' && $erroForm !== ''): ?>
@@ -1273,7 +1294,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 </div>
                                 <?php if ($formComErro === 'info' && $conflitos !== []) { avisoConflito($conflitos); } ?>
                                 <div class="form-botoes">
-                                    <a href="exposicao?id=<?= $eventoId ?>#sobre" class="text-link">Cancelar</a>
+                                    <a href="<?= esc(linkExposicao($eventoId, [], 'sobre')) ?>" class="text-link">Cancelar</a>
                                     <button type="submit" class="primary-button">Salvar</button>
                                 </div>
                             </form>
@@ -1316,7 +1337,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 </div>
 
 <?php if ($podeGerenciar && $evento !== null) { sugestoesDeResponsavel($usuarios); } ?>
-<script src="../assets/js/elos.js?v=2026-10-27"></script>
+<script src="../assets/js/elos.js?v=2026-10-29"></script>
 <script>
 // Ao abrir "Adicionar necessidade", o foco vai direto para o que escrever.
 document.querySelectorAll('details.adicionar').forEach(function (details) {
