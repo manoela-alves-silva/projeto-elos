@@ -46,12 +46,24 @@ use function Elos\Frontend\sugestoesDeResponsavel;
 use function Elos\Frontend\rotuloPrioridade;
 use function Elos\Frontend\rotuloStatusEvento;
 use function Elos\Frontend\rotuloTipoHorario;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 use const Elos\Frontend\PRIORIDADES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 require_once __DIR__ . '/../src/Identidade.php';
+
+// Tudo que a página usa, num pedido só à API (antes eram uns 12).
+$idPedido = (int) ($_GET['id'] ?? 0);
+if ($idPedido > 0) {
+    \Elos\Frontend\iniciarSessao();
+    $base ='/api/eventos/' . $idPedido;
+    $listasDeGestor = in_array($_SESSION['usuario']['perfil'] ?? '', ['GESTOR', 'ADMIN'], true)
+        ? ['/api/categorias-tarefa', '/api/tipos-evento', '/api/responsaveis', '/api/locais', '/api/cursos']
+        : [];
+    preCarregar([$base, $base . '/agenda', $base . '/tarefas', $base . '/cursos', $base . '/anexos', $base . '/historico', ...$listasDeGestor]);
+}
 
 $usuario = usuarioLogado('entrar');
 $podeGerenciar = $usuario['podeGerenciar'];

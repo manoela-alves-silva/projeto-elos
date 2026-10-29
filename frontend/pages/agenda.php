@@ -19,12 +19,14 @@ use function Elos\Frontend\dataBr;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\hoje;
 use function Elos\Frontend\redirecionar;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 use const Elos\Frontend\MESES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
+preCarregar(['/api/eventos']);
 $usuario = usuarioLogado('entrar');
 
 // Endereço antigo do editor de agenda: as datas agora são editadas na exposição.

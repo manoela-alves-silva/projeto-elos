@@ -28,11 +28,13 @@ use function Elos\Frontend\hoje;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\mesAbreviado;
 use function Elos\Frontend\rotuloStatusEvento;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/src/Planejamento.php';
 require_once __DIR__ . '/src/Identidade.php';
 
+preCarregar(['/api/eventos']);
 $usuario = usuarioLogado('entrar');
 
 $eventos = apiLista('/api/eventos', 'eventos');
