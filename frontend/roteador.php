@@ -60,6 +60,12 @@ if ($arquivo === null) {
     // Endereço antigo? Redireciona para o novo (só GET; POST é atendido no lugar).
     $antigo = array_search($caminho, ROTAS, true);
 
+    // "pages/exposicao" (endereço limpo com a pasta na frente, que o
+    // Início chegou a gerar): também redireciona para o certo.
+    if ($antigo === false && str_starts_with($caminho, 'pages/') && isset(ROTAS[substr($caminho, 6)])) {
+        $antigo = substr($caminho, 6);
+    }
+
     if (in_array($caminho, SEM_REDIRECIONAR, true)) {
         $arquivo = $caminho;
     } elseif ($antigo !== false) {
@@ -68,7 +74,7 @@ if ($arquivo === null) {
             header('Location: ' . $raiz . '/' . $antigo . ($consulta !== '' ? '?' . $consulta : ''), true, 301);
             exit();
         }
-        $arquivo = $caminho;
+        $arquivo = ROTAS[$antigo];
     }
 }
 
