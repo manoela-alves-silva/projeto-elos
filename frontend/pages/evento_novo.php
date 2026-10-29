@@ -18,6 +18,7 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\avisoConflito;
 use function Elos\Frontend\conflitosNoLocal;
 use function Elos\Frontend\dataValida;
@@ -209,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             flash('evento', $mensagem);
-            redirecionar('exposicao?id=' . $eventoId);
+            redirecionar(linkExposicao($eventoId));
         }
     }
 

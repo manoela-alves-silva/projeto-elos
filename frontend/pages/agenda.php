@@ -15,6 +15,9 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\slugDaExposicao;
+use function Elos\Frontend\idDaExposicaoNoParametro;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\dataBr;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\hoje;
@@ -31,7 +34,7 @@ $usuario = usuarioLogado('entrar');
 
 // Endereço antigo do editor de agenda: as datas agora são editadas na exposição.
 if ((int) ($_GET['agenda_evento'] ?? 0) > 0) {
-    redirecionar('exposicao?id=' . (int) $_GET['agenda_evento'] . '&editar=datas#datas');
+    redirecionar(linkExposicao((int) $_GET['agenda_evento'], ['editar' => 'datas'], '#datas'));
 }
 
 $eventos = apiLista('/api/eventos', 'eventos');
@@ -41,7 +44,7 @@ $apiIndisponivel = $eventos === null;
 $eventos = array_values(array_filter($eventos ?? [], static fn(array $e): bool => ($e['status'] ?? '') !== 'CANCELADO'));
 usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo'], (string) $b['titulo']));
 
-$filtroEvento = (int) ($_GET['evento'] ?? 0);
+$filtroEvento = idDaExposicaoNoParametro($_GET['evento'] ?? '');
 $planos = Planejamento::carregarVarios(array_filter(
     $eventos,
     static fn(array $e): bool => $filtroEvento === 0 || (int) $e['id'] === $filtroEvento
@@ -97,7 +100,7 @@ function linkCalendario(int $ano, int $mes, int $evento, ?string $dia = null): s
 {
     $parametros = ['ano' => $ano, 'mes' => $mes];
     if ($evento > 0) {
-        $parametros['evento'] = $evento;
+        $parametros['evento'] = slugDaExposicao($evento);
     }
     if ($dia !== null) {
         $parametros['dia'] = $dia;
@@ -154,9 +157,9 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                 <input type="hidden" name="mes" value="<?= $mes ?>">
                 <label for="evento" class="sr-only">Exposição</label>
                 <select id="evento" name="evento" onchange="this.form.submit()">
-                    <option value="0">Todas as exposições</option>
+                    <option value="">Todas as exposições</option>
                     <?php foreach ($eventos as $evento): ?>
-                        <option value="<?= (int) $evento['id'] ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
+                        <option value="<?= esc(slugDaExposicao((int) $evento['id'])) ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <noscript><button type="submit" class="text-link">Filtrar</button></noscript>

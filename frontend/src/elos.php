@@ -48,7 +48,7 @@ function usuarioLogado(string $caminhoLogin): array
     $usuario = $_SESSION['usuario'] ?? null;
 
     if (!is_array($usuario) || empty($usuario['id'])) {
-        header('Location: ' . $caminhoLogin);
+        header('Location: ' . enderecoAbsoluto($caminhoLogin));
         exit();
     }
 
@@ -90,6 +90,139 @@ function preCarregar(array $paths): void
     }
 
     Api::preCarregar(['/api/usuarios', ...$paths]);
+}
+
+// ---------------------------------------------------------------
+// Endereço de cada exposição pelo nome: /exposicao/luz-e-memoria
+// ---------------------------------------------------------------
+
+/** "Luz e Memória: fotografia" -> "luz-e-memoria-fotografia" */
+function slugDoTexto(string $texto): string
+{
+    $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower(trim($texto))) ?: '';
+    $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($ascii)), '-');
+    $slug = rtrim(substr($slug, 0, 80), '-');
+
+    return $slug !== '' ? $slug : 'exposicao';
+}
+
+/**
+ * Nome de endereço de cada exposição (id => slug), tirado do título.
+ * Títulos iguais: a mais antiga fica com o nome puro, as outras ganham
+ * -2, -3... Usa a lista de exposições, que fica guardada na página.
+ *
+ * @return array<int, string>
+ */
+function slugsDasExposicoes(): array
+{
+    static $memoria = [null, []];
+
+    $eventos = apiLista('/api/eventos', 'eventos') ?? [];
+
+    // Mesma lista da última vez: mesma resposta (a conta roda uma vez por página).
+    if ($memoria[0] === $eventos) {
+        return $memoria[1];
+    }
+
+    $lista = $eventos;
+    usort($lista, static fn(array $a, array $b): int => (int) ($a['id'] ?? 0) <=> (int) ($b['id'] ?? 0));
+
+    $slugs = [];
+    $usados = [];
+
+    foreach ($lista as $evento) {
+        $base = slugDoTexto((string) ($evento['titulo'] ?? ''));
+        $slug = $base;
+
+        for ($n = 2; isset($usados[$slug]); $n++) {
+            $slug = $base . '-' . $n;
+        }
+
+        $usados[$slug] = true;
+        $slugs[(int) ($evento['id'] ?? 0)] = $slug;
+    }
+
+    $memoria = [$eventos, $slugs];
+
+    return $slugs;
+}
+
+/** Nome de endereço de uma exposição (o número, se não der para descobrir). */
+function slugDaExposicao(int $id): string
+{
+    return slugsDasExposicoes()[$id] ?? (string) $id;
+}
+
+/**
+ * Exposição escolhida num filtro (?evento=, ?exposicao=): aceita o nome
+ * (luz-e-memoria) e o número antigo. 0 = nenhuma; -1 = nome que não existe.
+ */
+function idDaExposicaoNoParametro(mixed $valor): int
+{
+    $valor = is_scalar($valor) ? trim((string) $valor) : '';
+
+    if ($valor === '' || $valor === '0') {
+        return 0;
+    }
+
+    if (ctype_digit($valor)) {
+        return (int) $valor;
+    }
+
+    return idDaExposicaoPeloSlug($valor) ?? -1;
+}
+
+/** Id da exposição de um nome de endereço; null se não existir. */
+function idDaExposicaoPeloSlug(string $slug): ?int
+{
+    $id = array_search($slug, slugsDasExposicoes(), true);
+
+    return $id !== false ? (int) $id : null;
+}
+
+/**
+ * Endereço de uma exposição: /exposicao/luz-e-memoria?editar=info#sobre.
+ * Se o nome não puder ser descoberto (API fora), cai no endereço com id.
+ *
+ * @param array<string, scalar> $params
+ */
+function linkExposicao(int $id, array $params = [], string $ancora = '', string $pagina = 'exposicao'): string
+{
+    $slug = slugsDasExposicoes()[$id] ?? null;
+
+    if ($slug === null) {
+        $params = ['id' => $id] + $params;
+    }
+
+    $consulta = $params !== [] ? '?' . http_build_query($params) : '';
+    $ancora = $ancora !== '' ? '#' . ltrim($ancora, '#') : '';
+
+    return raizDoSite() . '/' . $pagina . ($slug !== null ? '/' . $slug : '') . $consulta . $ancora;
+}
+
+/**
+ * Id da exposição aberta: pelo nome no endereço (/exposicao/nome) ou
+ * pelo ?id= antigo. Abrindo pelo ?id= (GET), redireciona para o
+ * endereço com o nome, mantendo os outros parâmetros.
+ */
+function exposicaoDoEndereco(string $pagina = 'exposicao'): int
+{
+    if (defined('ELOS_SLUG_EXPOSICAO')) {
+        return idDaExposicaoPeloSlug((string) constant('ELOS_SLUG_EXPOSICAO')) ?? 0;
+    }
+
+    $id = (int) ($_GET['id'] ?? 0);
+
+    if ($id > 0 && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && isset(slugsDasExposicoes()[$id])) {
+        $outros = array_filter(
+            array_diff_key($_GET, ['id' => true]),
+            static fn(mixed $v): bool => is_scalar($v)
+        );
+        header('Location: ' . linkExposicao($id, $outros, '', $pagina), true, 301);
+        exit();
+    }
+
+    return $id;
 }
 
 function esc(mixed $valor): string
@@ -143,9 +276,27 @@ function flash(string $chave, ?string $mensagem = null): string
     return $valor;
 }
 
+/**
+ * "entrar" -> "/entrar". As páginas de exposição ficam em
+ * /exposicao/nome, então um endereço relativo num redirecionamento
+ * iria parar em /exposicao/entrar. Partindo da raiz, vale em qualquer página.
+ */
+function enderecoAbsoluto(string $url): string
+{
+    if ($url === '' || $url[0] === '/' || preg_match('#^[a-z][a-z0-9+.-]*:#i', $url) === 1) {
+        return $url;
+    }
+
+    if ($url[0] === '?' || $url[0] === '#') {
+        return $url;
+    }
+
+    return raizDoSite() . '/' . ($url === './' ? '' : preg_replace('#^\./#', '', $url));
+}
+
 function redirecionar(string $url): never
 {
-    header('Location: ' . $url);
+    header('Location: ' . enderecoAbsoluto($url));
     exit();
 }
 
@@ -364,7 +515,7 @@ function avisoConflito(array $conflitos, string $textoBotao = 'Salvar mesmo assi
         <ul>
             <?php foreach ($conflitos as $conflito): ?>
                 <li>
-                    <a href="exposicao?id=<?= (int) $conflito['id'] ?>"><?= esc($conflito['titulo']) ?></a>:
+                    <a href="<?= esc(linkExposicao((int) $conflito['id'])) ?>"><?= esc($conflito['titulo']) ?></a>:
                     <?= esc(dataBr($conflito['ocupacao_inicio'])) ?> a <?= esc(dataBr($conflito['ocupacao_fim'])) ?>
                 </li>
             <?php endforeach; ?>

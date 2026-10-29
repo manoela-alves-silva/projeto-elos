@@ -15,6 +15,9 @@ use Elos\Frontend\Fases;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\slugDaExposicao;
+use function Elos\Frontend\idDaExposicaoNoParametro;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\dataBr;
 use function Elos\Frontend\dataValida;
 use function Elos\Frontend\dataHoraBr;
@@ -36,7 +39,7 @@ $usuario = usuarioLogado('entrar');
 $eventos = apiLista('/api/eventos', 'eventos') ?? [];
 usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo'], (string) $b['titulo']));
 
-$filtroEvento = (int) ($_GET['evento'] ?? 0);
+$filtroEvento = idDaExposicaoNoParametro($_GET['evento'] ?? '');
 $somentePendentes = ($_GET['incluir'] ?? 'tudo') === 'pendentes';
 $de = is_string($_GET['de'] ?? null) && dataValida($_GET['de']) ? $_GET['de'] : '';
 $ate = is_string($_GET['ate'] ?? null) && dataValida($_GET['ate']) ? $_GET['ate'] : '';
@@ -44,7 +47,7 @@ $ate = is_string($_GET['ate'] ?? null) && dataValida($_GET['ate']) ? $_GET['ate'
 // Uma exposição escolhida, ou todas as que estão em andamento/planejamento.
 $selecionados = array_values(array_filter(
     $eventos,
-    static fn(array $e): bool => $filtroEvento > 0 ? (int) $e['id'] === $filtroEvento : exposicaoAtiva($e)
+    static fn(array $e): bool => $filtroEvento !== 0 ? (int) $e['id'] === $filtroEvento : exposicaoAtiva($e)
 ));
 $planos = Planejamento::carregarVarios($selecionados);
 
@@ -94,15 +97,15 @@ if ($de !== '' || $ate !== '') {
 
 <!-- CONTROLES (não saem na impressão) -->
 <header class="relatorio-controles">
-    <a href="<?= $filtroEvento > 0 ? 'exposicao?id=' . $filtroEvento : './' ?>" class="voltar">← Voltar</a>
+    <a href="<?= esc($filtroEvento > 0 ? linkExposicao($filtroEvento) : './') ?>" class="voltar">← Voltar</a>
 
     <form method="get" action="relatorio" class="form-elos relatorio-filtros">
         <div class="campo">
             <label for="evento">Exposição</label>
             <select id="evento" name="evento">
-                <option value="0">Todas em andamento</option>
+                <option value="">Todas em andamento</option>
                 <?php foreach ($eventos as $evento): ?>
-                    <option value="<?= (int) $evento['id'] ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
+                    <option value="<?= esc(slugDaExposicao((int) $evento['id'])) ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>

@@ -228,7 +228,7 @@ final class Planejamento
     public function itensDatados(bool $incluirCancelados = false): array
     {
         $itens = [];
-        $base = 'exposicao?id=' . $this->id();
+        $base = linkExposicao($this->id());
 
         foreach (self::CAMPOS_AGENDA as $campo => [$rotulo, $grupo]) {
             if (!empty($this->agenda[$campo])) {
