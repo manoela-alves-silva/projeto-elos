@@ -1566,7 +1566,7 @@ button.text-link {
 
 @media (max-width: 900px) {
     :root {
-        --sidebar-width: 215px;
+        --sidebar-width: 190px;
     }
 
     .sidebar {

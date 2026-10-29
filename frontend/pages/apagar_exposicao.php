@@ -76,10 +76,10 @@ $anexos = count(apiLista('/api/eventos/' . $eventoId . '/anexos', 'anexos') ?? [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/conta.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/conta.css?v=2026-10-29">
 </head>
 <body>
 

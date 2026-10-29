@@ -48,6 +48,15 @@ function handleEventosDispatcherRequest(
         );
     }
 
+    if ($path === '/api/eventos/planejamento') {
+        handleEventosPlanejamentoRequest(
+            $method,
+            $agendaEventoControllerFactory,
+            $tarefaControllerFactory,
+            $authorizationFactory
+        );
+    }
+
     if (preg_match('#^/api/eventos/(\d+)$#', $path, $matches)) {
         handleEventoByIdRequest(
             $method,
@@ -161,4 +170,60 @@ function handleEventosDispatcherRequest(
     }
 
     return false;
+}
+
+/**
+ * Agenda e checklist de várias exposições numa resposta só.
+ *
+ * GET /api/eventos/planejamento?ids=1,2,3
+ *
+ * As telas que mostram várias exposições (Início, Exposições,
+ * Calendário, Relatório) faziam dois pedidos por exposição; agora
+ * fazem um só, com duas consultas ao banco.
+ *
+ * @param callable(): AgendaEventoController $agendaEventoControllerFactory
+ * @param callable(): TarefaController $tarefaControllerFactory
+ * @param callable(): AuthorizationService $authorizationFactory
+ */
+function handleEventosPlanejamentoRequest(
+    string $method,
+    callable $agendaEventoControllerFactory,
+    callable $tarefaControllerFactory,
+    callable $authorizationFactory
+): never {
+    requireRole($authorizationFactory, 'COLABORADOR');
+
+    if ($method !== 'GET') {
+        sendJsonResponse(405, [
+            'erro' => 'Método não permitido.',
+        ]);
+    }
+
+    $ids = array_values(array_unique(array_filter(
+        array_map('intval', explode(',', (string) ($_GET['ids'] ?? ''))),
+        static fn (int $id): bool => $id > 0
+    )));
+
+    if (count($ids) > 500) {
+        sendJsonResponse(400, [
+            'erro' => 'Exposições demais num pedido só.',
+        ]);
+    }
+
+    $agendas = $agendaEventoControllerFactory()->showMany($ids);
+    $tarefas = $tarefaControllerFactory()->indexByEventos($ids);
+
+    $planejamento = [];
+
+    foreach ($ids as $id) {
+        $planejamento[] = [
+            'evento_id' => $id,
+            'agenda' => $agendas[$id] ?? null,
+            'tarefas' => $tarefas[$id] ?? [],
+        ];
+    }
+
+    sendJsonResponse(200, [
+        'planejamento' => $planejamento,
+    ]);
 }

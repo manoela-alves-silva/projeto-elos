@@ -187,6 +187,7 @@ function handleApiRequest(
         && (
             $path === '/api/eventos'
             || $path === '/api/eventos/conflitos'
+            || $path === '/api/eventos/planejamento'
             || preg_match('#^/api/eventos/(\d+)($|/.*)$#', $path)
         )
     ) {

@@ -40,12 +40,10 @@ $eventos = array_values(array_filter($eventos ?? [], static fn(array $e): bool =
 usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo'], (string) $b['titulo']));
 
 $filtroEvento = (int) ($_GET['evento'] ?? 0);
-$planos = [];
-foreach ($eventos as $evento) {
-    if ($filtroEvento === 0 || (int) $evento['id'] === $filtroEvento) {
-        $planos[] = Planejamento::carregar($evento);
-    }
-}
+$planos = Planejamento::carregarVarios(array_filter(
+    $eventos,
+    static fn(array $e): bool => $filtroEvento === 0 || (int) $e['id'] === $filtroEvento
+));
 
 // Itens por dia e dias em cartaz.
 $itensPorDia = [];
@@ -135,10 +133,10 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-27">
-    <link rel="stylesheet" href="../assets/css/agenda.css?v=2026-10-27">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/agenda.css?v=2026-10-29">
 </head>
 <body>
 
