@@ -3,6 +3,9 @@
     Require all denied
 </FilesMatch>
 
+# Manifesto do site (instalar o ELOS como app, ícone no celular).
+AddType application/manifest+json .webmanifest
+
 # Endereços limpos: tudo passa pelo roteador.php, menos os arquivos de
 # assets/ (CSS, JS, imagens), que o servidor entrega direto. Assim
 # pages/ e src/ nunca são abertos diretamente pelo navegador.

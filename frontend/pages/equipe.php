@@ -209,6 +209,12 @@ $linha = static function (array $pessoa) use ($usuario, $unicoGestor): void {
     <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
     <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
     <link rel="stylesheet" href="../assets/css/equipe.css?v=2026-10-29">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 <body>
 

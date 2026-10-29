@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Ícone do ELOS: o "O" amarelo do logo sobre o azul-marinho da barra
+       lateral, com as formas do canto (amarelo e turquesa). -->
+  <defs>
+    <clipPath id="quadro"><rect width="64" height="64" rx="14"/></clipPath>
+  </defs>
+  <g clip-path="url(#quadro)">
+    <rect width="64" height="64" fill="#123d59"/>
+    <circle cx="64" cy="0" r="16" fill="#f4c542" opacity="0.9"/>
+    <circle cx="2" cy="64" r="13" fill="#35a7a7" opacity="0.85"/>
+  </g>
+  <circle cx="32" cy="33" r="15" fill="none" stroke="#f4c542" stroke-width="9"/>
+</svg>
