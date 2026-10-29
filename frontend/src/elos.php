@@ -74,6 +74,24 @@ function usuarioLogado(string $caminhoLogin): array
     ];
 }
 
+/**
+ * Abrindo uma página (GET) com alguém logado: busca de uma vez, num
+ * pedido só à API, a lista de usuários (que usuarioLogado() confere)
+ * e os caminhos que a página vai usar. Chamar antes de usuarioLogado().
+ *
+ * @param list<string> $paths
+ */
+function preCarregar(array $paths): void
+{
+    iniciarSessao();
+
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || empty($_SESSION['usuario']['id'])) {
+        return;
+    }
+
+    Api::preCarregar(['/api/usuarios', ...$paths]);
+}
+
 function esc(mixed $valor): string
 {
     return htmlspecialchars((string) $valor, ENT_QUOTES, 'UTF-8');

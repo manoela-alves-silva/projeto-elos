@@ -21,11 +21,13 @@ use function Elos\Frontend\exposicaoAtiva;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\redirecionar;
 use function Elos\Frontend\rotuloStatusEvento;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 require_once __DIR__ . '/../src/Identidade.php';
 
+preCarregar(['/api/eventos']);
 $usuario = usuarioLogado('entrar');
 
 // Endereço antigo do cadastro: agora é um fluxo próprio.

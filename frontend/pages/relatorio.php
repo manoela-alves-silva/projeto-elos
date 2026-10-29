@@ -25,10 +25,12 @@ use function Elos\Frontend\nomeDoResponsavel;
 use function Elos\Frontend\rotuloPrioridade;
 use function Elos\Frontend\rotuloStatusEvento;
 use function Elos\Frontend\rotuloTipoHorario;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
+preCarregar(['/api/eventos']);
 $usuario = usuarioLogado('entrar');
 
 $eventos = apiLista('/api/eventos', 'eventos') ?? [];
