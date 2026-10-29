@@ -17,6 +17,9 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\slugDaExposicao;
+use function Elos\Frontend\idDaExposicaoNoParametro;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\dataHoraBr;
 use function Elos\Frontend\diasAte;
@@ -54,7 +57,7 @@ $ordem = static function (Planejamento $p) use ($hoje): array {
 };
 usort($planos, static fn(Planejamento $a, Planejamento $b): int => $ordem($a) <=> $ordem($b));
 
-$escolhida = (int) ($_GET['exposicao'] ?? 0);
+$escolhida = idDaExposicaoNoParametro($_GET['exposicao'] ?? '');
 $foco = null;
 foreach ($planos as $plano) {
     if ($plano->id() === $escolhida) {
@@ -63,7 +66,7 @@ foreach ($planos as $plano) {
 }
 $foco ??= $planos[0] ?? null;
 
-// Links do planejamento já são endereços limpos da raiz (exposicao?id=...).
+// Links do planejamento já são endereços completos (/exposicao/nome#...).
 $linkPagina = static fn(string $link): string => $link;
 
 // O que precisa de atenção em todas as exposições.
@@ -239,7 +242,7 @@ if ($foco !== null) {
                     <nav class="seletor-exposicao" aria-label="Exposição em acompanhamento">
                         <span>Acompanhando:</span>
                         <?php foreach ($planos as $plano): ?>
-                            <a href="?exposicao=<?= $plano->id() ?>" class="<?= $plano->id() === $foco->id() ? 'ativa' : '' ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>" <?= $plano->id() === $foco->id() ? 'aria-current="true"' : '' ?>>
+                            <a href="?exposicao=<?= esc(slugDaExposicao($plano->id())) ?>" class="<?= $plano->id() === $foco->id() ? 'ativa' : '' ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>" <?= $plano->id() === $foco->id() ? 'aria-current="true"' : '' ?>>
                                 <i class="expo-ponto" aria-hidden="true"></i><?= esc($plano->titulo()) ?>
                             </a>
                         <?php endforeach; ?>
@@ -260,7 +263,7 @@ if ($foco !== null) {
                                             <?= esc(rotuloStatusEvento((string) ($foco->evento['status'] ?? ''))) ?>
                                         </span>
                                     </p>
-                                    <h2><a href="exposicao?id=<?= $foco->id() ?>"><?= esc($foco->titulo()) ?></a></h2>
+                                    <h2><a href="<?= esc(linkExposicao($foco->id())) ?>"><?= esc($foco->titulo()) ?></a></h2>
                                     <p class="foco-fatos">
                                         <span>◷ <?= esc(intervaloBr($periodo['inicio'], $periodo['fim'], 'Datas a definir')) ?></span>
                                         <?php if (!empty($foco->evento['local_nome'])): ?>
@@ -268,22 +271,22 @@ if ($foco !== null) {
                                         <?php endif; ?>
                                     </p>
                                 </div>
-                                <a href="exposicao?id=<?= $foco->id() ?>" class="primary-button">Abrir exposição →</a>
+                                <a href="<?= esc(linkExposicao($foco->id())) ?>" class="primary-button">Abrir exposição →</a>
                             </div>
 
                             <div class="foco-numeros">
                                 <?php if ($resumo['total'] > 0): ?>
-                                    <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="numero pendentes">
+                                    <a href="<?= esc(linkExposicao($foco->id(), [], '#necessidades')) ?>" class="numero pendentes">
                                         <strong><?= $resumo['pendentes'] ?></strong>
                                         <span>pendência<?= $resumo['pendentes'] === 1 ? '' : 's' ?></span>
                                     </a>
                                     <?php if ($resumo['atrasadas'] > 0): ?>
-                                        <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="numero atrasadas">
+                                        <a href="<?= esc(linkExposicao($foco->id(), [], '#necessidades')) ?>" class="numero atrasadas">
                                             <strong><?= $resumo['atrasadas'] ?></strong>
                                             <span>atrasada<?= $resumo['atrasadas'] === 1 ? '' : 's' ?></span>
                                         </a>
                                     <?php endif; ?>
-                                    <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="numero concluidas">
+                                    <a href="<?= esc(linkExposicao($foco->id(), [], '#necessidades')) ?>" class="numero concluidas">
                                         <strong><?= $resumo['concluidas'] ?></strong>
                                         <span>concluída<?= $resumo['concluidas'] === 1 ? '' : 's' ?></span>
                                     </a>
@@ -291,7 +294,7 @@ if ($foco !== null) {
                                     <p class="numero-vazio">
                                         Nada no planejamento ainda.
                                         <?php if ($usuario['podeGerenciar']): ?>
-                                            <a href="exposicao?id=<?= $foco->id() ?>#necessidades" class="text-link">Dizer o que esta exposição precisa →</a>
+                                            <a href="<?= esc(linkExposicao($foco->id(), [], '#necessidades')) ?>" class="text-link">Dizer o que esta exposição precisa →</a>
                                         <?php endif; ?>
                                     </p>
                                 <?php endif; ?>
@@ -336,7 +339,7 @@ if ($foco !== null) {
                                             . ($fase['atrasadas'] > 0 ? ' (' . $fase['atrasadas'] . ' atrasada' . ($fase['atrasadas'] === 1 ? '' : 's') . ')' : '');
                                         ?>
                                         <li style="<?= Fases::estiloCor($fase['etapa']) ?>">
-                                            <a href="exposicao?id=<?= $foco->id() ?>&amp;fase=<?= esc(urlencode($fase['chave'])) ?>#necessidades" aria-label="<?= esc($dica) ?>">
+                                            <a href="<?= esc(linkExposicao($foco->id(), ['fase' => $fase['chave']], '#necessidades')) ?>" aria-label="<?= esc($dica) ?>">
                                                 <span class="barra-nome"><?= esc($fase['rotulo']) ?></span>
                                                 <span class="barra-trilho" aria-hidden="true">
                                                     <span class="barra-feita" style="width: <?= $pct ?>%"></span>
@@ -367,7 +370,7 @@ if ($foco !== null) {
                                     <p class="eyebrow">Da exposição</p>
                                     <h2>Próximas atividades</h2>
                                 </div>
-                                <a href="calendario?evento=<?= $foco->id() ?>" class="text-link">Ver no calendário →</a>
+                                <a href="calendario?evento=<?= esc(slugDaExposicao($foco->id())) ?>" class="text-link">Ver no calendário →</a>
                             </div>
 
                             <?php if ($proximas === []): ?>
@@ -423,7 +426,7 @@ if ($foco !== null) {
                             <?php else: ?>
                                 <div class="alert-list">
                                     <?php foreach (array_slice($alertas, 0, 5) as $alerta): ?>
-                                        <a href="exposicao?id=<?= $alerta['_plano']->id() ?>#item-<?= (int) $alerta['id'] ?>" class="alert-card">
+                                        <a href="<?= esc(linkExposicao($alerta['_plano']->id(), [], '#item-' . (int) $alerta['id'])) ?>\" class="alert-card">
                                             <strong><?= esc($alerta['titulo'] ?? '') ?></strong>
                                             <span>
                                                 <?= esc($alerta['_motivo']) ?>
@@ -452,7 +455,7 @@ if ($foco !== null) {
                                 <ul class="lista-minhas">
                                     <?php foreach (array_slice($minhas, 0, 6) as $tarefa): ?>
                                         <li>
-                                            <a href="exposicao?id=<?= $tarefa['_plano']->id() ?>#item-<?= (int) $tarefa['id'] ?>">
+                                            <a href="<?= esc(linkExposicao($tarefa['_plano']->id(), [], '#item-' . (int) $tarefa['id'])) ?>\">
                                                 <strong><?= esc($tarefa['titulo'] ?? '') ?></strong>
                                                 <span>
                                                     <?= esc(!empty($tarefa['prazo']) ? diaMes((string) $tarefa['prazo']) : 'Sem data') ?>
@@ -480,7 +483,7 @@ if ($foco !== null) {
                                         <?php if ($plano->id() === $foco->id()) { continue; } ?>
                                         <?php $r = $plano->resumo(); $p = $plano->periodo(); ?>
                                         <li>
-                                            <a href="?exposicao=<?= $plano->id() ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>">
+                                            <a href="?exposicao=<?= esc(slugDaExposicao($plano->id())) ?>" style="<?= esc(Identidade::estilo($plano->evento)) ?>">
                                                 <strong><i class="expo-ponto" aria-hidden="true"></i><?= esc($plano->titulo()) ?></strong>
                                                 <span><?= esc(intervaloBr($p['inicio'], $p['fim'], 'Datas a definir')) ?></span>
                                                 <?php if ($r['total'] > 0): ?>

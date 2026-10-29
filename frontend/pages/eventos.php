@@ -13,6 +13,7 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\diaMes;
 use function Elos\Frontend\esc;
@@ -160,7 +161,7 @@ $mensagem = flash('eventos');
                         $proximo = $plano->proximasAtividades(1)[0] ?? null;
                         ?>
                         <a
-                            href="exposicao?id=<?= $plano->id() ?>"
+                            href="<?= esc(linkExposicao($plano->id())) ?>"
                             class="expo-cartao identidade<?= Identidade::urlCapa($evento) !== null ? ' com-capa' : '' ?>"
                             style="<?= esc(Identidade::estilo($evento)) ?>"
                             data-busca="<?= esc(mb_strtolower(($evento['titulo'] ?? '') . ' ' . ($evento['local_nome'] ?? '') . ' ' . ($evento['tipo_evento_nome'] ?? '') . ' ' . ($evento['responsavel_nome'] ?? ''))) ?>"
