@@ -128,6 +128,94 @@ final class PainelRepository
         return $statement->fetchAll();
     }
 
+    /**
+     * Exposições e projetos para o bloco "Em foco": os que ainda não
+     * terminaram, com abertura até $ate (ou em cartaz hoje), na ordem
+     * da abertura. Traz quantos itens do checklist existem e quantos
+     * já foram concluídos, para a barra de andamento.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function eventosEmFoco(string $hoje, string $ate, int $limite): array
+    {
+        $sql = '
+            SELECT
+                e.id,
+                e.titulo,
+                e.cor,
+                e.imagem_capa,
+                te.nome AS tipo,
+                te.cor AS tipo_cor,
+                ae.abertura,
+                ae.horario,
+                ae.permanencia_fim,
+                l.nome AS local,
+                (SELECT COUNT(*) FROM tarefas t
+                    WHERE t.evento_id = e.id AND t.status <> \'CANCELADA\') AS total,
+                (SELECT COUNT(*) FROM tarefas t
+                    WHERE t.evento_id = e.id AND t.status = \'CONCLUIDA\') AS feitas
+            FROM eventos e
+            INNER JOIN agenda_eventos ae
+                ON ae.evento_id = e.id
+            LEFT JOIN tipos_evento te
+                ON te.id = e.tipo_evento_id
+            LEFT JOIN locais l
+                ON l.id = e.local_id
+            WHERE e.status NOT IN (\'CONCLUIDO\', \'CANCELADO\')
+                AND ae.abertura IS NOT NULL
+                AND ae.abertura <= :ate
+                AND COALESCE(ae.permanencia_fim, ae.abertura) >= :hoje
+            ORDER BY ae.abertura ASC, e.id ASC
+            LIMIT ' . max(1, $limite);
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute(['hoje' => $hoje, 'ate' => $ate]);
+
+        return $statement->fetchAll();
+    }
+
+    /**
+     * Próximos itens abertos do checklist dos eventos pedidos: primeiro
+     * os com prazo (o mais cedo antes), depois os sem prazo.
+     *
+     * @param list<int> $eventoIds
+     * @return list<array<string, mixed>>
+     */
+    public function proximasTarefasDosEventos(array $eventoIds): array
+    {
+        if ($eventoIds === []) {
+            return [];
+        }
+
+        $marcas = implode(', ', array_fill(0, count($eventoIds), '?'));
+        $sql = '
+            SELECT
+                t.id,
+                t.evento_id,
+                t.titulo,
+                t.prazo,
+                t.horario,
+                t.prioridade,
+                COALESCE(u.nome, t.responsavel_nome) AS responsavel
+            FROM tarefas t
+            LEFT JOIN usuarios u
+                ON u.id = t.usuario_responsavel_id
+            WHERE t.evento_id IN (' . $marcas . ')
+                AND t.status NOT IN (\'CONCLUIDA\', \'CANCELADA\')
+            ORDER BY
+                t.prazo IS NULL,
+                t.prazo ASC,
+                FIELD(t.prioridade, \'ALTA\', \'MEDIA\', \'BAIXA\'),
+                t.id ASC
+            LIMIT 300
+        ';
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute(array_values(array_map('intval', $eventoIds)));
+
+        return $statement->fetchAll();
+    }
+
     public function codigoExiste(string $codigoHash): bool
     {
         $statement = $this->pdo->prepare('SELECT 1 FROM painel_acesso WHERE codigo_hash = :hash LIMIT 1');

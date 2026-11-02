@@ -40,9 +40,11 @@ montadas automaticamente a partir dela:
   (exposições e projetos), com o checklist agrupado por fase e o
   andamento de cada um. Dá para escolher o projeto e o evento.
 - Cada exposição tem um endereço com o próprio nome
-  (`/exposicao/luz-e-memoria`), tirado do título. Se o título mudar, o
-  endereço muda junto; os endereços antigos com número continuam
-  funcionando.
+  (`/exposicao/luz-e-memoria`), tirado do título e gravado no banco
+  (`eventos.slug`). Se o título mudar, o endereço muda junto, e o antigo
+  fica guardado (`eventos_enderecos`): quem abre um link salvo com o
+  nome antigo é levado para o novo. Os endereços antigos com número
+  também continuam funcionando.
 
 ---
 
@@ -104,7 +106,9 @@ Além das exposições, cada projeto da galeria tem área própria no menu:
 **Arte ao Ar Livre** (`/arte-ao-ar-livre`) e **Amostra de Talentos**
 (`/amostra-de-talentos`).
 Cada sessão ou encontro é um evento do tipo do projeto, com o mesmo
-checklist, anexos e histórico das exposições, e com:
+checklist, anexos e histórico das exposições. O projeto vem da coluna
+`tipos_evento.projeto` (vazia = exposição), e não do nome do tipo:
+renomear "Cine Clube" para "Cinema" não muda nada. Cada evento tem:
 
 - uma **ficha** própria do projeto: no Cine Clube, o filme, a direção, o
   ano, a duração, a classificação indicativa e quem conduz o debate; no
@@ -125,10 +129,12 @@ contados a partir do dia do evento.
 Os projetos são descritos em `frontend/src/Projetos.php` (campos da
 ficha, nomes, checklist padrão, textos) e a ficha fica guardada na
 tabela `evento_ficha`, em JSON. Projeto novo: uma entrada nesse arquivo,
-o tipo no banco e o CSS do tema (`assets/css/<tema>.css`).
+o tipo no banco (com a coluna `projeto` preenchida) e o CSS do tema
+(`assets/css/<tema>.css`).
 
-A lista de Exposições só mostra exposições. O Início tem as exposições
-em destaque (a parede "Em cartaz", com cada exposição como um quadro) e,
+A lista de Exposições só mostra exposições. O Início abre com um resumo
+do dia ("2 itens atrasados e 1 para hoje", contando todos os projetos) e
+tem as exposições em destaque (a parede "Em cartaz", com cada exposição como um quadro) e,
 na lateral, os próximos eventos dos outros projetos; os alertas valem
 para todos. O Calendário, o Relatório e o painel ao vivo mostram tudo da
 galeria; no Calendário e no Relatório dá para escolher o projeto.
@@ -136,18 +142,19 @@ galeria; no Calendário e no Relatório dá para escolher o projeto.
 ### Painel ao vivo
 
 O endereço `/painel` mostra, numa tela feita para ficar aberta num monitor
-o dia todo, só o que a produção precisa fazer, em três colunas:
+o dia todo, só o que a produção precisa fazer, em duas partes:
 
-- **Atrasados**: o prazo já passou. Pulsam devagar até alguém concluir.
-- **Prioridade alta**: itens marcados como Alta com prazo nos próximos 30 dias.
-- **Pendentes**: prazo hoje ou nos próximos 7 dias.
+- **Em foco**, à esquerda: um evento por vez (as exposições e os eventos
+  dos projetos que abrem nos próximos 60 dias), com a capa, o andamento
+  do checklist e os próximos passos. Troca a cada 12 segundos, e dá para
+  pausar.
+- **Agora**, à direita: os itens **atrasados** (com quantos dias de
+  atraso), o que **vence hoje** e quantos itens vencem em cada um dos
+  próximos dias.
 
-Cada item aparece numa coluna só. Dentro da coluna, os itens vêm
-agrupados por evento: o nome do evento aparece uma vez, com a cor e o
-nome do tipo (Exposição, Cine Clube...) e quantos dias faltam. Coluna
-que não cabe na tela é dividida em páginas, que trocam sozinhas a cada
-12 segundos (as bolinhas embaixo mostram em qual página está). A tela se atualiza a cada 30 segundos e avisa
-quando entra um item novo ou quando alguém conclui um.
+Cada item mostra o evento e a cor do tipo (Exposição, Cine Clube...). A
+tela se atualiza a cada 30 segundos e avisa quando entra um item novo ou
+quando alguém conclui um.
 
 Os itens de prioridade alta **sem prazo** não entram nas colunas: uma faixa
 fina no rodapé mostra quantos são e um exemplo, que troca a cada 8

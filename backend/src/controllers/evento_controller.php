@@ -184,6 +184,12 @@ final class EventoController
         return $this->repository->findConflitos($localId, $inicio, $fim, $excetoId);
     }
 
+    /** Id do evento dono de um endereço (atual ou antigo), ou null. */
+    public function idDoEndereco(string $slug): ?int
+    {
+        return $this->repository->idDoEndereco($slug);
+    }
+
     /**
      * Verifica se um status é válido.
      */

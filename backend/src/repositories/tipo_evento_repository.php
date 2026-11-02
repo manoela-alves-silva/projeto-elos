@@ -21,7 +21,7 @@ final class TipoEventoRepository
     public function findAllActive(): array
     {
         $statement = $this->connection->prepare(
-            'SELECT id, nome, cor, ativo
+            'SELECT id, nome, cor, projeto, ativo
              FROM tipos_evento
              WHERE ativo = 1
              ORDER BY nome ASC'
@@ -40,7 +40,7 @@ final class TipoEventoRepository
     public function findById(int $id): ?array
     {
         $statement = $this->connection->prepare(
-            'SELECT id, nome, cor, ativo
+            'SELECT id, nome, cor, projeto, ativo
              FROM tipos_evento
              WHERE id = :id
              LIMIT 1'
@@ -60,16 +60,17 @@ final class TipoEventoRepository
      *
      * @return array<string, mixed>|null
      */
-    public function create(string $nome): ?array
+    public function create(string $nome, ?string $projeto = null): ?array
     {
         $statement = $this->connection->prepare(
-            'INSERT INTO tipos_evento (nome, ativo)
-             VALUES (:nome, 1)'
+            'INSERT INTO tipos_evento (nome, projeto, ativo)
+             VALUES (:nome, :projeto, 1)'
         );
 
         try {
             $statement->execute([
                 'nome' => $nome,
+                'projeto' => $projeto,
             ]);
         } catch (\PDOException $exception) {
             if ((int) $exception->errorInfo[1] === 1062) {

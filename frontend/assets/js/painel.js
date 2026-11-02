@@ -1,20 +1,19 @@
 /*
  * ELOS — Painel ao vivo.
  *
- * Desenha as três colunas (atrasados, prioridade alta, pendentes) a
- * partir do JSON que a página entrega e busca de novo a cada 30
- * segundos (mesmo endereço com ?dados=1). Nada aqui altera dados: o
- * painel só mostra.
+ * Desenha o painel a partir do JSON que a página entrega e busca de
+ * novo a cada 30 segundos (mesmo endereço com ?dados=1). Nada aqui
+ * altera dados: o painel só mostra.
  *
- * O que se mexe na tela:
- *   - coluna que não cabe na tela vira de página a cada 12 segundos
- *     (os itens ficam parados para dar tempo de ler);
- *   - atrasados pulsam devagar (uma vez a cada 2,4 s) até alguém
- *     concluir — devagar de propósito, para não cansar quem passa o
- *     dia perto do monitor;
+ *   - "Em foco": uma exposição ou projeto por vez (capa, andamento do
+ *     checklist e próximos passos), trocando a cada 12 segundos. O
+ *     botão de pausa no topo segura o que está na tela; as bolinhas
+ *     escolhem qual mostrar.
+ *   - "Agora": atrasados, o que vence hoje e quantos itens vencem em
+ *     cada um dos próximos dias.
  *   - avisos rápidos quando entra um item novo ou alguém conclui um;
  *   - uma faixa fina no rodapé conta os itens de prioridade alta sem
- *     prazo (eles ficam fora das colunas) e mostra um exemplo por vez.
+ *     prazo e mostra um exemplo por vez.
  */
 (function () {
     'use strict';
@@ -22,8 +21,10 @@
     const ATUALIZAR_A_CADA = 30 * 1000;
     const TENTAR_DE_NOVO_EM = 15 * 1000;
     const RECARREGAR_A_PAGINA_A_CADA = 6 * 60 * 60 * 1000; // pega versões novas do ELOS
-    const VIRAR_PAGINA_A_CADA = 12 * 1000;
+    const TROCAR_FOCO_A_CADA = 12 * 1000;
     const COLUNAS = ['atrasados', 'prioridade', 'pendentes'];
+    const MAXIMO_NO_BLOCO = 4;      // itens visíveis em Atrasados e em Hoje
+    const DIAS_NA_BARRA = 5;        // dias em "Próximos dias"
     const TROCAR_EXEMPLO_A_CADA = 8 * 1000; // faixa dos itens sem prazo
 
     const FUSO = 'America/Sao_Paulo';
@@ -37,7 +38,10 @@
     let ultimaAtualizacao = null;
     let idsAbertos = null;   // para perceber itens novos
     let idsFeitos = null;    // para perceber itens concluídos
-    const assinaturas = {};  // coluna -> conteúdo desenhado (evita reiniciar a rolagem)
+    let focoAtual = 0;       // posição em dados.em_foco
+    let focoId = null;       // evento na tela (mantém o mesmo depois de atualizar)
+    let pausado = false;
+    let assinaturaFoco = null;
 
     // -------------------------------------------------------------
     // Utilidades
@@ -114,17 +118,19 @@
         const situacao = $('painel-situacao');
         if (ultimaAtualizacao && !situacao.classList.contains('sem-conexao')) {
             const minutos = Math.floor((Date.now() - ultimaAtualizacao) / 60000);
+            const estado = pausado ? 'Pausado' : 'Ao vivo';
             $('painel-situacao-texto').textContent = minutos < 1
-                ? 'Ao vivo'
-                : 'Ao vivo · atualizado há ' + plural(minutos, 'minuto', 'minutos');
+                ? estado
+                : estado + ' · atualizado há ' + plural(minutos, 'minuto', 'minutos');
+            situacao.classList.toggle('pausado', pausado);
         }
     }
 
     // -------------------------------------------------------------
-    // Colunas
+    // Em foco
     // -------------------------------------------------------------
 
-    /** Prazo curto, para a direita da linha: "hoje", "amanhã", "ter 03/11". */
+    /** Prazo curto: "há 2 dias", "hoje 14:00", "amanhã", "qua 04/11". */
     function prazoCurto(tarefa) {
         if (!tarefa.prazo) {
             return 'sem prazo';
@@ -137,167 +143,249 @@
         return dataCurta(tarefa.prazo);
     }
 
-    /** "Cine Clube · em 8 dias" — o tipo e quando o evento acontece. */
-    function sobreOEvento(evento) {
-        const partes = [];
-        if (evento.tipo) { partes.push(evento.tipo); }
-        if (evento.data) {
-            const dias = diaNumero(evento.data) - diaNumero(dados.hoje);
-            if (dias === 0) { partes.push('é hoje'); }
-            else if (dias === 1) { partes.push('amanhã'); }
-            else if (dias > 1) { partes.push('em ' + dias + ' dias'); }
-        }
-        return partes.join(' · ');
+    function dataDiaMes(data) {
+        const p = String(data).split('-');
+        return p[2] + '/' + p[1];
     }
 
-    /** Junta as tarefas da coluna por evento, na ordem em que aparecem. */
-    function agruparPorEvento(tarefas) {
-        const grupos = new Map();
-        tarefas.forEach(function (t) {
-            if (!grupos.has(t.evento.id)) {
-                grupos.set(t.evento.id, { evento: t.evento, tarefas: [] });
-            }
-            grupos.get(t.evento.id).tarefas.push(t);
+    /** "Abre em 3 dias · 04/11 → 20/11" ou "Em cartaz até 20/11". */
+    function quando(evento) {
+        if (!evento.data) { return ''; }
+        const dias = diaNumero(evento.data) - diaNumero(dados.hoje);
+        let texto;
+        if (dias > 1) { texto = 'Abre em ' + dias + ' dias'; }
+        else if (dias === 1) { texto = 'Abre amanhã'; }
+        else if (dias === 0) { texto = 'Abre hoje'; }
+        else { texto = 'Em cartaz'; }
+
+        if (evento.ate && evento.ate !== evento.data) {
+            texto += dias > 0 ? ' · ' + dataDiaMes(evento.data) + ' → ' + dataDiaMes(evento.ate) : ' até ' + dataDiaMes(evento.ate);
+        } else if (evento.horario) {
+            texto += ' · ' + evento.horario.replace(':00', 'h').replace(':', 'h');
+        }
+        if (evento.local) { texto += ' · ' + evento.local; }
+        return texto;
+    }
+
+    function corDoEvento(evento) {
+        return evento && /^#[0-9a-f]{6}$/i.test(evento.cor || '') ? evento.cor : '#35a7a7';
+    }
+
+    function eventosEmFoco() {
+        return (dados && dados.em_foco) || [];
+    }
+
+    function desenharPontos() {
+        const caixa = $('painel-foco-pontos');
+        const eventos = eventosEmFoco();
+        caixa.replaceChildren();
+        if (eventos.length <= 1) { return; }
+        eventos.forEach(function (evento, i) {
+            const ponto = el('button');
+            ponto.type = 'button';
+            ponto.setAttribute('aria-label', 'Mostrar ' + evento.titulo);
+            ponto.setAttribute('aria-current', i === focoAtual ? 'true' : 'false');
+            ponto.addEventListener('click', function () { mostrarFoco(i); });
+            caixa.append(ponto);
         });
-        return Array.from(grupos.values());
     }
 
-    function cabecalhoDoGrupo(evento, continuacao) {
-        const grupo = el('section', 'painel-grupo');
-        grupo.style.setProperty('--cor-tipo', corDoTipo(evento));
+    function desenharFoco() {
+        const eventos = eventosEmFoco();
+        const caixa = $('painel-foco');
+        const conteudo = $('painel-foco-conteudo');
 
-        const topo = el(evento.link ? 'a' : 'header', 'painel-grupo-topo');
-        if (evento.link) { topo.href = evento.link; }
-        topo.append(el('strong', 'painel-grupo-nome', evento.titulo));
-        const sobre = continuacao ? [evento.tipo, 'continuação'].filter(Boolean).join(' · ') : sobreOEvento(evento);
-        if (sobre) {
-            topo.append(el('span', 'painel-grupo-sobre', sobre));
-        }
-
-        grupo.append(topo, el('ul', 'painel-grupo-itens'));
-        return grupo;
-    }
-
-    function linha(tarefa, nomeColuna) {
-        const situacao = situacaoDoPrazo(tarefa);
-        const item = el('li', 'painel-item situacao-' + situacao.classe);
-
-        const texto = el('div', 'painel-item-texto');
-        const titulo = el('span', 'painel-item-titulo', tarefa.titulo);
-        if (tarefa.prioridade === 'ALTA' && nomeColuna !== 'prioridade') {
-            titulo.prepend(el('b', 'painel-item-alta', '▲ '));
-            titulo.title = 'Prioridade alta';
-        }
-        texto.append(titulo);
-        if (tarefa.responsavel) {
-            texto.append(el('span', 'painel-item-quem', tarefa.responsavel));
-        }
-
-        item.append(texto, el('span', 'painel-item-prazo', prazoCurto(tarefa)));
-        return item;
-    }
-
-    const paginas = {};  // coluna -> { total, atual }
-
-    function telaPequena() {
-        return window.matchMedia('(max-width: 1000px)').matches;
-    }
-
-    function novaPagina(janela) {
-        const pagina = el('div', 'painel-pagina');
-        janela.append(pagina);
-        return pagina;
-    }
-
-    function transbordou(pagina) {
-        return !telaPequena() && pagina.scrollHeight > pagina.clientHeight + 1;
-    }
-
-    /**
-     * Distribui os grupos em páginas do tamanho da coluna. Se um grupo
-     * não cabe inteiro, o resto vai para a página seguinte, com o nome
-     * do evento repetido ("continuação").
-     */
-    function desenharColuna(nome) {
-        const tarefas = (dados.colunas || {})[nome] || [];
-        $('total-' + nome).textContent = String(tarefas.length);
-
-        const assinatura = JSON.stringify(tarefas.map(function (t) {
-            return [t.id, t.titulo, t.prazo, t.horario, t.prioridade, t.responsavel, t.evento.titulo, t.evento.tipo, t.evento.tipo_cor, t.evento.data];
-        })) + dados.hoje;
-
-        // Só refaz quando muda: refazer volta para a primeira página.
-        if (assinatura === assinaturas[nome]) {
+        if (eventos.length === 0) {
+            focoId = null;
+            assinaturaFoco = null;
+            caixa.style.removeProperty('--cor-foco');
+            conteudo.replaceChildren(el('p', 'painel-foco-vazio', 'Nenhuma exposição ou projeto nos próximos 60 dias.'));
+            desenharPontos();
             return;
         }
-        assinaturas[nome] = assinatura;
 
-        const janela = $('lista-' + nome);
-        janela.replaceChildren();
+        // Depois de atualizar os dados, continua no mesmo evento.
+        const mesmo = eventos.findIndex(function (e) { return e.id === focoId; });
+        focoAtual = mesmo >= 0 ? mesmo : focoAtual % eventos.length;
+        const evento = eventos[focoAtual];
+
+        const assinatura = JSON.stringify(evento) + dados.hoje;
+        desenharPontos();
+        if (assinatura === assinaturaFoco) { return; }
+        assinaturaFoco = assinatura;
+        focoId = evento.id;
+
+        caixa.style.setProperty('--cor-foco', corDoEvento(evento));
+
+        const cabeca = el(evento.link ? 'a' : 'div', 'painel-foco-cabeca');
+        if (evento.link) { cabeca.href = evento.link; }
+
+        const moldura = el('span', 'painel-foco-moldura');
+        if (evento.capa) {
+            const img = el('img');
+            img.src = evento.capa;
+            img.alt = 'Capa de ' + evento.titulo;
+            img.decoding = 'async';
+            moldura.append(img);
+        } else {
+            moldura.append(el('span', 'painel-foco-inicial', evento.titulo.trim().charAt(0).toUpperCase()));
+        }
+
+        const texto = el('div', 'painel-foco-texto');
+        if (evento.tipo) {
+            const tipo = el('span', 'painel-foco-tipo', evento.tipo);
+            tipo.style.setProperty('--cor-tipo', corDoTipo(evento));
+            texto.append(tipo);
+        }
+        texto.append(el('h3', 'painel-foco-nome', evento.titulo));
+        const q = quando(evento);
+        if (q) { texto.append(el('span', 'painel-foco-quando', q)); }
+
+        if (evento.total > 0) {
+            const pct = Math.round((evento.feitas / evento.total) * 100);
+            const andamento = el('div', 'painel-andamento');
+            const barra = el('span', 'painel-andamento-barra');
+            const cheio = el('span');
+            cheio.style.width = pct + '%';
+            barra.append(cheio);
+            andamento.append(el('strong', null, pct + '%'), barra, el('small', null, evento.feitas + ' de ' + evento.total + ' prontos'));
+            texto.append(andamento);
+        }
+
+        cabeca.append(moldura, texto);
+
+        const passos = el('div', 'painel-passos');
+        passos.append(el('h3', null, 'Próximos passos'));
+        const lista = el('ul');
+        (evento.passos || []).forEach(function (t) {
+            const item = el('li', 'painel-passo situacao-' + situacaoDoPrazo(t).classe);
+            item.append(
+                el('span', 'painel-passo-marca'),
+                el('span', 'painel-passo-titulo', t.titulo),
+                el('span', 'painel-passo-quem', t.responsavel || ''),
+                el('span', 'painel-passo-prazo', prazoCurto(t))
+            );
+            lista.append(item);
+        });
+        if (lista.children.length === 0) {
+            lista.append(el('li', 'painel-bloco-vazio', '✓ Checklist em dia'));
+        }
+        passos.append(lista);
+
+        // Um nó novo a cada troca: a animação de entrada roda de novo.
+        const novo = el('div', 'painel-foco-conteudo');
+        novo.id = 'painel-foco-conteudo';
+        novo.append(cabeca, passos);
+        conteudo.replaceWith(novo);
+    }
+
+    function mostrarFoco(i) {
+        const eventos = eventosEmFoco();
+        if (eventos.length === 0) { return; }
+        focoAtual = (i + eventos.length) % eventos.length;
+        focoId = eventos[focoAtual].id;
+        desenharFoco();
+    }
+
+    function proximoFoco() {
+        if (pausado || eventosEmFoco().length <= 1) { return; }
+        mostrarFoco(focoAtual + 1);
+    }
+
+    function alternarPausa() {
+        pausado = !pausado;
+        const botao = $('painel-pausa');
+        const rotulo = pausado ? 'Retomar a troca do Em foco' : 'Pausar a troca do Em foco';
+        botao.setAttribute('aria-pressed', pausado ? 'true' : 'false');
+        botao.setAttribute('aria-label', rotulo);
+        botao.title = rotulo;
+        botao.querySelector('svg').innerHTML = pausado
+            ? '<path d="M7 4.5v15l12-7.5z"/>'
+            : '<path d="M8 5v14"/><path d="M16 5v14"/>';
+        atualizarRelogio();
+    }
+
+    // -------------------------------------------------------------
+    // Agora: atrasados, hoje, próximos dias
+    // -------------------------------------------------------------
+
+    function desenharBloco(nome, tarefas, lado) {
+        $('total-' + nome).textContent = String(tarefas.length);
+        const lista = $('lista-' + nome);
+        lista.replaceChildren();
 
         if (tarefas.length === 0) {
-            janela.append(el('p', 'painel-coluna-vazia', '✓ ' + janela.dataset.vazio));
-            paginas[nome] = { total: 1, atual: 0 };
-            desenharMarcadores(nome);
+            lista.append(el('li', 'painel-bloco-vazio', '✓ ' + lista.dataset.vazio));
             return;
         }
 
-        let pagina = novaPagina(janela);
-        pagina.classList.add('ativa');
-
-        agruparPorEvento(tarefas).forEach(function (g) {
-            let grupo = cabecalhoDoGrupo(g.evento, false);
-            pagina.append(grupo);
-
-            g.tarefas.forEach(function (t) {
-                const item = linha(t, nome);
-                grupo.lastChild.append(item);
-                if (!transbordou(pagina)) { return; }
-
-                // Não coube: tira daqui e começa outra página.
-                item.remove();
-                if (grupo.lastChild.children.length === 0) { grupo.remove(); }
-                pagina = novaPagina(janela);
-                grupo = cabecalhoDoGrupo(g.evento, true);
-                grupo.lastChild.append(item);
-                pagina.append(grupo);
-            });
+        tarefas.slice(0, MAXIMO_NO_BLOCO).forEach(function (t) {
+            const item = el('li');
+            const texto = el('span', 'painel-bloco-item-texto');
+            texto.append(el('span', null, t.titulo), el('small', null, t.evento.titulo));
+            item.append(texto, el('span', 'painel-bloco-item-lado', lado(t)));
+            lista.append(item);
         });
 
-        paginas[nome] = { total: janela.children.length, atual: 0 };
-        desenharMarcadores(nome);
-    }
-
-    /** Bolinhas embaixo da coluna: em que página está. */
-    function desenharMarcadores(nome) {
-        const caixa = $('paginas-' + nome);
-        const p = paginas[nome];
-        caixa.replaceChildren();
-        if (p.total <= 1) { return; }
-        for (let i = 0; i < p.total; i++) {
-            caixa.append(el('span', i === p.atual ? 'atual' : null));
+        if (tarefas.length > MAXIMO_NO_BLOCO) {
+            lista.append(el('li', 'painel-bloco-mais', '+ ' + plural(tarefas.length - MAXIMO_NO_BLOCO, 'outro', 'outros')));
         }
     }
 
-    /** Passa para a página seguinte em cada coluna que tem mais de uma. */
-    function virarPaginas() {
-        COLUNAS.forEach(function (nome) {
-            const p = paginas[nome];
-            if (!p || p.total <= 1) { return; }
-            const lista = $('lista-' + nome).children;
-            lista[p.atual].classList.remove('ativa');
-            p.atual = (p.atual + 1) % p.total;
-            lista[p.atual].classList.add('ativa');
-            desenharMarcadores(nome);
+    function primeiroNome(nome) {
+        return nome ? String(nome).trim().split(/\s+/)[0] : '';
+    }
+
+    function desenharDias() {
+        const contagem = {};
+        todasAbertas().forEach(function (t) {
+            if (!t.prazo) { return; }
+            const dias = diaNumero(t.prazo) - diaNumero(dados.hoje);
+            if (dias >= 1) { contagem[dias] = (contagem[dias] || 0) + 1; }
+        });
+
+        const linhas = [];
+        for (let d = 1; linhas.length < DIAS_NA_BARRA && d <= 30; d++) {
+            if (contagem[d]) { linhas.push({ d: d, n: contagem[d] }); }
+        }
+        const maior = linhas.reduce(function (m, l) { return Math.max(m, l.n); }, 1);
+
+        const lista = $('lista-dias');
+        lista.replaceChildren();
+        if (linhas.length === 0) {
+            lista.append(el('li', 'painel-bloco-vazio', 'Nada vencendo nos próximos dias'));
+            return;
+        }
+
+        const base = diaNumero(dados.hoje);
+        linhas.forEach(function (l) {
+            const iso = new Date((base + l.d) * 86400000).toISOString().slice(0, 10);
+            const item = el('li');
+            const barra = el('span', 'painel-dias-barra');
+            const cheio = el('span');
+            cheio.style.width = Math.max(8, Math.round((l.n / maior) * 100)) + '%';
+            barra.append(cheio);
+            item.append(
+                el('span', 'painel-dias-dia', l.d === 1 ? 'amanhã' : dataCurta(iso).split(/[ ,]/)[0] + ' ' + iso.slice(8, 10)),
+                barra,
+                el('span', 'painel-dias-total', plural(l.n, 'item', 'itens'))
+            );
+            lista.append(item);
         });
     }
 
     function desenhar() {
-        COLUNAS.forEach(desenharColuna);
+        const colunas = dados.colunas || {};
+        const atrasados = colunas.atrasados || [];
+        const hoje = todasAbertas().filter(function (t) { return t.prazo === dados.hoje; });
+
+        desenharFoco();
+        desenharBloco('atrasados', atrasados, prazoCurto);
+        desenharBloco('hoje', hoje, function (t) { return t.horario || primeiroNome(t.responsavel); });
+        desenharDias();
         desenharLembrete();
 
-        const atrasados = ((dados.colunas || {}).atrasados || []).length;
-        document.title = (atrasados > 0 ? '(' + atrasados + ') ' : '') + 'Painel ao vivo | ELOS';
+        document.title = (atrasados.length > 0 ? '(' + atrasados.length + ') ' : '') + 'Painel ao vivo | ELOS';
     }
 
     // -------------------------------------------------------------
@@ -464,16 +552,7 @@
         });
         manterTelaAcesa();
 
-        // Mudou o tamanho da janela: as páginas precisam ser refeitas.
-        let redimensionando = null;
-        window.addEventListener('resize', function () {
-            clearTimeout(redimensionando);
-            redimensionando = setTimeout(function () {
-                if (!dados) { return; }
-                COLUNAS.forEach(function (nome) { assinaturas[nome] = null; });
-                desenhar();
-            }, 300);
-        });
+        $('painel-pausa').addEventListener('click', alternarPausa);
 
         // Janela do link do monitor (gestores).
         document.querySelectorAll('[data-abrir]').forEach(function (botao) {
@@ -533,7 +612,7 @@
 
         setInterval(proximoExemplo, TROCAR_EXEMPLO_A_CADA);
 
-        setInterval(virarPaginas, VIRAR_PAGINA_A_CADA);
+        setInterval(proximoFoco, TROCAR_FOCO_A_CADA);
         setTimeout(function () { location.reload(); }, RECARREGAR_A_PAGINA_A_CADA);
     }
 

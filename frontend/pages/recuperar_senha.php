@@ -95,7 +95,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
     <link
         rel="stylesheet"
-        href="../assets/css/base.css?v=2026-10-29"
+        href="../assets/css/base.css?v=2026-11-01"
     >
 
     <link

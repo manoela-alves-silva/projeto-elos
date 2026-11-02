@@ -329,7 +329,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                 }
 
                 // Tipo, responsável e local: escolhidos ou escritos como novos.
-                $cadastros = resolverCadastrosDaExposicao($_POST);
+                // Um tipo novo escrito aqui fica no mesmo projeto do evento.
+                $projetoAtual = Projetos::doEvento(Api::get('/api/eventos/' . $eventoId)['evento'] ?? []);
+                $cadastros = resolverCadastrosDaExposicao($_POST, $projetoAtual);
 
                 if ($cadastros['erro'] !== '') {
                     $erroForm = $cadastros['erro'];
@@ -577,7 +579,7 @@ if ($evento !== null) {
         // Só os tipos do mesmo projeto (uma exposição não vira sessão do Cine Clube).
         $tipos = array_values(array_filter(
             apiLista('/api/tipos-evento', 'tipos_evento') ?? [],
-            static fn(array $t): bool => Projetos::doTipo((string) ($t['nome'] ?? '')) === $projeto['chave']
+            static fn(array $t): bool => Projetos::doTipo($t) === $projeto['chave']
         ));
         $responsaveis = apiLista('/api/responsaveis', 'responsaveis') ?? [];
         $locais = apiLista('/api/locais', 'locais') ?? [];
@@ -826,8 +828,8 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css?v=2026-10-29">
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-11-01">
     <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
     <link rel="stylesheet" href="../assets/css/evento.css?v=2026-10-29b">
     <?php if ($comFicha): ?>

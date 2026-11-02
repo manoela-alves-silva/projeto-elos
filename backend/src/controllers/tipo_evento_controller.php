@@ -38,7 +38,7 @@ final class TipoEventoController
      *
      * @return array<string, mixed>|null
      */
-    public function create(string $nome): ?array
+    public function create(string $nome, ?string $projeto = null): ?array
     {
         $nome = trim($nome);
 
@@ -46,7 +46,7 @@ final class TipoEventoController
             return null;
         }
 
-        return $this->repository->create($nome);
+        return $this->repository->create($nome, $projeto);
     }
 
     /**

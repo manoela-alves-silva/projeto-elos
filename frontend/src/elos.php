@@ -131,7 +131,22 @@ function slugsDasExposicoes(): array
     $slugs = [];
     $usados = [];
 
+    // O endereço vem gravado do backend (eventos.slug). Só se faltar,
+    // calcula pelo título, com -2, -3... para nomes repetidos.
     foreach ($lista as $evento) {
+        $gravado = (string) ($evento['slug'] ?? '');
+
+        if ($gravado !== '') {
+            $usados[$gravado] = true;
+            $slugs[(int) ($evento['id'] ?? 0)] = $gravado;
+        }
+    }
+
+    foreach ($lista as $evento) {
+        if (isset($slugs[(int) ($evento['id'] ?? 0)])) {
+            continue;
+        }
+
         $base = slugDoTexto((string) ($evento['titulo'] ?? ''));
         $slug = $base;
 
@@ -173,12 +188,26 @@ function idDaExposicaoNoParametro(mixed $valor): int
     return idDaExposicaoPeloSlug($valor) ?? -1;
 }
 
-/** Id da exposição de um nome de endereço; null se não existir. */
+/**
+ * Id da exposição de um nome de endereço; null se não existir. Vale
+ * também um nome antigo (a exposição mudou de nome): o backend guarda
+ * todos os endereços que cada evento já teve.
+ */
 function idDaExposicaoPeloSlug(string $slug): ?int
 {
     $id = array_search($slug, slugsDasExposicoes(), true);
 
-    return $id !== false ? (int) $id : null;
+    if ($id !== false) {
+        return (int) $id;
+    }
+
+    if (preg_match('/^[a-z0-9-]{1,220}$/', $slug) !== 1) {
+        return null;
+    }
+
+    $antigo = (int) (apiGet('/api/eventos/endereco/' . $slug)['evento_id'] ?? 0);
+
+    return $antigo > 0 ? $antigo : null;
 }
 
 /**
@@ -229,7 +258,19 @@ function paginaDoEvento(int $id): string
 function exposicaoDoEndereco(string $pagina = 'exposicao'): int
 {
     if (defined('ELOS_SLUG_EXPOSICAO')) {
-        return idDaExposicaoPeloSlug((string) constant('ELOS_SLUG_EXPOSICAO')) ?? 0;
+        $slug = (string) constant('ELOS_SLUG_EXPOSICAO');
+        $id = idDaExposicaoPeloSlug($slug) ?? 0;
+
+        // Nome antigo no endereço: leva para o atual, com os mesmos parâmetros.
+        $atual = slugsDasExposicoes()[$id] ?? null;
+
+        if ($id > 0 && $atual !== null && $atual !== $slug && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            $outros = array_filter($_GET, static fn(mixed $v): bool => is_scalar($v));
+            header('Location: ' . linkExposicao($id, $outros, '', $pagina), true, 301);
+            exit();
+        }
+
+        return $id;
     }
 
     $id = (int) ($_GET['id'] ?? 0);
@@ -702,13 +743,14 @@ function resolverCategoria(string $escolha, string $novaCategoria): array
  *
  * @return array{ids: array{tipo_evento_id: ?int, responsavel_id: ?int, local_id: ?int}, erro: string}
  */
-function resolverCadastrosDaExposicao(array $post): array
+function resolverCadastrosDaExposicao(array $post, string $projeto = Projetos::EXPOSICOES): array
 {
     $tipoResponsavel = (string) ($post['responsavel_tipo_novo'] ?? 'PESSOA');
     $tipoResponsavel = array_key_exists($tipoResponsavel, TIPOS_RESPONSAVEL) ? $tipoResponsavel : 'PESSOA';
 
     $campos = [
-        'tipo_evento_id' => ['tipo', []],
+        // Tipo novo escrito num evento de projeto já nasce desse projeto.
+        'tipo_evento_id' => ['tipo', $projeto !== Projetos::EXPOSICOES ? ['projeto' => $projeto] : []],
         'responsavel_id' => ['responsavel', ['tipo' => $tipoResponsavel]],
         'local_id' => ['local', []],
     ];

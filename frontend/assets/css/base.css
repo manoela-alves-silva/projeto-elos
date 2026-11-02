@@ -482,3 +482,294 @@ button {
 
     background: var(--cream);
 }
+
+
+/* =========================================================
+   MENU AGRUPADO
+   No topo o que se usa todo dia; "Projetos" e "Gestão" abrem e
+   fecham (<details>). Ícones de traço fino, na cor do texto.
+   ========================================================= */
+
+.menu-icone {
+    width: 18px;
+    height: 18px;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sidebar-logo-linha {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.sidebar-fechar {
+    display: none;
+}
+
+.sidebar-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.sidebar-grupo > .sidebar-item {
+    margin-top: var(--sp-4);
+}
+
+.sidebar-grupo-titulo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-top: var(--sp-12);
+    padding: var(--sp-8) var(--sp-12) var(--sp-4);
+
+    border-radius: var(--radius-sm);
+
+    color: rgba(255, 255, 255, 0.62);
+
+    font-size: var(--fs-10);
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+
+    list-style: none;
+    cursor: pointer;
+}
+
+.sidebar-grupo-titulo::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-grupo-titulo:hover,
+.sidebar-grupo-titulo:focus-visible {
+    color: var(--white);
+    outline: none;
+}
+
+.sidebar-grupo-seta {
+    display: inline-flex;
+
+    transition: transform 0.2s ease;
+}
+
+.sidebar-grupo-seta .menu-icone {
+    width: 14px;
+    height: 14px;
+}
+
+.sidebar-grupo[open] .sidebar-grupo-seta {
+    transform: rotate(90deg);
+}
+
+/* o bloco da pessoa abre "Minha conta" */
+a.sidebar-user {
+    margin: 0 0 var(--sp-4);
+    padding: var(--sp-8);
+
+    border-radius: var(--radius-sm);
+
+    color: inherit;
+    text-decoration: none;
+
+    transition: background 0.2s ease;
+}
+
+a.sidebar-user:hover,
+a.sidebar-user.active {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+a.sidebar-user small {
+    text-transform: none;
+    letter-spacing: 0.4px;
+}
+
+/* só no celular */
+.menu-celular-topo,
+.menu-celular-atalhos,
+.menu-fundo {
+    display: none;
+}
+
+
+/* =========================================================
+   CELULAR: cabeçalho, gaveta e atalhos embaixo
+   ========================================================= */
+
+@media (max-width: 700px) {
+    body {
+        padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .menu-celular-topo {
+        position: sticky;
+        top: 0;
+
+        height: 60px;
+
+        display: flex;
+        align-items: center;
+        gap: var(--sp-12);
+
+        padding: 0 var(--sp-12);
+
+        background: var(--cream-light);
+        border-bottom: 1px solid var(--border);
+
+        z-index: 90;
+    }
+
+    .menu-celular-botao {
+        width: 44px;
+        height: 44px;
+
+        display: grid;
+        place-items: center;
+
+        border: 1px solid var(--border);
+        border-radius: 12px;
+
+        background: var(--white);
+        color: var(--navy);
+
+        cursor: pointer;
+    }
+
+    .menu-celular-botao .menu-icone {
+        width: 20px;
+        height: 20px;
+    }
+
+    .menu-celular-logo {
+        flex: 1;
+
+        color: var(--navy);
+
+        font-family: var(--font-display);
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+
+    .menu-celular-logo span {
+        color: #d9a417;
+    }
+
+    /* o menu lateral vira gaveta */
+    .sidebar {
+        width: min(84vw, 300px);
+
+        transform: translateX(-105%);
+
+        box-shadow: 0 0 40px rgba(18, 61, 89, 0.3);
+
+        transition: transform 0.25s ease;
+
+        z-index: 120;
+    }
+
+    body.menu-aberto {
+        overflow: hidden;
+    }
+
+    body.menu-aberto .sidebar {
+        transform: none;
+    }
+
+    .sidebar-fechar {
+        width: 40px;
+        height: 40px;
+
+        display: grid;
+        place-items: center;
+
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+
+        background: transparent;
+        color: var(--white);
+
+        cursor: pointer;
+    }
+
+    .menu-fundo {
+        position: fixed;
+        inset: 0;
+
+        display: block;
+
+        background: rgba(18, 61, 89, 0.35);
+
+        z-index: 110;
+    }
+
+    .menu-fundo[hidden] {
+        display: none;
+    }
+
+    .menu-celular-atalhos {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+
+        height: calc(66px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+
+        background: var(--cream-light);
+        border-top: 1px solid var(--border);
+
+        z-index: 95;
+    }
+
+    .menu-celular-atalho {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+
+        background: none;
+        color: var(--navy);
+
+        font-size: var(--fs-11);
+        font-weight: 600;
+
+        opacity: 0.72;
+
+        cursor: pointer;
+    }
+
+    .menu-celular-atalho .menu-icone {
+        width: 22px;
+        height: 22px;
+    }
+
+    .menu-celular-atalho.active {
+        font-weight: 800;
+
+        opacity: 1;
+    }
+
+    /* A barra de cima de cada tela só fica quando tem algo além da
+       pessoa (busca, voltar, filtro); a pessoa já está no menu. */
+    .topbar:not(:has(.voltar, .text-link, .filtro-exposicao, #buscaExposicoes)) {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-grupo-seta {
+        transition: none;
+    }
+}

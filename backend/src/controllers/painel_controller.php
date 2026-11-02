@@ -27,6 +27,12 @@ final class PainelController
     // Prioridade alta: até quantos dias à frente (os sem prazo entram sempre).
     public const DIAS_A_FRENTE_PRIORIDADE = 30;
 
+    // "Em foco": eventos que abrem até quantos dias à frente, quantos
+    // entram no rodízio e quantos próximos passos de cada um.
+    public const DIAS_A_FRENTE_FOCO = 60;
+    public const EVENTOS_EM_FOCO = 6;
+    public const PASSOS_POR_EVENTO = 4;
+
     public function __construct(
         private readonly PainelRepository $repository
     ) {
@@ -89,7 +95,56 @@ final class PainelController
             'colunas' => $colunas,
             'sem_prazo' => $semPrazo,
             'concluidas_hoje' => $concluidas,
+            'em_foco' => $this->emFoco($hoje),
         ];
+    }
+
+    /**
+     * Bloco "Em foco": um evento por vez, com o andamento do checklist
+     * e os próximos passos.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function emFoco(string $hoje): array
+    {
+        $ate = date('Y-m-d', strtotime($hoje . ' +' . self::DIAS_A_FRENTE_FOCO . ' days'));
+        $eventos = $this->repository->eventosEmFoco($hoje, $ate, self::EVENTOS_EM_FOCO);
+
+        $passos = [];
+        $ids = array_map(static fn (array $e): int => (int) $e['id'], $eventos);
+
+        foreach ($this->repository->proximasTarefasDosEventos($ids) as $tarefa) {
+            $id = (int) $tarefa['evento_id'];
+
+            if (count($passos[$id] ?? []) >= self::PASSOS_POR_EVENTO) {
+                continue;
+            }
+
+            $passos[$id][] = [
+                'id' => (int) $tarefa['id'],
+                'titulo' => (string) $tarefa['titulo'],
+                'prazo' => $tarefa['prazo'] !== null ? (string) $tarefa['prazo'] : null,
+                'horario' => $tarefa['horario'] !== null ? substr((string) $tarefa['horario'], 0, 5) : null,
+                'prioridade' => (string) $tarefa['prioridade'],
+                'responsavel' => $tarefa['responsavel'],
+            ];
+        }
+
+        return array_map(static fn (array $e): array => [
+            'id' => (int) $e['id'],
+            'titulo' => (string) $e['titulo'],
+            'cor' => $e['cor'] ?? null,
+            'imagem_capa' => $e['imagem_capa'] ?? null,
+            'tipo' => $e['tipo'] ?? null,
+            'tipo_cor' => $e['tipo_cor'] ?? null,
+            'data' => $e['abertura'] ?? null,
+            'horario' => $e['horario'] !== null ? substr((string) $e['horario'], 0, 5) : null,
+            'ate' => $e['permanencia_fim'] ?? null,
+            'local' => $e['local'] ?? null,
+            'total' => (int) $e['total'],
+            'feitas' => (int) $e['feitas'],
+            'passos' => $passos[(int) $e['id']] ?? [],
+        ], $eventos);
     }
 
     /**

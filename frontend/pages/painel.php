@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 /*
  * PAINEL AO VIVO — tela para deixar aberta num monitor da produção o
- * dia todo. Mostra, em tempo real e sem enfeite, o que precisa ser
- * feito, em três colunas: atrasados (pulsando devagar até alguém
- * concluir), prioridade alta e pendentes dos próximos dias. Os de
+ * dia todo. À esquerda, "Em foco": uma exposição ou projeto por vez,
+ * com a capa, o andamento do checklist e os próximos passos (troca a
+ * cada 12 segundos; dá para pausar). À direita, "Agora": atrasados,
+ * o que vence hoje e quantos itens vencem nos próximos dias. Os de
  * prioridade alta sem prazo aparecem numa faixa fina no rodapé.
  *
  * Dois jeitos de abrir:
@@ -122,6 +123,16 @@ function dadosDoPainel(bool $comLinks): array
         }
     }
 
+    // Em foco: cor, link e capa. A capa só sai para quem está logado
+    // (capa.php não entrega para o monitor); sem ela, o painel mostra a
+    // moldura com a inicial.
+    foreach ($dados['em_foco'] ?? [] as $i => $evento) {
+        $evento = $completar($evento);
+        $evento['capa'] = $comLinks ? Identidade::urlCapa($evento, 640) : null;
+        unset($evento['imagem_capa']);
+        $dados['em_foco'][$i] = $evento;
+    }
+
     foreach (['sem_prazo', 'concluidas_hoje'] as $lista) {
         foreach ($dados[$lista] ?? [] as $i => $tarefa) {
             $dados[$lista][$i]['evento'] = $completar($tarefa['evento']);
@@ -186,7 +197,7 @@ $json = static fn (mixed $valor): string => json_encode(
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= esc($raiz) ?>/assets/css/painel.css?v=2026-10-29g">
+    <link rel="stylesheet" href="<?= esc($raiz) ?>/assets/css/painel.css?v=2026-11-01a">
 </head>
 <body class="painel<?= $modoMonitor ? ' painel-monitor' : '' ?>">
 
@@ -212,6 +223,10 @@ $json = static fn (mixed $valor): string => json_encode(
             <?php if ($podeGerenciar): ?>
                 <button type="button" class="painel-botao" data-abrir="painel-janela-link">Link do monitor</button>
             <?php endif; ?>
+            <button type="button" class="painel-botao painel-botao-pausa" id="painel-pausa" aria-pressed="false"
+                    aria-label="Pausar a troca do Em foco" title="Pausar a troca do Em foco">
+                <svg class="painel-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14"/><path d="M16 5v14"/></svg>
+            </button>
             <button type="button" class="painel-botao" id="painel-tela-cheia">Tela cheia</button>
         </nav>
 
@@ -221,21 +236,47 @@ $json = static fn (mixed $valor): string => json_encode(
         </div>
     </header>
 
-    <main class="painel-colunas">
-        <?php foreach ([
-            'atrasados' => ['Atrasados', 'prazo vencido', 'Nada atrasado'],
-            'prioridade' => ['Prioridade alta', 'próximos 30 dias', 'Nenhuma prioridade alta'],
-            'pendentes' => ['Pendentes', 'próximos 7 dias', 'Nada pendente nesta semana'],
-        ] as $coluna => [$tituloColuna, $periodo, $vazio]): ?>
-            <section class="painel-coluna painel-coluna-<?= $coluna ?>" aria-labelledby="titulo-<?= $coluna ?>">
-                <header class="painel-coluna-topo">
-                    <h2 id="titulo-<?= $coluna ?>"><?= esc($tituloColuna) ?> <small><?= esc($periodo) ?></small></h2>
-                    <strong class="painel-coluna-total" id="total-<?= $coluna ?>">0</strong>
+    <main class="painel-corpo">
+        <!-- Em foco: uma exposição ou projeto por vez, com a capa, o
+             andamento do checklist e os próximos passos. Troca sozinho a
+             cada 12 segundos (dá para pausar no botão do topo). -->
+        <section class="painel-foco" id="painel-foco" aria-labelledby="titulo-foco">
+            <span class="painel-foco-faixa" aria-hidden="true"></span>
+            <header class="painel-foco-topo">
+                <h2 id="titulo-foco">Em foco</h2>
+                <div class="painel-foco-pontos" id="painel-foco-pontos"></div>
+            </header>
+            <div class="painel-foco-conteudo" id="painel-foco-conteudo"></div>
+        </section>
+
+        <!-- Agora: só o que pede ação (atrasados e hoje) e o volume dos
+             próximos dias. -->
+        <aside class="painel-agora" aria-label="Agora">
+            <section class="painel-bloco painel-bloco-atrasados" aria-labelledby="titulo-atrasados">
+                <header class="painel-bloco-topo">
+                    <svg class="painel-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5"/><path d="M12 17.5v.01"/></svg>
+                    <h2 id="titulo-atrasados">Atrasados</h2>
+                    <strong class="painel-bloco-total" id="total-atrasados">0</strong>
                 </header>
-                <div class="painel-coluna-janela" id="lista-<?= $coluna ?>" data-vazio="<?= esc($vazio) ?>"></div>
-                <div class="painel-coluna-paginas" id="paginas-<?= $coluna ?>" aria-hidden="true"></div>
+                <ul class="painel-bloco-lista" id="lista-atrasados" data-vazio="Nada atrasado"></ul>
             </section>
-        <?php endforeach; ?>
+
+            <section class="painel-bloco painel-bloco-hoje" aria-labelledby="titulo-hoje">
+                <header class="painel-bloco-topo">
+                    <svg class="painel-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                    <h2 id="titulo-hoje">Hoje</h2>
+                    <strong class="painel-bloco-total" id="total-hoje">0</strong>
+                </header>
+                <ul class="painel-bloco-lista" id="lista-hoje" data-vazio="Nada para hoje"></ul>
+            </section>
+
+            <section class="painel-bloco painel-bloco-dias" aria-labelledby="titulo-dias">
+                <header class="painel-bloco-topo">
+                    <h2 id="titulo-dias">Próximos dias</h2>
+                </header>
+                <ul class="painel-dias" id="lista-dias"></ul>
+            </section>
+        </aside>
     </main>
 
     <div class="painel-avisos" id="painel-avisos" aria-live="assertive"></div>
@@ -243,6 +284,7 @@ $json = static fn (mixed $valor): string => json_encode(
     <!-- Faixa fina no rodapé: os itens de prioridade alta que estão sem
          prazo (ficam fora das colunas), mostrando um exemplo por vez. -->
     <aside class="painel-lembrete" id="painel-lembrete" hidden aria-live="off">
+        <svg class="painel-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 2 1 3 2 3 0-3-1-5.5.5-8z"/></svg>
         <strong id="painel-lembrete-titulo"></strong>
         <span class="painel-lembrete-exemplo" id="painel-lembrete-exemplo"></span>
         <span class="painel-lembrete-dica">defina um prazo no checklist</span>
@@ -309,6 +351,6 @@ $json = static fn (mixed $valor): string => json_encode(
 </noscript>
 
 <script type="application/json" id="painel-dados-iniciais"><?= $json(['status' => $status, 'dados' => $dados]) ?></script>
-<script src="<?= esc($raiz) ?>/assets/js/painel.js?v=2026-10-29g"></script>
+<script src="<?= esc($raiz) ?>/assets/js/painel.js?v=2026-11-01a"></script>
 </body>
 </html>

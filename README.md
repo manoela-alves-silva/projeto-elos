@@ -25,8 +25,9 @@ prazo, inclusive num painel ao vivo para deixar aberto num monitor.
 
 ### Início com cara de galeria
 
-O Início abre com a parede **"Em cartaz"**: as exposições penduradas como
-quadros, com etiqueta de museu. Embaixo, os números de todas as
+O Início abre com um **resumo do dia** (quantos itens estão atrasados e
+quantos vencem hoje) e com a parede **"Em cartaz"**: as exposições
+penduradas como quadros, com etiqueta de museu. Embaixo, os números de todas as
 exposições em andamento, a exposição em destaque com o **andamento de
 cada fase**, os alertas e os próximos eventos dos outros projetos.
 
@@ -45,13 +46,14 @@ com prazos contados a partir do dia do evento.
 
 ### Painel ao vivo para um monitor
 
-Uma tela para deixar aberta o dia todo na produção: **atrasados**,
-**prioridade alta** e **pendentes**, agrupados por evento e com a cor de
-cada tipo. Atualiza sozinha a cada 30 segundos, avisa quando alguém
-conclui ou cria um item e troca de página quando a coluna não cabe. Um
-link secreto abre o painel no monitor sem entrar com a conta de ninguém.
+Uma tela para deixar aberta o dia todo na produção. À esquerda, um
+evento por vez **em foco**, com a capa, o andamento e os próximos passos.
+À direita, o que está **atrasado**, o que **vence hoje** e quanto vence
+nos próximos dias, com a cor de cada tipo de evento. Atualiza sozinha a
+cada 30 segundos e avisa quando alguém conclui ou cria um item. Um link
+secreto abre o painel no monitor sem entrar com a conta de ninguém.
 
-![Painel ao vivo com as colunas de atrasados, prioridade alta e pendentes](docs/gifs/painel-ao-vivo.gif)
+![Painel ao vivo trocando o evento em foco, com os atrasados e o que vence hoje](docs/gifs/painel-ao-vivo.gif)
 
 ### Criar uma exposição
 
@@ -106,7 +108,10 @@ gestor.
 
 ### Funciona no celular
 
-<img src="docs/gifs/celular.gif" alt="ELOS no celular" width="300">
+No celular, o menu vira uma gaveta e os atalhos mais usados (Início,
+Pendências e Calendário) ficam fixos embaixo da tela.
+
+<img src="docs/gifs/celular.gif" alt="ELOS no celular: menu em gaveta e a área do Cine Clube" width="300">
 
 ---
 

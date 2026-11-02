@@ -960,3 +960,245 @@ a.painel-numero:hover {
         width: min(100%, 260px);
     }
 }
+
+
+/* =========================================================
+   REMODELAÇÃO (nov/2026): saudação útil, três números,
+   "Ver todos" nos alertas e "Para você" no celular
+   ========================================================= */
+
+.resumo-do-dia {
+    margin-top: var(--sp-8);
+
+    color: var(--blue);
+
+    font-size: clamp(1.05rem, 1.4vw, 1.3rem);
+    font-weight: 500;
+}
+
+/* três números, cada um com ícone e de onde vem */
+.painel-numeros.tres {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.painel-numeros.tres .painel-numero {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-16);
+}
+
+.numero-icone {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+
+    fill: none;
+    stroke: var(--navy);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.painel-numero.alerta .numero-icone {
+    stroke: var(--red-dark);
+}
+
+.numero-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    flex: 1;
+    min-width: 0;
+}
+
+.painel-numeros.tres .painel-numero strong {
+    margin-left: auto;
+}
+
+/* alertas: o resto abre aqui mesmo */
+.alertas-mais {
+    display: contents;
+}
+
+.alertas-mais > summary {
+    padding: var(--sp-8) 0 0;
+
+    color: var(--navy);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: underline;
+
+    list-style: none;
+    cursor: pointer;
+}
+
+.alertas-mais > summary::-webkit-details-marker {
+    display: none;
+}
+
+.alertas-mais[open] > summary {
+    display: none;
+}
+
+/* "Para você" só aparece no celular, antes da galeria */
+.para-voce {
+    display: none;
+}
+
+@media (max-width: 1100px) {
+    .painel-numeros.tres {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .welcome-section .acoes-cabecalho {
+        width: 100%;
+    }
+
+    .painel-numeros.tres {
+        grid-template-columns: 1fr;
+    }
+
+    .para-voce {
+        display: block;
+
+        margin-bottom: var(--sp-24);
+        padding: var(--sp-4) var(--sp-16);
+
+        border-radius: var(--radius-md);
+
+        background: var(--white);
+        box-shadow: var(--shadow-card);
+
+        scroll-margin-top: 72px;
+    }
+
+    .para-voce ul {
+        list-style: none;
+    }
+
+    .para-voce li + li {
+        border-top: 1px solid var(--border);
+    }
+
+    .para-voce li a {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-12);
+
+        padding: var(--sp-12) 0;
+
+        color: var(--navy);
+    }
+
+    .para-voce li a::before {
+        content: "";
+
+        width: 5px;
+        height: 32px;
+        flex-shrink: 0;
+
+        border-radius: 3px;
+
+        background: var(--turquoise);
+    }
+
+    .para-voce li.estado-atrasado a::before {
+        background: var(--red);
+    }
+
+    .para-voce li.vence-hoje a::before {
+        background: var(--yellow);
+    }
+
+    .para-voce-texto {
+        display: flex;
+        flex-direction: column;
+
+        flex: 1;
+        min-width: 0;
+    }
+
+    .para-voce-texto strong,
+    .para-voce-texto small {
+        overflow: hidden;
+
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .para-voce-texto strong {
+        font-size: var(--fs-14);
+        font-weight: 600;
+    }
+
+    .para-voce-texto small {
+        color: var(--text-soft);
+
+        font-size: var(--fs-12);
+    }
+
+    .para-voce-prazo {
+        flex-shrink: 0;
+
+        padding: 3px 9px;
+
+        border-radius: 999px;
+
+        color: var(--text-soft);
+
+        font-size: var(--fs-12);
+        font-weight: 700;
+    }
+
+    .para-voce li.estado-atrasado .para-voce-prazo {
+        background: var(--red-light);
+        color: var(--red-dark);
+    }
+
+    .para-voce li.vence-hoje .para-voce-prazo {
+        background: var(--yellow);
+        color: #3d2e08;
+    }
+
+    .para-voce-mais {
+        display: block;
+
+        padding: var(--sp-12) 0;
+
+        border-top: 1px solid var(--border);
+
+        color: var(--navy);
+
+        font-size: var(--fs-13);
+        font-weight: 700;
+    }
+
+    .para-voce-vazio {
+        padding: var(--sp-12) 0;
+
+        color: var(--text-soft);
+
+        font-size: var(--fs-13);
+    }
+
+    /* galeria: fileira que desliza para o lado */
+    .galeria-quadros {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+
+        overflow-x: auto;
+
+        scroll-snap-type: x mandatory;
+    }
+
+    .galeria-obra {
+        flex: 0 0 160px;
+
+        scroll-snap-align: start;
+    }
+}

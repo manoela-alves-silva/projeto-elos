@@ -29,7 +29,13 @@ if (!$logado || !Identidade::nomeValido($nome) || !is_file($arquivo)) {
     exit();
 }
 
-header('Content-Type: ' . (str_ends_with($nome, '.webp') ? 'image/webp' : 'image/jpeg'));
+// ?l=320 ou ?l=640: a versão menor, para molduras e cartões.
+$largura = (int) ($_GET['l'] ?? 0);
+if ($largura > 0) {
+    $arquivo = Identidade::arquivoNaLargura($nome, $largura);
+}
+
+header('Content-Type: ' . (str_ends_with($arquivo, '.webp') ? 'image/webp' : 'image/jpeg'));
 header('Content-Length: ' . filesize($arquivo));
 header('Cache-Control: private, max-age=31536000, immutable');
 readfile($arquivo);

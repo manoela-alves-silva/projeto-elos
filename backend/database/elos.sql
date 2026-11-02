@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS tipos_evento (
     nome VARCHAR(100) NOT NULL UNIQUE,
     -- Cor do tipo no painel ao vivo (#rrggbb); vazia = automática.
     cor CHAR(7) NULL,
+    -- Projeto da galeria a que o tipo pertence (cine-clube, cafe-cultural...).
+    -- Vazio = Exposições. É isso que liga o evento ao projeto, não o nome.
+    projeto VARCHAR(40) NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -60,6 +63,9 @@ CREATE TABLE IF NOT EXISTS eventos (
     responsavel_id INT UNSIGNED NULL,
     local_id INT UNSIGNED NULL,
     titulo VARCHAR(200) NOT NULL,
+    -- Endereço atual (/exposicao/<slug>), tirado do nome. Os anteriores
+    -- ficam em eventos_enderecos.
+    slug VARCHAR(220) NULL,
     descricao TEXT NULL,
     status ENUM('PLANEJAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'PLANEJAMENTO',
     observacoes TEXT NULL,
@@ -72,6 +78,7 @@ CREATE TABLE IF NOT EXISTS eventos (
     INDEX idx_eventos_responsavel (responsavel_id),
     INDEX idx_eventos_local (local_id),
     INDEX idx_eventos_status (status),
+    UNIQUE KEY uq_eventos_slug (slug),
     CONSTRAINT fk_eventos_tipo_evento FOREIGN KEY (tipo_evento_id)
         REFERENCES tipos_evento (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_eventos_responsavel FOREIGN KEY (responsavel_id)
@@ -186,13 +193,24 @@ CREATE TABLE IF NOT EXISTS evento_ficha (
         REFERENCES eventos (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Tipos de evento com área própria no ELOS.
-INSERT IGNORE INTO tipos_evento (nome, cor) VALUES
-    ('Exposição de Arte', '#2b6cb0'),
-    ('Cine Clube', '#b5462b'),
-    ('Café Cultural', '#7a5230'),
-    ('Arte ao Ar Livre', '#2f7d4f'),
-    ('Amostra de Talentos', '#be185d');
+-- Endereços que cada evento já teve: links antigos continuam valendo.
+CREATE TABLE IF NOT EXISTS eventos_enderecos (
+    slug VARCHAR(220) NOT NULL,
+    evento_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (slug),
+    INDEX idx_eventos_enderecos_evento (evento_id),
+    CONSTRAINT fk_eventos_enderecos_evento FOREIGN KEY (evento_id)
+        REFERENCES eventos (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tipos de evento com área própria no ELOS (a coluna projeto faz a ligação).
+INSERT IGNORE INTO tipos_evento (nome, cor, projeto) VALUES
+    ('Exposição de Arte', '#2b6cb0', NULL),
+    ('Cine Clube', '#b5462b', 'cine-clube'),
+    ('Café Cultural', '#7a5230', 'cafe-cultural'),
+    ('Arte ao Ar Livre', '#2f7d4f', 'arte-ao-ar-livre'),
+    ('Amostra de Talentos', '#be185d', 'amostra-de-talentos');
 
 -- Link secreto do painel ao vivo (monitor da produção). Só o hash
 -- SHA-256 do código fica guardado; gerar um link novo apaga o anterior.

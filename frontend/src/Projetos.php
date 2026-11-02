@@ -30,7 +30,6 @@ final class Projetos
         self::EXPOSICOES => [
             'nome' => 'Exposições',
             'tipo' => 'Exposição de Arte',
-            'termo' => '',
             'lista' => 'exposicoes',
             'pagina' => 'exposicao',
             'menu' => 'eventos',
@@ -45,7 +44,6 @@ final class Projetos
         self::CINE_CLUBE => [
             'nome' => 'Cine Clube',
             'tipo' => 'Cine Clube',
-            'termo' => 'cine',
             'lista' => 'cine-clube',
             'pagina' => 'cine-clube',
             'menu' => 'cine-clube',
@@ -105,7 +103,6 @@ final class Projetos
         self::CAFE_CULTURAL => [
             'nome' => 'Café Cultural',
             'tipo' => 'Café Cultural',
-            'termo' => 'caf',
             'lista' => 'cafe-cultural',
             'pagina' => 'cafe-cultural',
             'menu' => 'cafe-cultural',
@@ -167,7 +164,6 @@ final class Projetos
         self::ARTE_AO_AR_LIVRE => [
             'nome' => 'Arte ao Ar Livre',
             'tipo' => 'Arte ao Ar Livre',
-            'termo' => 'ar livre',
             'lista' => 'arte-ao-ar-livre',
             'pagina' => 'arte-ao-ar-livre',
             'menu' => 'arte-ao-ar-livre',
@@ -226,7 +222,6 @@ final class Projetos
         self::AMOSTRA_DE_TALENTOS => [
             'nome' => 'Amostra de Talentos',
             'tipo' => 'Amostra de Talentos',
-            'termo' => 'amostra',
             'lista' => 'amostra-de-talentos',
             'pagina' => 'amostra-de-talentos',
             'menu' => 'amostra-de-talentos',
@@ -302,24 +297,27 @@ final class Projetos
         return array_values(array_filter(self::chaves(), static fn(string $c): bool => $c !== self::EXPOSICOES));
     }
 
-    /** Projeto de um tipo de evento, pelo nome do tipo. */
-    public static function doTipo(?string $nomeTipo): string
+    /**
+     * Projeto de um tipo de evento (registro de /api/tipos-evento), pela
+     * coluna tipos_evento.projeto. Não depende do nome: renomear o tipo
+     * não muda o projeto. Vazia ou desconhecida = Exposições.
+     *
+     * @param array<string, mixed> $tipo
+     */
+    public static function doTipo(array $tipo): string
     {
-        $nome = mb_strtolower(trim((string) $nomeTipo));
-
-        foreach (self::LISTA as $chave => $projeto) {
-            if ($projeto['termo'] !== '' && $nome !== '' && str_contains($nome, $projeto['termo'])) {
-                return $chave;
-            }
-        }
-
-        return self::EXPOSICOES;
+        return self::chaveValida($tipo['projeto'] ?? null);
     }
 
-    /** Projeto de um evento (precisa de tipo_evento_nome, que a API manda). */
+    /** Projeto de um evento (pelo tipo_evento_projeto, que a API manda). */
     public static function doEvento(array $evento): string
     {
-        return self::doTipo($evento['tipo_evento_nome'] ?? null);
+        return self::chaveValida($evento['tipo_evento_projeto'] ?? null);
+    }
+
+    private static function chaveValida(mixed $chave): string
+    {
+        return is_string($chave) && isset(self::LISTA[$chave]) ? $chave : self::EXPOSICOES;
     }
 
     /** Projeto pelo endereço da página dos eventos ("cine-clube"); null se não for de projeto. */
@@ -359,13 +357,22 @@ final class Projetos
             return null;
         }
 
+        // O de nome igual ao do projeto; senão, o primeiro do projeto.
+        $achado = null;
+
         foreach ($tipos as $tipo) {
-            if (self::doTipo((string) ($tipo['nome'] ?? '')) === $chave) {
+            if (self::doTipo($tipo) !== $chave) {
+                continue;
+            }
+
+            if (mb_strtolower(trim((string) ($tipo['nome'] ?? ''))) === mb_strtolower(self::LISTA[$chave]['tipo'])) {
                 return (int) $tipo['id'];
             }
+
+            $achado ??= (int) $tipo['id'];
         }
 
-        return null;
+        return $achado;
     }
 
     // ---------------------------------------------------------------

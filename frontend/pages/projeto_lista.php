@@ -117,8 +117,8 @@ function destaquesDoEvento(array $projeto, array $ficha): array
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;1,500&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/base.css?v=2026-10-29">
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=2026-10-29">
+    <link rel="stylesheet" href="assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=2026-11-01">
     <link rel="stylesheet" href="assets/css/planejamento.css?v=2026-10-29">
     <link rel="stylesheet" href="assets/css/projeto.css?v=2026-10-29">
     <link rel="stylesheet" href="assets/css/<?= esc($projeto['tema']) ?>.css?v=2026-10-29">
@@ -196,10 +196,10 @@ function destaquesDoEvento(array $projeto, array $ficha): array
                 <?php
                 $id = (int) $destaque->evento['id'];
                 $ficha = $fichas[$id] ?? [];
-                $capa = Identidade::urlCapa($destaque->evento);
+                $capa = Identidade::urlCapa($destaque->evento, 640);
                 ?>
                 <!-- O PRÓXIMO: em destaque -->
-                <a href="<?= esc(linkExposicao($id)) ?>" class="projeto-destaque" style="<?= esc(Identidade::estilo($destaque->evento)) ?>">
+                <a href="<?= esc(linkExposicao($id)) ?>" class="projeto-destaque" style="<?= esc(Identidade::estilo($destaque->evento, 640)) ?>">
                     <div class="projeto-capa<?= $capa !== null ? ' com-imagem' : '' ?>">
                         <?php if ($capa !== null): ?>
                             <img src="<?= esc($capa) ?>" alt="">
@@ -245,11 +245,11 @@ function destaquesDoEvento(array $projeto, array $ficha): array
                             <?php
                             $id = (int) $plano->evento['id'];
                             $ficha = $fichas[$id] ?? [];
-                            $capa = Identidade::urlCapa($plano->evento);
+                            $capa = Identidade::urlCapa($plano->evento, 640);
                             $nome = Projetos::tituloDoEvento($projeto, $ficha, (string) $plano->evento['titulo']);
                             $pessoa = destaquesDoEvento($projeto, $ficha)[0] ?? null;
                             ?>
-                            <a href="<?= esc(linkExposicao($id)) ?>" class="projeto-cartao" style="<?= esc(Identidade::estilo($plano->evento)) ?>">
+                            <a href="<?= esc(linkExposicao($id)) ?>" class="projeto-cartao" style="<?= esc(Identidade::estilo($plano->evento, 640)) ?>">
                                 <div class="projeto-cartao-capa<?= $capa !== null ? ' com-imagem' : '' ?>">
                                     <?php if ($capa !== null): ?>
                                         <img src="<?= esc($capa) ?>" alt="" loading="lazy">

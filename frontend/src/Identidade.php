@@ -101,18 +101,78 @@ final class Identidade
      * Precisa ser absoluto: dentro do CSS, um endereço relativo seria
      * lido a partir da pasta do arquivo .css, e não da página.
      */
-    public static function urlCapa(array $evento): ?string
+    public static function urlCapa(array $evento, ?int $largura = null): ?string
     {
         $nome = $evento['imagem_capa'] ?? null;
 
-        return self::nomeValido($nome) ? raizDoSite() . '/capa?f=' . $nome : null;
+        if (!self::nomeValido($nome)) {
+            return null;
+        }
+
+        $url = raizDoSite() . '/capa?f=' . $nome;
+
+        return in_array($largura, self::LARGURAS_MENORES, true) ? $url . '&l=' . $largura : $url;
+    }
+
+    /**
+     * Tamanhos menores da capa, para cada lugar receber a imagem no
+     * tamanho em que ela aparece: ~320 px nas molduras da galeria e
+     * ~640 px nos cartões e cabeçalhos. O arquivo enviado continua
+     * guardado como está (até 1600 px).
+     */
+    public const LARGURAS_MENORES = [320, 640];
+
+    /**
+     * Caminho da versão menor da capa, criada na primeira vez que é
+     * pedida e guardada em storage/capas/menores/. Se não der para criar
+     * (servidor sem GD, por exemplo), devolve o arquivo original.
+     */
+    public static function arquivoNaLargura(string $nome, int $largura): string
+    {
+        $original = self::pasta() . '/' . $nome;
+
+        if (!self::nomeValido($nome) || !in_array($largura, self::LARGURAS_MENORES, true) || !function_exists('imagecreatefromstring')) {
+            return $original;
+        }
+
+        $pasta = self::pasta() . '/menores';
+        $menor = $pasta . '/' . pathinfo($nome, PATHINFO_FILENAME) . '-' . $largura . '.jpg';
+
+        if (is_file($menor)) {
+            return $menor;
+        }
+
+        if (!is_dir($pasta) && !@mkdir($pasta, 0755, true) && !is_dir($pasta)) {
+            return $original;
+        }
+
+        $imagem = @imagecreatefromstring((string) @file_get_contents($original));
+
+        if ($imagem === false) {
+            return $original;
+        }
+
+        // Imagem já pequena: não aumenta, só usa a original.
+        if (imagesx($imagem) <= $largura) {
+            return $original;
+        }
+
+        $reduzida = imagescale($imagem, $largura);
+
+        if ($reduzida === false || !imagejpeg($reduzida, $menor . '.tmp', 80) || !@rename($menor . '.tmp', $menor)) {
+            @unlink($menor . '.tmp');
+
+            return $original;
+        }
+
+        return $menor;
     }
 
     /** Variáveis CSS para style="": --expo-cor e, se houver, --expo-capa. */
-    public static function estilo(array $evento): string
+    public static function estilo(array $evento, ?int $largura = null): string
     {
         $estilo = '--expo-cor: ' . self::cor($evento) . ';';
-        $url = self::urlCapa($evento);
+        $url = self::urlCapa($evento, $largura);
 
         if ($url !== null) {
             $estilo .= " --expo-capa: url('" . $url . "');";
@@ -201,6 +261,13 @@ final class Identidade
     {
         if (self::nomeValido($nome) && is_file(self::pasta() . '/' . $nome)) {
             @unlink(self::pasta() . '/' . $nome);
+        }
+
+        // As versões menores da mesma capa saem junto.
+        if (self::nomeValido($nome)) {
+            foreach (self::LARGURAS_MENORES as $largura) {
+                @unlink(self::pasta() . '/menores/' . pathinfo((string) $nome, PATHINFO_FILENAME) . '-' . $largura . '.jpg');
+            }
         }
     }
 

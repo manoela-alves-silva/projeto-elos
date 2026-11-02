@@ -202,6 +202,21 @@ function handleApiRequest(
         );
     }
 
+    // Evento pelo endereço, atual ou antigo (a exposição mudou de nome).
+    if (preg_match('#^/api/eventos/endereco/([a-z0-9-]{1,220})$#', $path, $matches)) {
+        requireRole($authorizationFactory, 'COLABORADOR');
+
+        if ($method !== 'GET') {
+            sendJsonResponse(405, ['erro' => 'Método não permitido.']);
+        }
+
+        $id = $eventoControllerFactory()->idDoEndereco($matches[1]);
+
+        $id === null
+            ? sendJsonResponse(404, ['erro' => 'Endereço não encontrado.'])
+            : sendJsonResponse(200, ['evento_id' => $id]);
+    }
+
     if (
         str_starts_with($path, '/api/eventos')
         && (

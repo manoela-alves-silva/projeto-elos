@@ -43,11 +43,13 @@ final class EventoRepository
                 e.tipo_evento_id,
                 te.nome AS tipo_evento_nome,
                 te.cor AS tipo_evento_cor,
+                te.projeto AS tipo_evento_projeto,
                 e.responsavel_id,
                 r.nome AS responsavel_nome,
                 e.local_id,
                 l.nome AS local_nome,
                 e.titulo,
+                e.slug,
                 e.descricao,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
@@ -68,8 +70,19 @@ final class EventoRepository
         );
 
         $statement->execute();
+        $eventos = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        return $statement->fetchAll(PDO::FETCH_ASSOC);
+        // Eventos de antes do endereço gravado ganham o seu agora, do mais
+        // antigo para o mais novo (o mais antigo fica com o nome puro, como
+        // o frontend já fazia: os links que existem continuam iguais).
+        $semEndereco = array_filter($eventos, static fn (array $e): bool => $e['slug'] === null);
+        uasort($semEndereco, static fn (array $a, array $b): int => (int) $a['id'] <=> (int) $b['id']);
+
+        foreach (array_keys($semEndereco) as $i) {
+            $eventos[$i]['slug'] = $this->atualizarEndereco((int) $eventos[$i]['id'], (string) $eventos[$i]['titulo']);
+        }
+
+        return $eventos;
     }
 
     /**
@@ -85,11 +98,13 @@ final class EventoRepository
                 e.tipo_evento_id,
                 te.nome AS tipo_evento_nome,
                 te.cor AS tipo_evento_cor,
+                te.projeto AS tipo_evento_projeto,
                 e.responsavel_id,
                 r.nome AS responsavel_nome,
                 e.local_id,
                 l.nome AS local_nome,
                 e.titulo,
+                e.slug,
                 e.descricao,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
@@ -117,6 +132,67 @@ final class EventoRepository
         $evento = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $evento !== false ? $evento : null;
+    }
+
+    /**
+     * Endereço do evento a partir do nome ("Luz e Memória" →
+     * "luz-e-memoria"), com a mesma regra do frontend. Se o nome já é
+     * (ou já foi) de outro evento, ganha -2, -3... Os endereços antigos
+     * ficam em eventos_enderecos: links antigos continuam valendo.
+     */
+    public function atualizarEndereco(int $id, string $titulo): string
+    {
+        $base = self::slugDoTexto($titulo);
+        $ocupado = $this->connection->prepare(
+            'SELECT 1 FROM eventos WHERE slug = :slug AND id <> :id
+             UNION SELECT 1 FROM eventos_enderecos WHERE slug = :slug2 AND evento_id <> :id2
+             LIMIT 1'
+        );
+
+        $slug = $base;
+
+        for ($n = 2; ; $n++) {
+            $ocupado->execute(['slug' => $slug, 'id' => $id, 'slug2' => $slug, 'id2' => $id]);
+
+            if ($ocupado->fetchColumn() === false) {
+                break;
+            }
+
+            $slug = $base . '-' . $n;
+        }
+
+        $this->connection
+            ->prepare('UPDATE eventos SET slug = :slug WHERE id = :id')
+            ->execute(['slug' => $slug, 'id' => $id]);
+        $this->connection
+            ->prepare('INSERT IGNORE INTO eventos_enderecos (slug, evento_id) VALUES (:slug, :id)')
+            ->execute(['slug' => $slug, 'id' => $id]);
+
+        return $slug;
+    }
+
+    /** Id do evento dono de um endereço (atual ou antigo), ou null. */
+    public function idDoEndereco(string $slug): ?int
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id FROM eventos WHERE slug = :slug
+             UNION SELECT evento_id FROM eventos_enderecos WHERE slug = :slug2
+             LIMIT 1'
+        );
+        $statement->execute(['slug' => $slug, 'slug2' => $slug]);
+        $id = $statement->fetchColumn();
+
+        return $id !== false ? (int) $id : null;
+    }
+
+    /** "Luz e Memória: fotografia" → "luz-e-memoria-fotografia" (igual ao frontend). */
+    public static function slugDoTexto(string $texto): string
+    {
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower(trim($texto))) ?: '';
+        $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($ascii)), '-');
+        $slug = rtrim(substr($slug, 0, 80), '-');
+
+        return $slug !== '' ? $slug : 'exposicao';
     }
 
     /**
@@ -261,8 +337,11 @@ final class EventoRepository
             'observacoes' => $observacoes,
         ]);
 
+        $novoId = (int) $this->connection->lastInsertId();
+        $this->atualizarEndereco($novoId, $titulo);
+
         return $this->findById(
-            (int) $this->connection->lastInsertId()
+            $novoId
         );
     }
 
@@ -310,6 +389,8 @@ final class EventoRepository
         ) {
             return null;
         }
+
+        $this->atualizarEndereco($id, $titulo);
 
         return $this->findById($id);
     }
