@@ -118,6 +118,42 @@ exposição, e as outras telas são montadas automaticamente a partir dela:
   atividades e o que está pendente.
 - O **Calendário** junta as datas das exposições e dos itens do checklist.
 - O **Relatório** gera uma versão de cada exposição pronta para imprimir.
+- O checklist é dividido em **fases** (Documentação, Transporte,
+  Equipamentos...), cada uma com a cor da sua etapa: Preparação,
+  Produção ou Realização. Dá para filtrar por fase ou por prazo.
+- Cada exposição pode ter **capa e cor** próprias. Ao enviar a imagem, o
+  sistema sugere uma cor tirada dela.
+
+### Os outros projetos da galeria
+
+Além das exposições, a galeria organiza o **Cine Clube**, o **Café
+Cultural**, a **Arte ao Ar Livre** e a **Amostra de Talentos**. Cada um
+tem a sua área, com visual próprio, mas usa a mesma base: o evento tem
+um dia, um checklist e uma **ficha** com os campos do projeto (o filme e
+quem conduz o debate, o tema do encontro, a programação...). Ao criar um
+evento de projeto, o ELOS já monta o checklist padrão, com os prazos
+contados a partir do dia.
+
+O projeto de cada evento vem do seu tipo (coluna `tipos_evento.projeto`),
+e não do nome: renomear um tipo não muda nada. Os campos da ficha e os
+checklists padrão ficam em `frontend/src/Projetos.php`.
+
+### Painel ao vivo
+
+Uma tela para deixar aberta num monitor da produção: um evento por vez
+"em foco" (capa, andamento e próximos passos) e, ao lado, o que está
+atrasado e o que vence hoje. Ela se atualiza sozinha a cada 30 segundos.
+Um gestor gera um **link secreto do monitor**, que abre o painel sem
+login e só para leitura. Gerar outro link desliga o anterior.
+
+### Endereços
+
+Os endereços são curtos e legíveis: `/exposicoes`, `/calendario`,
+`/exposicao/memorias-do-rio-antigo`, `/cine-clube/nova-sessao`. O nome
+no endereço fica gravado no banco, junto com todos os anteriores: se a
+exposição muda de nome, os links antigos levam para o novo. Quem
+distribui os endereços é `frontend/roteador.php`, e os endereços antigos
+(`pages/evento.php?id=3`) também continuam funcionando.
 
 ---
 
@@ -282,6 +318,8 @@ projeto-elos/
 │
 └── frontend/
     ├── index.php                 Início
+    ├── roteador.php              endereços curtos → páginas
+    ├── capa.php                  entrega as capas (só para quem está logado)
     ├── pages/
     │   ├── eventos.php           lista de exposições
     │   ├── evento_novo.php       nova exposição
@@ -289,6 +327,10 @@ projeto-elos/
     │   ├── apagar_exposicao.php  confirmação antes de apagar
     │   ├── agenda.php            calendário
     │   ├── relatorio.php         relatório para imprimir
+    │   ├── painel.php            painel ao vivo (e o link do monitor)
+    │   ├── projeto_lista.php     área de um projeto (Cine Clube...)
+    │   ├── projeto_novo.php      novo evento de um projeto
+    │   ├── partes/               cabeçalho e ficha dos eventos de projeto
     │   ├── equipe.php            aprovar contas e trocar perfis (gestor)
     │   ├── minha_conta.php       dados da conta, senha e código de recuperação
     │   └── login, cadastro, recuperar_senha, google_*, logout
@@ -296,9 +338,15 @@ projeto-elos/
     │   ├── Api.php               conversa com a API, sessão e proteção CSRF
     │   ├── elos.php              funções usadas por várias telas
     │   ├── Planejamento.php      junta datas e checklist de uma exposição
-    │   └── MenuLateral.php       menu (Início, Exposições, Calendário, Equipe)
-    ├── assets/css/               base.css + um CSS por tela
-    └── assets/js/elos.js
+    │   ├── Projetos.php          projetos da galeria: nomes, ficha, checklist padrão
+    │   ├── Fases.php             checklist dividido em fases, com cores
+    │   ├── Identidade.php        capa e cor de cada evento
+    │   └── MenuLateral.php       menu lateral (e gaveta no celular)
+    ├── assets/css/               base.css + um CSS por tela + um tema por projeto
+    ├── assets/img/               ícones do site e do app
+    └── assets/js/                elos.js e painel.js
+
+storage/capas/                    capas enviadas (fora do git e das pastas públicas)
 
 docs/gifs/                        GIFs usados neste README
 deploy/                           modelos de Nginx e Apache para VPS
@@ -334,6 +382,9 @@ datas:
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsavel_livre.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-14_codigo_recuperacao.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_projetos.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-11-02_projeto_do_tipo.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-11-02_enderecos.sql
 ```
 
 ### Passo 2: configurar
@@ -357,6 +408,7 @@ cp backend/.env.example backend/.env
 | `ELOS_API_CHAVE` | os dois  | a mesma chave nos dois lados. Com ela, a API recusa quem não envia a chave. Obrigatória se a API ficar num endereço público |
 | `ELOS_API_CGI`  | frontend  | caminho do `php-cgi` (ex.: `/usr/bin/php-cgi`). Faz o frontend rodar a API ali mesmo, em vez de chamar por HTTP. Serve para hospedagens com um processo PHP só, como o plano grátis da alwaysdata |
 | `ELOS_SESSOES_DIR` | frontend | pasta onde ficam os logins. Vazio = `storage/sessoes/` na raiz do projeto |
+| `ELOS_CAPAS_DIR` | frontend | pasta das capas. Vazio = `storage/capas/` na raiz do projeto |
 
 > Se uma variável já existir no ambiente do servidor, ela vale mais que a
 > do arquivo `.env`.
@@ -396,8 +448,8 @@ banco vazio, a primeira conta já vira gestora.
 # Terminal 1: backend (com as variáveis DB_* exportadas)
 php -S 127.0.0.1:8000 -t backend/public
 
-# Terminal 2: frontend
-php -S 127.0.0.1:8081 -t frontend
+# Terminal 2: frontend (o roteador cuida dos endereços curtos)
+php -S 127.0.0.1:8081 -t frontend frontend/roteador.php
 ```
 
 </details>
@@ -435,6 +487,12 @@ perfil pode usar.
 | `/api/eventos/{id}/visitas[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
 | `/api/eventos/{id}/anexos[/{id}]` | GET, POST, DELETE | até 10 MB. PDF, imagens, Office/LibreOffice, TXT, CSV |
 | `/api/eventos/{id}/historico` | GET, POST | gravado automaticamente pelas outras rotas |
+| `/api/eventos/{id}/ficha` | GET, PUT | ficha de um evento de projeto. PUT: Gestor |
+| `/api/fichas` | GET | fichas de todos os eventos |
+| `/api/eventos/{id}/identidade` | PUT | capa e cor. Gestor |
+| `/api/eventos/endereco/{nome}` | GET | evento pelo nome no endereço, atual ou antigo |
+| `/api/painel` | GET | painel ao vivo. Logado, ou o monitor com o cabeçalho `X-Elos-Painel` |
+| `/api/painel/codigo` | GET, POST, DELETE | link do monitor: situação / gerar novo / desligar. Gestor |
 | `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/etapas`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
 
 Os detalhes de cada rota (campos aceitos e respostas) estão nos arquivos
@@ -494,8 +552,13 @@ O que o ELOS já faz para se proteger:
 - Banco criado com `backend/database/elos.sql`.
 - `ELOS_DEBUG` vazio. Assim os erros vão para o log, e a API responde só
   "Erro interno do servidor".
-- A pasta `backend/storage/` precisa ter permissão de escrita para o PHP.
-- Faça **backup** diário do banco e de `backend/storage/anexos/`.
+- As pastas `backend/storage/` e `storage/` precisam ter permissão de
+  escrita para o PHP.
+- O servidor precisa aceitar o `.htaccess` do frontend (Apache com
+  `mod_rewrite`), que manda os endereços curtos para o `roteador.php`.
+  No Nginx, use `try_files $uri /roteador.php?$query_string;`.
+- Faça **backup** diário do banco, de `backend/storage/anexos/` e de
+  `storage/capas/`.
 - Envie o projeto **sem** `backend/.env`, `cookies*.txt` e o conteúdo de
   `backend/storage/`.
 
@@ -552,7 +615,7 @@ api-elos.seusite.com.br  → pasta backend/public/
 - Banco MySQL `projeto-elos_elos`, criado pelo painel e importado com o
   `elos.sql` sem as linhas `CREATE DATABASE`/`USE`.
 - Para atualizar: enviar `backend/` e `frontend/` por SSH (sem o `.env` e
-  sem a pasta `storage/`).
+  sem as pastas `storage/`) e rodar no banco as migrações novas.
 
 ---
 
