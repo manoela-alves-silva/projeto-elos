@@ -29,7 +29,8 @@ perfil pode usar.
 | `/api/eventos/{id}/ficha` | GET, PUT | ficha de um evento de projeto (Cine Clube, Café Cultural...): `{"dados": {...}}`. PUT: Gestor |
 | `/api/fichas` | GET | fichas de todos os eventos de projeto numa resposta só |
 | `/api/eventos/{id}/historico` | GET, POST | gravado automaticamente pelas outras rotas |
-| `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
+| `/api/eventos/endereco/{nome}` | GET | evento pelo nome no endereço, atual ou antigo: `{"evento_id": 5}` |
+| `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio. Em `/api/tipos-evento`, o POST aceita `projeto` (ex.: `cine-clube`) |
 | `/api/painel` | GET | painel ao vivo: itens em três colunas (atrasados, prioridade alta, pendentes), os de prioridade alta sem prazo e o que foi concluído hoje. Pessoa logada ou monitor com o código no cabeçalho `X-Elos-Painel` |
 | `/api/painel/codigo` | GET, POST, DELETE | link do monitor: ver se há um valendo, gerar outro (o anterior para de valer), desligar. Gestor |
 | `/api/lote` | GET | `?caminhos[]=...&caminhos[]=...`: até 20 leituras numa resposta só (ver abaixo) |

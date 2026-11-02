@@ -30,6 +30,13 @@ mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsa
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-14_codigo_recuperacao.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-27_identidade_visual.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-27_remove_tabelas_antigas.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_cor_tipo_evento.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_painel.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_prazo_dispensado.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_projetos.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-11-02_projeto_do_tipo.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-11-02_enderecos.sql
 ```
 
 ## Passo 2: configurar
