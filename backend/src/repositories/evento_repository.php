@@ -51,11 +51,10 @@ final class EventoRepository
                 e.titulo,
                 e.slug,
                 e.descricao,
-                e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
-                e.cor,
                 e.imagem_capa,
+                e.cor,
                 e.created_at,
                 e.updated_at
              FROM eventos e
@@ -73,11 +72,14 @@ final class EventoRepository
         $statement->execute();
         $eventos = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        // Eventos de antes dos endereços gravados: ganham o seu agora.
-        foreach ($eventos as $i => $evento) {
-            if ($evento['slug'] === null) {
-                $eventos[$i]['slug'] = $this->atualizarEndereco((int) $evento['id'], (string) $evento['titulo']);
-            }
+        // Eventos de antes do endereço gravado ganham o seu agora, do mais
+        // antigo para o mais novo (o mais antigo fica com o nome puro, como
+        // o frontend já fazia: os links que existem continuam iguais).
+        $semEndereco = array_filter($eventos, static fn (array $e): bool => $e['slug'] === null);
+        uasort($semEndereco, static fn (array $a, array $b): int => (int) $a['id'] <=> (int) $b['id']);
+
+        foreach (array_keys($semEndereco) as $i) {
+            $eventos[$i]['slug'] = $this->atualizarEndereco((int) $eventos[$i]['id'], (string) $eventos[$i]['titulo']);
         }
 
         return $eventos;
@@ -104,11 +106,10 @@ final class EventoRepository
                 e.titulo,
                 e.slug,
                 e.descricao,
-                e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
-                e.cor,
                 e.imagem_capa,
+                e.cor,
                 e.created_at,
                 e.updated_at
              FROM eventos e
@@ -134,25 +135,30 @@ final class EventoRepository
     }
 
     /**
-     * Endereço do evento a partir do nome ("Memórias do Rio" →
-     * "memorias-do-rio"). Se já é de outro evento (atual ou antigo), o id
-     * vai junto. O endereço anterior continua guardado em
-     * eventos_enderecos, então links antigos seguem valendo.
+     * Endereço do evento a partir do nome ("Luz e Memória" →
+     * "luz-e-memoria"), com a mesma regra do frontend. Se o nome já é
+     * (ou já foi) de outro evento, ganha -2, -3... Os endereços antigos
+     * ficam em eventos_enderecos: links antigos continuam valendo.
      */
     public function atualizarEndereco(int $id, string $titulo): string
     {
-        $base = self::slug($titulo);
-        $slug = $base !== '' && !ctype_digit($base) ? $base : 'evento-' . $id;
-
+        $base = self::slugDoTexto($titulo);
         $ocupado = $this->connection->prepare(
             'SELECT 1 FROM eventos WHERE slug = :slug AND id <> :id
              UNION SELECT 1 FROM eventos_enderecos WHERE slug = :slug2 AND evento_id <> :id2
              LIMIT 1'
         );
-        $ocupado->execute(['slug' => $slug, 'id' => $id, 'slug2' => $slug, 'id2' => $id]);
 
-        if ($ocupado->fetchColumn() !== false) {
-            $slug .= '-' . $id;
+        $slug = $base;
+
+        for ($n = 2; ; $n++) {
+            $ocupado->execute(['slug' => $slug, 'id' => $id, 'slug2' => $slug, 'id2' => $id]);
+
+            if ($ocupado->fetchColumn() === false) {
+                break;
+            }
+
+            $slug = $base . '-' . $n;
         }
 
         $this->connection
@@ -179,42 +185,34 @@ final class EventoRepository
         return $id !== false ? (int) $id : null;
     }
 
-    /** Mesma regra do frontend (slugDeTexto). */
-    public static function slug(string $texto): string
+    /** "Luz e Memória: fotografia" → "luz-e-memoria-fotografia" (igual ao frontend). */
+    public static function slugDoTexto(string $texto): string
     {
-        $texto = mb_strtolower(trim($texto));
-        $texto = strtr($texto, [
-            'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
-            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
-            'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
-            'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
-            'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
-            'ç' => 'c', 'ñ' => 'n',
-        ]);
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower(trim($texto))) ?: '';
+        $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($ascii)), '-');
+        $slug = rtrim(substr($slug, 0, 80), '-');
 
-        return mb_substr(trim((string) preg_replace('/[^a-z0-9]+/', '-', $texto), '-'), 0, 200);
+        return $slug !== '' ? $slug : 'exposicao';
     }
 
     /**
-     * Troca a capa e a cor do evento. Devolve o nome da capa anterior
-     * (para o frontend apagar o arquivo antigo), ou false se o evento
-     * não existe.
+     * Troca a identidade visual (capa e cor). null limpa o campo.
+     *
+     * @return array<string, mixed>|null o evento atualizado, ou null se não existe
      */
-    public function atualizarIdentidade(int $id, ?string $imagemCapa, ?string $cor): string|false|null
+    public function updateIdentidade(int $id, ?string $imagemCapa, ?string $cor): ?array
     {
-        $atual = $this->connection->prepare('SELECT imagem_capa FROM eventos WHERE id = :id LIMIT 1');
-        $atual->execute(['id' => $id]);
-        $linha = $atual->fetch(PDO::FETCH_ASSOC);
+        $statement = $this->connection->prepare(
+            'UPDATE eventos SET imagem_capa = :imagem_capa, cor = :cor WHERE id = :id'
+        );
 
-        if ($linha === false) {
-            return false;
-        }
+        $statement->execute([
+            'id' => $id,
+            'imagem_capa' => $imagemCapa,
+            'cor' => $cor,
+        ]);
 
-        $this->connection
-            ->prepare('UPDATE eventos SET imagem_capa = :capa, cor = :cor WHERE id = :id')
-            ->execute(['capa' => $imagemCapa, 'cor' => $cor, 'id' => $id]);
-
-        return $linha['imagem_capa'] !== null ? (string) $linha['imagem_capa'] : null;
+        return $this->findById($id);
     }
 
     /**
@@ -243,7 +241,7 @@ final class EventoRepository
             $anexos->execute(['id' => $id]);
             $caminhos = array_map('strval', $anexos->fetchAll(PDO::FETCH_COLUMN));
 
-            foreach (['tarefas', 'agenda_eventos', 'evento_cursos', 'anexos', 'formularios', 'transportes', 'visitas', 'eventos'] as $tabela) {
+            foreach (['tarefas', 'agenda_eventos', 'evento_cursos', 'anexos', 'eventos'] as $tabela) {
                 $coluna = $tabela === 'eventos' ? 'id' : 'evento_id';
                 $this->connection
                     ->prepare("DELETE FROM {$tabela} WHERE {$coluna} = :id")
@@ -272,7 +270,6 @@ final class EventoRepository
             'SELECT
                 e.id,
                 e.titulo,
-                e.slug,
                 ' . self::OCUPACAO_INICIO . ' AS ocupacao_inicio,
                 ' . self::OCUPACAO_FIM . ' AS ocupacao_fim
              FROM eventos e
@@ -307,7 +304,6 @@ final class EventoRepository
         int $localId,
         string $titulo,
         ?string $descricao,
-        string $prioridade,
         string $status,
         ?string $observacoes
     ): ?array {
@@ -318,7 +314,6 @@ final class EventoRepository
                 local_id,
                 titulo,
                 descricao,
-                prioridade,
                 status,
                 observacoes
              ) VALUES (
@@ -327,7 +322,6 @@ final class EventoRepository
                 :local_id,
                 :titulo,
                 :descricao,
-                :prioridade,
                 :status,
                 :observacoes
              )'
@@ -339,7 +333,6 @@ final class EventoRepository
             'local_id' => $localId,
             'titulo' => $titulo,
             'descricao' => $descricao,
-            'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
         ]);
@@ -364,7 +357,6 @@ final class EventoRepository
         int $localId,
         string $titulo,
         ?string $descricao,
-        string $prioridade,
         string $status,
         ?string $observacoes
     ): ?array {
@@ -375,7 +367,6 @@ final class EventoRepository
                  local_id = :local_id,
                  titulo = :titulo,
                  descricao = :descricao,
-                 prioridade = :prioridade,
                  status = :status,
                  observacoes = :observacoes
              WHERE id = :id'
@@ -388,7 +379,6 @@ final class EventoRepository
             'local_id' => $localId,
             'titulo' => $titulo,
             'descricao' => $descricao,
-            'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
         ]);

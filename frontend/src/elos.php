@@ -12,7 +12,6 @@ namespace Elos\Frontend;
 require_once __DIR__ . '/Api.php';
 require_once __DIR__ . '/MenuLateral.php';
 require_once __DIR__ . '/Projetos.php';
-require_once __DIR__ . '/Fases.php';
 
 const PRIORIDADES = ['BAIXA', 'MEDIA', 'ALTA'];
 const STATUS_EVENTO = ['PLANEJAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO'];
@@ -21,6 +20,22 @@ const MESES = [
     5 => 'maio', 6 => 'junho', 7 => 'julho', 8 => 'agosto',
     9 => 'setembro', 10 => 'outubro', 11 => 'novembro', 12 => 'dezembro',
 ];
+
+/**
+ * Caminho da raiz do frontend no servidor ("" quando o site está na raiz
+ * do domínio), descoberto pelo endereço do script que está rodando.
+ */
+function raizDoSite(): string
+{
+    if (defined('ELOS_RAIZ')) {
+        return (string) constant('ELOS_RAIZ');
+    }
+
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $raiz = preg_match('#^(.*)/pages/[^/]+$#', $script, $m) === 1 ? $m[1] : dirname($script);
+
+    return rtrim($raiz === '.' ? '' : $raiz, '/');
+}
 
 /**
  * Garante sessão e usuário logado; redireciona para o login se não houver.
@@ -34,7 +49,8 @@ function usuarioLogado(string $caminhoLogin): array
     $usuario = $_SESSION['usuario'] ?? null;
 
     if (!is_array($usuario) || empty($usuario['id'])) {
-        redirecionar($caminhoLogin);
+        header('Location: ' . enderecoAbsoluto($caminhoLogin));
+        exit();
     }
 
     // O perfil pode ter mudado na tela Equipe desde o login: confere
@@ -57,6 +73,218 @@ function usuarioLogado(string $caminhoLogin): array
         // Mesma regra do backend: criar/editar exige GESTOR (ou ADMIN).
         'podeGerenciar' => in_array($perfil, ['ADMIN', 'GESTOR'], true),
     ];
+}
+
+/**
+ * Abrindo uma página (GET) com alguém logado: busca de uma vez, num
+ * pedido só à API, a lista de usuários (que usuarioLogado() confere)
+ * e os caminhos que a página vai usar. Chamar antes de usuarioLogado().
+ *
+ * @param list<string> $paths
+ */
+function preCarregar(array $paths): void
+{
+    iniciarSessao();
+
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || empty($_SESSION['usuario']['id'])) {
+        return;
+    }
+
+    Api::preCarregar(['/api/usuarios', ...$paths]);
+}
+
+// ---------------------------------------------------------------
+// Endereço de cada exposição pelo nome: /exposicao/luz-e-memoria
+// ---------------------------------------------------------------
+
+/** "Luz e Memória: fotografia" -> "luz-e-memoria-fotografia" */
+function slugDoTexto(string $texto): string
+{
+    $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower(trim($texto))) ?: '';
+    $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($ascii)), '-');
+    $slug = rtrim(substr($slug, 0, 80), '-');
+
+    return $slug !== '' ? $slug : 'exposicao';
+}
+
+/**
+ * Nome de endereço de cada exposição (id => slug), tirado do título.
+ * Títulos iguais: a mais antiga fica com o nome puro, as outras ganham
+ * -2, -3... Usa a lista de exposições, que fica guardada na página.
+ *
+ * @return array<int, string>
+ */
+function slugsDasExposicoes(): array
+{
+    static $memoria = [null, []];
+
+    $eventos = apiLista('/api/eventos', 'eventos') ?? [];
+
+    // Mesma lista da última vez: mesma resposta (a conta roda uma vez por página).
+    if ($memoria[0] === $eventos) {
+        return $memoria[1];
+    }
+
+    $lista = $eventos;
+    usort($lista, static fn(array $a, array $b): int => (int) ($a['id'] ?? 0) <=> (int) ($b['id'] ?? 0));
+
+    $slugs = [];
+    $usados = [];
+
+    // O endereço vem gravado do backend (eventos.slug). Só se faltar,
+    // calcula pelo título, com -2, -3... para nomes repetidos.
+    foreach ($lista as $evento) {
+        $gravado = (string) ($evento['slug'] ?? '');
+
+        if ($gravado !== '') {
+            $usados[$gravado] = true;
+            $slugs[(int) ($evento['id'] ?? 0)] = $gravado;
+        }
+    }
+
+    foreach ($lista as $evento) {
+        if (isset($slugs[(int) ($evento['id'] ?? 0)])) {
+            continue;
+        }
+
+        $base = slugDoTexto((string) ($evento['titulo'] ?? ''));
+        $slug = $base;
+
+        for ($n = 2; isset($usados[$slug]); $n++) {
+            $slug = $base . '-' . $n;
+        }
+
+        $usados[$slug] = true;
+        $slugs[(int) ($evento['id'] ?? 0)] = $slug;
+    }
+
+    $memoria = [$eventos, $slugs];
+
+    return $slugs;
+}
+
+/** Nome de endereço de uma exposição (o número, se não der para descobrir). */
+function slugDaExposicao(int $id): string
+{
+    return slugsDasExposicoes()[$id] ?? (string) $id;
+}
+
+/**
+ * Exposição escolhida num filtro (?evento=, ?exposicao=): aceita o nome
+ * (luz-e-memoria) e o número antigo. 0 = nenhuma; -1 = nome que não existe.
+ */
+function idDaExposicaoNoParametro(mixed $valor): int
+{
+    $valor = is_scalar($valor) ? trim((string) $valor) : '';
+
+    if ($valor === '' || $valor === '0') {
+        return 0;
+    }
+
+    if (ctype_digit($valor)) {
+        return (int) $valor;
+    }
+
+    return idDaExposicaoPeloSlug($valor) ?? -1;
+}
+
+/**
+ * Id da exposição de um nome de endereço; null se não existir. Vale
+ * também um nome antigo (a exposição mudou de nome): o backend guarda
+ * todos os endereços que cada evento já teve.
+ */
+function idDaExposicaoPeloSlug(string $slug): ?int
+{
+    $id = array_search($slug, slugsDasExposicoes(), true);
+
+    if ($id !== false) {
+        return (int) $id;
+    }
+
+    if (preg_match('/^[a-z0-9-]{1,220}$/', $slug) !== 1) {
+        return null;
+    }
+
+    $antigo = (int) (apiGet('/api/eventos/endereco/' . $slug)['evento_id'] ?? 0);
+
+    return $antigo > 0 ? $antigo : null;
+}
+
+/**
+ * Endereço de uma exposição: /exposicao/luz-e-memoria?editar=info#sobre.
+ * Se o nome não puder ser descoberto (API fora), cai no endereço com id.
+ *
+ * @param array<string, scalar> $params
+ */
+function linkExposicao(int $id, array $params = [], string $ancora = '', string $pagina = 'exposicao'): string
+{
+    $slug = slugsDasExposicoes()[$id] ?? null;
+
+    // Cada evento abre na área do seu projeto (/cine-clube/nome...).
+    if ($pagina === 'exposicao') {
+        $pagina = paginaDoEvento($id);
+    }
+
+    if ($slug === null) {
+        $params = ['id' => $id] + $params;
+    }
+
+    $consulta = $params !== [] ? '?' . http_build_query($params) : '';
+    $ancora = $ancora !== '' ? '#' . ltrim($ancora, '#') : '';
+
+    return raizDoSite() . '/' . $pagina . ($slug !== null ? '/' . $slug : '') . $consulta . $ancora;
+}
+
+/**
+ * Endereço base da página de um evento, pelo projeto dele: "exposicao"
+ * para as exposições, "cine-clube" para as sessões do Cine Clube...
+ */
+function paginaDoEvento(int $id): string
+{
+    foreach (apiLista('/api/eventos', 'eventos') ?? [] as $evento) {
+        if ((int) ($evento['id'] ?? 0) === $id) {
+            return Projetos::dados(Projetos::doEvento($evento))['pagina'];
+        }
+    }
+
+    return 'exposicao';
+}
+
+/**
+ * Id da exposição aberta: pelo nome no endereço (/exposicao/nome) ou
+ * pelo ?id= antigo. Abrindo pelo ?id= (GET), redireciona para o
+ * endereço com o nome, mantendo os outros parâmetros.
+ */
+function exposicaoDoEndereco(string $pagina = 'exposicao'): int
+{
+    if (defined('ELOS_SLUG_EXPOSICAO')) {
+        $slug = (string) constant('ELOS_SLUG_EXPOSICAO');
+        $id = idDaExposicaoPeloSlug($slug) ?? 0;
+
+        // Nome antigo no endereço: leva para o atual, com os mesmos parâmetros.
+        $atual = slugsDasExposicoes()[$id] ?? null;
+
+        if ($id > 0 && $atual !== null && $atual !== $slug && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            $outros = array_filter($_GET, static fn(mixed $v): bool => is_scalar($v));
+            header('Location: ' . linkExposicao($id, $outros, '', $pagina), true, 301);
+            exit();
+        }
+
+        return $id;
+    }
+
+    $id = (int) ($_GET['id'] ?? 0);
+
+    if ($id > 0 && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && isset(slugsDasExposicoes()[$id])) {
+        $outros = array_filter(
+            array_diff_key($_GET, ['id' => true]),
+            static fn(mixed $v): bool => is_scalar($v)
+        );
+        header('Location: ' . linkExposicao($id, $outros, '', $pagina), true, 301);
+        exit();
+    }
+
+    return $id;
 }
 
 function esc(mixed $valor): string
@@ -111,177 +339,27 @@ function flash(string $chave, ?string $mensagem = null): string
 }
 
 /**
- * Redireciona. Endereços relativos ("exposicoes", "./") valem a partir
- * da raiz do site, em qualquer tela (mesmo em /exposicao/nome/...).
+ * "entrar" -> "/entrar". As páginas de exposição ficam em
+ * /exposicao/nome, então um endereço relativo num redirecionamento
+ * iria parar em /exposicao/entrar. Partindo da raiz, vale em qualquer página.
  */
+function enderecoAbsoluto(string $url): string
+{
+    if ($url === '' || $url[0] === '/' || preg_match('#^[a-z][a-z0-9+.-]*:#i', $url) === 1) {
+        return $url;
+    }
+
+    if ($url[0] === '?' || $url[0] === '#') {
+        return $url;
+    }
+
+    return raizDoSite() . '/' . ($url === './' ? '' : preg_replace('#^\./#', '', $url));
+}
+
 function redirecionar(string $url): never
 {
-    if ($url === './' || $url === '.') {
-        $url = raizDoSite() . '/';
-    } elseif (!preg_match('#^(https?:)?/|^[?\#]#', $url)) {
-        $url = raizDoSite() . '/' . $url;
-    }
-
-    header('Location: ' . $url);
+    header('Location: ' . enderecoAbsoluto($url));
     exit();
-}
-
-// ---------------------------------------------------------------
-// Endereços
-// ---------------------------------------------------------------
-
-/**
- * Raiz do site ('' quando está na raiz do domínio; '/elos' numa pasta).
- * O roteador define ELOS_RAIZ; sem ele, vem da pasta do script.
- */
-function raizDoSite(): string
-{
-    if (defined('ELOS_RAIZ')) {
-        return (string) constant('ELOS_RAIZ');
-    }
-
-    $pasta = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
-
-    if (basename($pasta) === 'pages') {
-        $pasta = dirname($pasta);
-    }
-
-    return rtrim($pasta, '/.');
-}
-
-/** "Memórias do Rio Antigo" → "memorias-do-rio-antigo". */
-function slugDeTexto(string $texto): string
-{
-    $texto = mb_strtolower(trim($texto));
-    $semAcento = strtr($texto, [
-        'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
-        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
-        'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
-        'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
-        'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
-        'ç' => 'c', 'ñ' => 'n',
-    ]);
-
-    return trim((string) preg_replace('/[^a-z0-9]+/', '-', $semAcento), '-');
-}
-
-/**
- * Busca os endereços na API ao mesmo tempo e guarda as respostas para
- * esta página (os apiLista/apiGet seguintes não esperam de novo).
- *
- * @param list<string> $paths
- */
-function preCarregar(array $paths): void
-{
-    iniciarSessao();
-
-    // Sem login, a API só responderia "não autenticado".
-    if (empty($_SESSION['usuario']['id'])) {
-        return;
-    }
-
-    Api::preCarregar($paths);
-}
-
-/**
- * Eventos conhecidos (id => evento), da lista que a página já buscou.
- *
- * @return array<int, array<string, mixed>>
- */
-function eventosPorId(): array
-{
-    $porId = [];
-
-    foreach (apiLista('/api/eventos', 'eventos') ?? [] as $evento) {
-        $porId[(int) $evento['id']] = $evento;
-    }
-
-    return $porId;
-}
-
-/**
- * Endereço do evento (o "nome" em /exposicao/nome). Vem gravado do
- * backend (eventos.slug); sem ele, só o id.
- */
-function slugDaExposicao(int $id): string
-{
-    $slug = (string) (eventosPorId()[$id]['slug'] ?? '');
-
-    return $slug !== '' ? $slug : (string) $id;
-}
-
-/**
- * Id do evento a partir do endereço (atual ou de um nome antigo) ou de
- * um id. 0 = nenhum.
- */
-function idDaExposicaoNoParametro(mixed $valor): int
-{
-    $valor = is_scalar($valor) ? trim((string) $valor) : '';
-
-    if ($valor === '') {
-        return 0;
-    }
-
-    if (ctype_digit($valor)) {
-        return (int) $valor;
-    }
-
-    foreach (eventosPorId() as $id => $evento) {
-        if ((string) ($evento['slug'] ?? '') === $valor) {
-            return $id;
-        }
-    }
-
-    // Nome antigo: o backend guarda todos os endereços que o evento já teve.
-    if (preg_match('/^[a-z0-9-]{1,220}$/', $valor) === 1) {
-        return (int) (apiGet('/api/eventos/endereco/' . $valor)['evento_id'] ?? 0);
-    }
-
-    return 0;
-}
-
-/**
- * Evento da página: o nome no endereço (/exposicao/nome, definido pelo
- * roteador) ou ?id= dos endereços antigos. 0 = não achou.
- */
-function exposicaoDoEndereco(string $acao = ''): int
-{
-    if (defined('ELOS_SLUG_EXPOSICAO')) {
-        return idDaExposicaoNoParametro(constant('ELOS_SLUG_EXPOSICAO'));
-    }
-
-    return idDaExposicaoNoParametro($_GET['id'] ?? '');
-}
-
-/**
- * Endereço de um evento: /exposicao/nome, /sessao/nome... com filtros
- * (?fase=...), uma âncora (#datas) e, se preciso, uma ação
- * (/exposicao/nome/apagar-exposicao).
- *
- * @param array<string, scalar> $params
- */
-function linkExposicao(int $id, array $params = [], string $ancora = '', string $acao = ''): string
-{
-    $evento = eventosPorId()[$id] ?? null;
-    $pagina = Projetos::dados($evento !== null ? Projetos::doEvento($evento) : Projetos::EXPOSICOES)['pagina'];
-
-    $url = raizDoSite() . '/' . $pagina . '/' . rawurlencode(slugDaExposicao($id));
-
-    if ($acao !== '') {
-        $url .= '/' . rawurlencode($acao);
-    }
-
-    $params = array_filter($params, static fn (mixed $v): bool => $v !== null && $v !== '');
-
-    if ($params !== []) {
-        $url .= '?' . http_build_query($params);
-    }
-
-    if ($ancora !== '') {
-        $url .= str_starts_with($ancora, '#') ? $ancora : '#' . $ancora;
-    }
-
-    return $url;
 }
 
 // ---------------------------------------------------------------
@@ -663,7 +741,6 @@ function resolverCategoria(string $escolha, string $novaCategoria): array
  * Tipo, responsável e local de uma exposição, vindos do formulário
  * (cada um pode ter sido escrito como novo).
  *
- * @param string $projeto Projeto do evento (para um tipo novo).
  * @return array{ids: array{tipo_evento_id: ?int, responsavel_id: ?int, local_id: ?int}, erro: string}
  */
 function resolverCadastrosDaExposicao(array $post, string $projeto = Projetos::EXPOSICOES): array

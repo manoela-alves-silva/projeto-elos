@@ -5,20 +5,18 @@ declare(strict_types=1);
 namespace Elos\Frontend;
 
 /**
- * Os projetos da galeria: as Exposições e os projetos de um dia só
- * (Cine Clube, Café Cultural, Arte ao Ar Livre, Amostra de Talentos).
+ * Projetos da galeria: cada um tem área própria no ELOS (lista, página
+ * de cada evento, visual), mas todos usam o mesmo checklist, anexos,
+ * histórico, calendário e painel ao vivo.
  *
- * Cada projeto tem seus tipos de evento: a coluna tipos_evento.projeto
- * diz a que projeto o tipo pertence (vazia = Exposições). Não depende
- * do nome, então renomear um tipo não muda nada. Cada projeto define aqui os nomes usados nas telas, o endereço, o tema
- * visual, os campos da ficha (o filme, o convidado, a programação...) e
- * o checklist padrão. Nada disso fica no banco: o banco guarda só os
- * valores da ficha (eventos_fichas).
+ * Um evento pertence a um projeto pelo tipo (tipos_evento.nome). Tipo
+ * que não é de nenhum projeto fica com as exposições, como sempre foi.
  *
- * Tipos de campo da ficha:
- *   texto  — uma linha;          numero — número (com 'sufixo' opcional);
- *   opcoes — lista ('opcoes');   linhas — várias linhas (uma por item);
- *   data   — dia;                marcar — sim/não.
+ * O que é próprio de cada projeto fica descrito aqui: os campos da
+ * ficha (guardada em evento_ficha), os nomes ("sessão", "encontro"), o
+ * checklist padrão e os textos das telas. O visual fica no CSS do tema
+ * (assets/css/<tema>.css). Para um projeto novo: uma entrada aqui, o
+ * tipo no banco (migração) e o CSS do tema.
  */
 final class Projetos
 {
@@ -28,252 +26,281 @@ final class Projetos
     public const ARTE_AO_AR_LIVRE = 'arte-ao-ar-livre';
     public const AMOSTRA_DE_TALENTOS = 'amostra-de-talentos';
 
-    private const PROJETOS = [
+    private const LISTA = [
         self::EXPOSICOES => [
             'nome' => 'Exposições',
-            'tipo' => 'Exposição',
-            'plural' => 'Exposições',
+            'tipo' => 'Exposição de Arte',
+            'lista' => 'exposicoes',
+            'pagina' => 'exposicao',
+            'menu' => 'eventos',
             'singular' => 'exposição',
+            'plural' => 'Exposições',
             'artigo' => 'a',
             'este' => 'esta',
-            'novo' => 'Nova exposição',
-            'menu' => 'eventos',
-            'lista' => 'exposicoes',
-            'rota_nova' => '',
-            'pagina' => 'exposicao',
-            'tema' => 'galeria',
-            'icone' => '▣',
-            'momento' => 'Abertura',
-            'capa' => 'Imagem de capa',
             'cancelado' => 'Exposição cancelada',
-            'sobretitulo' => 'Exposições',
-            'frase_lista' => 'Abra uma exposição para ver e organizar tudo o que ela precisa.',
-            'frase_nova' => '',
-            'proxima' => 'Próxima exposição',
-            'anteriores' => 'Exposições encerradas',
-            'vazio' => ['Nenhuma exposição', 'Crie uma exposição e diga o que ela precisa.'],
-            'passo_ficha' => ['', ''],
-            'descricao' => 'Descrição',
-            'campo_titulo' => null,
-            'linha' => [],
-            'destaques' => [],
-            'selo' => null,
-            'lista_destaque' => null,
-            'campos' => [],
-            'checklist' => [],
+            'momento' => 'Abertura',
         ],
+
         self::CINE_CLUBE => [
             'nome' => 'Cine Clube',
             'tipo' => 'Cine Clube',
-            'plural' => 'Sessões',
+            'lista' => 'cine-clube',
+            'pagina' => 'cine-clube',
+            'menu' => 'cine-clube',
+            'icone' => '▶',
+            'tema' => 'cinema',
             'singular' => 'sessão',
+            'plural' => 'Sessões',
             'artigo' => 'a',
             'este' => 'esta',
             'novo' => 'Nova sessão',
-            'menu' => 'cine-clube',
-            'lista' => 'cine-clube',
             'rota_nova' => 'nova-sessao',
-            'pagina' => 'sessao',
-            'tema' => 'cinema',
-            'icone' => '🎬',
-            'momento' => 'Sessão',
-            'capa' => 'Cartaz',
             'cancelado' => 'Sessão cancelada',
-            'sobretitulo' => 'Cine Clube',
-            'frase_lista' => 'Os filmes, os debates e o checklist de cada sessão.',
-            'frase_nova' => 'O filme, quem conduz a conversa e o dia da sessão.',
+            'momento' => 'Sessão',
+            'sobretitulo' => 'Cine Clube La Salle',
+            'frase_lista' => 'Cada sessão com o filme, o debate e tudo o que precisa ficar pronto.',
+            'frase_nova' => 'O filme, o dia e onde vai ser. O resto se organiza no checklist.',
+            'passo_ficha' => ['O filme', 'Nome, ficha técnica e quem conduz o debate.'],
+            'vazio' => ['Nenhuma sessão ainda', 'Crie a primeira sessão do Cine Clube: o filme, o dia e o checklist do que precisa ficar pronto.'],
             'proxima' => 'Próxima sessão',
             'anteriores' => 'Sessões anteriores',
-            'vazio' => ['Nenhuma sessão marcada', 'Crie a primeira sessão: o filme, o dia e quem conduz o debate.'],
-            'passo_ficha' => ['O filme', 'O que vai passar e quem conduz a conversa.'],
-            'descricao' => 'Sinopse ou observações',
-            'campo_titulo' => 'filme',
-            'linha' => ['direcao', 'ano', 'duracao'],
-            'destaques' => [['debatedor', 'Debate com'], ['mediacao', 'Mediação:']],
+            'capa' => 'Cartaz do filme',
+            'descricao' => 'Sinopse ou tema do debate',
+            'icone_capa' => '▶',
+
+            // Ficha: o campo que dá nome ao evento, a linha da ficha técnica,
+            // as pessoas em destaque e o selo (classificação indicativa).
+            'titulo_campo' => 'filme',
+            'linha_ficha' => [['direcao', 'Direção: ', ''], ['ano', '', ''], ['duracao_minutos', '', ' min']],
+            'destaques' => [['mediacao', 'Debate com']],
             'selo' => 'classificacao',
-            'lista_destaque' => null,
+            'etiquetas' => [],
             'campos' => [
-                ['campo' => 'filme', 'rotulo' => 'Filme', 'tipo' => 'texto', 'obrigatorio' => true, 'exemplo' => 'Ex.: Central do Brasil'],
-                ['campo' => 'direcao', 'rotulo' => 'Direção', 'tipo' => 'texto', 'exemplo' => 'Ex.: Walter Salles'],
-                ['campo' => 'ano', 'rotulo' => 'Ano', 'tipo' => 'numero', 'min' => 1880, 'max' => 2100],
-                ['campo' => 'duracao', 'rotulo' => 'Duração', 'tipo' => 'numero', 'sufixo' => ' min', 'min' => 1, 'max' => 600],
-                ['campo' => 'classificacao', 'rotulo' => 'Classificação', 'tipo' => 'opcoes', 'opcoes' => ['L' => 'Livre', '10' => '10 anos', '12' => '12 anos', '14' => '14 anos', '16' => '16 anos', '18' => '18 anos']],
-                ['campo' => 'debatedor', 'rotulo' => 'Debatedor(a)', 'tipo' => 'texto', 'exemplo' => 'Quem conversa com o público'],
-                ['campo' => 'mediacao', 'rotulo' => 'Mediação', 'tipo' => 'texto'],
-                ['campo' => 'legendas', 'rotulo' => 'Sessão com legendas (acessível)', 'tipo' => 'marcar'],
+                ['campo' => 'filme', 'rotulo' => 'Filme', 'tipo' => 'texto', 'max' => 200, 'obrigatorio' => true, 'exemplo' => 'Ex.: Central do Brasil', 'largo' => true],
+                ['campo' => 'direcao', 'rotulo' => 'Direção', 'tipo' => 'texto', 'max' => 150, 'exemplo' => 'Ex.: Walter Salles'],
+                ['campo' => 'ano', 'rotulo' => 'Ano', 'tipo' => 'numero', 'min' => 1888, 'max' => 2100],
+                ['campo' => 'duracao_minutos', 'rotulo' => 'Duração (min)', 'tipo' => 'numero', 'min' => 1, 'max' => 1000],
+                ['campo' => 'classificacao', 'rotulo' => 'Classificação indicativa', 'tipo' => 'escolha', 'opcoes' => [
+                    'L' => 'Livre', '10' => '10 anos', '12' => '12 anos', '14' => '14 anos', '16' => '16 anos', '18' => '18 anos',
+                ]],
+                ['campo' => 'mediacao', 'rotulo' => 'Debate com', 'tipo' => 'texto', 'max' => 200, 'exemplo' => 'Quem conduz a conversa depois do filme', 'largo' => true],
             ],
+
+            // [categoria, o que fazer, dias em relação ao dia (negativo = antes), prioridade]
             'checklist' => [
-                ['Documentação', 'Confirmar a licença de exibição do filme', -21, 'ALTA'],
-                ['Outro', 'Convidar o debatedor ou a debatedora', -21, 'ALTA'],
-                ['Divulgação', 'Divulgar a sessão (cartaz e redes)', -10, 'MEDIA'],
-                ['Infraestrutura', 'Reservar o auditório', -14, 'MEDIA'],
-                ['Equipamentos', 'Testar projetor, som e a cópia do filme', -2, 'ALTA'],
-                ['Alimentação', 'Água para o debate', -1, 'BAIXA'],
-                ['Documentação', 'Lista de presença', 0, 'MEDIA'],
-                ['Outro', 'Registrar fotos e público', 1, 'BAIXA'],
+                ['Escolha do filme', 'Escolher o filme com a curadoria dos alunos', -21, 'ALTA'],
+                ['Direitos de exibição', 'Verificar a licença ou os direitos de exibição do filme', -14, 'ALTA'],
+                ['Mediação e debate', 'Convidar e confirmar quem conduz o debate', -10, 'ALTA'],
+                ['Divulgação', 'Criar a arte de divulgação (cartaz e redes sociais)', -10, 'MEDIA'],
+                ['Divulgação', 'Divulgar nas redes e para as turmas', -7, 'MEDIA'],
+                ['Projeção e som', 'Reservar o espaço e testar projetor, som e legendas', -2, 'ALTA'],
+                ['Mediação e debate', 'Preparar o roteiro de perguntas do debate', -2, 'MEDIA'],
+                ['Recepção do público', 'Organizar a recepção e a lista de presença', 0, 'MEDIA'],
+                ['Elaboração do relatório', 'Registrar fotos e escrever o relatório da sessão', 3, 'BAIXA'],
             ],
         ],
+
         self::CAFE_CULTURAL => [
             'nome' => 'Café Cultural',
             'tipo' => 'Café Cultural',
-            'plural' => 'Encontros',
+            'lista' => 'cafe-cultural',
+            'pagina' => 'cafe-cultural',
+            'menu' => 'cafe-cultural',
+            'icone' => '❦',
+            'tema' => 'cafe',
             'singular' => 'encontro',
+            'plural' => 'Encontros',
             'artigo' => 'o',
             'este' => 'este',
             'novo' => 'Novo encontro',
-            'menu' => 'cafe-cultural',
-            'lista' => 'cafe-cultural',
             'rota_nova' => 'novo-encontro',
-            'pagina' => 'encontro',
-            'tema' => 'cafe',
-            'icone' => '☕',
-            'momento' => 'Encontro',
-            'capa' => 'Imagem do encontro',
             'cancelado' => 'Encontro cancelado',
+            'momento' => 'Encontro',
             'sobretitulo' => 'Café Cultural',
-            'frase_lista' => 'Conversas com convidados, com café e boa companhia.',
-            'frase_nova' => 'O tema, quem vem conversar e o dia do encontro.',
+            'frase_lista' => 'Encontros com autores e leitores: a obra, a conversa e o café.',
+            'frase_nova' => 'Quem vem, qual obra, quando e onde. O resto se organiza no checklist.',
+            'passo_ficha' => ['A obra e o autor', 'Quem vem conversar, sobre qual obra e quem faz a mediação.'],
+            'vazio' => ['Nenhum encontro ainda', 'Crie o primeiro encontro do Café Cultural: o autor, a obra, o dia e o checklist do que precisa ficar pronto.'],
             'proxima' => 'Próximo encontro',
             'anteriores' => 'Encontros anteriores',
-            'vazio' => ['Nenhum encontro marcado', 'Crie o primeiro encontro: o tema, o convidado e o dia.'],
-            'passo_ficha' => ['A conversa', 'O tema e quem participa.'],
-            'descricao' => 'Sobre o encontro',
-            'campo_titulo' => 'tema',
-            'linha' => ['obra', 'autoria'],
-            'destaques' => [['convidado', 'Com'], ['mediacao', 'Mediação:']],
+            'capa' => 'Capa do livro',
+            'descricao' => 'Sobre a obra e a conversa',
+            'icone_capa' => '❦',
+
+            'titulo_campo' => 'obra',
+            'linha_ficha' => [['genero', '', ''], ['editora', '', ''], ['ano', '', '']],
+            'destaques' => [['autor', 'Com'], ['mediacao', 'Mediação']],
             'selo' => null,
-            'lista_destaque' => null,
+            'etiquetas' => [['autografos', 'Sessão de autógrafos']],
             'campos' => [
-                ['campo' => 'tema', 'rotulo' => 'Tema do encontro', 'tipo' => 'texto', 'obrigatorio' => true, 'exemplo' => 'Ex.: Literatura e memória'],
-                ['campo' => 'convidado', 'rotulo' => 'Convidado(a)', 'tipo' => 'texto'],
-                ['campo' => 'mediacao', 'rotulo' => 'Mediação', 'tipo' => 'texto'],
-                ['campo' => 'obra', 'rotulo' => 'Livro ou obra em conversa', 'tipo' => 'texto'],
-                ['campo' => 'autoria', 'rotulo' => 'Autoria', 'tipo' => 'texto'],
+                ['campo' => 'obra', 'rotulo' => 'Obra ou tema do encontro', 'tipo' => 'texto', 'max' => 200, 'obrigatorio' => true, 'exemplo' => 'Ex.: Memórias da Baía', 'largo' => true],
+                ['campo' => 'autor', 'rotulo' => 'Autor(a) convidado(a)', 'tipo' => 'texto', 'max' => 200, 'obrigatorio' => true, 'exemplo' => 'Nome de quem vem conversar'],
+                ['campo' => 'genero', 'rotulo' => 'Gênero', 'tipo' => 'escolha', 'opcoes' => [
+                    'Romance' => 'Romance', 'Conto' => 'Conto', 'Crônica' => 'Crônica', 'Poesia' => 'Poesia',
+                    'Ensaio' => 'Ensaio', 'Infantojuvenil' => 'Infantojuvenil', 'Quadrinhos' => 'Quadrinhos',
+                    'Biografia e memórias' => 'Biografia e memórias', 'Acadêmico' => 'Acadêmico', 'Outro' => 'Outro',
+                ]],
+                ['campo' => 'editora', 'rotulo' => 'Editora', 'tipo' => 'texto', 'max' => 150],
+                ['campo' => 'ano', 'rotulo' => 'Ano de publicação', 'tipo' => 'numero', 'min' => 1500, 'max' => 2100],
+                ['campo' => 'mediacao', 'rotulo' => 'Mediação', 'tipo' => 'texto', 'max' => 200, 'exemplo' => 'Quem conduz a conversa', 'largo' => true],
+                ['campo' => 'autografos', 'rotulo' => 'Terá sessão de autógrafos', 'tipo' => 'marcar'],
             ],
+
             'checklist' => [
-                ['Outro', 'Confirmar o convidado', -21, 'ALTA'],
-                ['Divulgação', 'Divulgar o encontro', -10, 'MEDIA'],
-                ['Infraestrutura', 'Reservar e arrumar o espaço', -7, 'MEDIA'],
-                ['Alimentação', 'Café e lanche', -2, 'MEDIA'],
-                ['Equipamentos', 'Microfone e som', -1, 'MEDIA'],
-                ['Documentação', 'Lista de presença', 0, 'MEDIA'],
-                ['Outro', 'Agradecer o convidado e registrar o encontro', 2, 'BAIXA'],
+                ['Convidados', 'Confirmar a participação do autor e a data', -30, 'ALTA'],
+                ['Convidados', 'Pedir minibiografia, foto e sinopse da obra', -21, 'MEDIA'],
+                ['Divulgação', 'Criar a arte de divulgação', -14, 'MEDIA'],
+                ['Divulgação', 'Divulgar nas redes, para as turmas e a comunidade', -10, 'MEDIA'],
+                ['Livros e autógrafos', 'Combinar exemplares para venda e autógrafos', -7, 'MEDIA'],
+                ['Mediação e debate', 'Preparar o roteiro da conversa com o autor', -5, 'ALTA'],
+                ['Alimentação', 'Organizar o café (comidas, bebidas e louça)', -3, 'ALTA'],
+                ['Espaço e ambientação', 'Reservar o espaço e arrumar o ambiente (mesas, som e microfone)', -1, 'ALTA'],
+                ['Recepção do público', 'Organizar a recepção e a lista de presença', 0, 'MEDIA'],
+                ['Agradecimentos', 'Enviar agradecimento ao autor', 2, 'BAIXA'],
+                ['Elaboração do relatório', 'Registrar fotos e escrever o relatório do encontro', 3, 'BAIXA'],
             ],
         ],
+
         self::ARTE_AO_AR_LIVRE => [
             'nome' => 'Arte ao Ar Livre',
             'tipo' => 'Arte ao Ar Livre',
-            'plural' => 'Intervenções',
-            'singular' => 'intervenção',
+            'lista' => 'arte-ao-ar-livre',
+            'pagina' => 'arte-ao-ar-livre',
+            'menu' => 'arte-ao-ar-livre',
+            'icone' => '✿',
+            'tema' => 'ar-livre',
+            'singular' => 'atividade',
+            'plural' => 'Atividades',
             'artigo' => 'a',
             'este' => 'esta',
-            'novo' => 'Nova intervenção',
-            'menu' => 'arte-ao-ar-livre',
-            'lista' => 'arte-ao-ar-livre',
-            'rota_nova' => 'nova-intervencao',
-            'pagina' => 'intervencao',
-            'tema' => 'arlivre',
-            'icone' => '🌳',
-            'momento' => 'Intervenção',
-            'capa' => 'Imagem da intervenção',
-            'cancelado' => 'Intervenção cancelada',
-            'sobretitulo' => 'Arte ao Ar Livre',
-            'frase_lista' => 'Arte fora das paredes: no pátio, no jardim, na rua.',
-            'frase_nova' => 'O que vai acontecer, quem faz e onde.',
-            'proxima' => 'Próxima intervenção',
-            'anteriores' => 'Intervenções anteriores',
-            'vazio' => ['Nenhuma intervenção marcada', 'Crie a primeira intervenção: o que, quem e onde.'],
-            'passo_ficha' => ['A intervenção', 'O que vai acontecer e quem participa.'],
-            'descricao' => 'Sobre a intervenção',
-            'campo_titulo' => 'nome',
-            'linha' => ['linguagem'],
-            'destaques' => [['coordenacao', 'Coordenação:']],
+            'novo' => 'Nova atividade',
+            'rota_nova' => 'nova-atividade',
+            'cancelado' => 'Atividade cancelada',
+            'momento' => 'Atividade',
+            'sobretitulo' => 'Arte ao Ar Livre · Varanda Cultural',
+            'frase_lista' => 'No intervalo, na Varanda Cultural: depois de ver as exposições, pôr a mão na massa.',
+            'frase_nova' => 'A proposta, a exposição que inspira, o dia e os materiais. O resto se organiza no checklist.',
+            'passo_ficha' => ['A atividade', 'A proposta, a exposição que inspira, quem conduz e os materiais.'],
+            'vazio' => ['Nenhuma atividade ainda', 'Crie a primeira atividade do Arte ao Ar Livre: a proposta, o dia e o checklist do que precisa ficar pronto.'],
+            'proxima' => 'Próxima atividade',
+            'anteriores' => 'Atividades anteriores',
+            'capa' => 'Foto da atividade',
+            'descricao' => 'Como vai ser a atividade',
+            'icone_capa' => '✿',
+
+            'titulo_campo' => 'atividade',
+            'linha_ficha' => [['linguagem', '', ''], ['publico', 'até ', ' pessoas']],
+            'destaques' => [['mediacao', 'Com'], ['exposicao', 'Inspirada em']],
             'selo' => null,
-            'lista_destaque' => 'artistas',
+            'etiquetas' => [],
             'campos' => [
-                ['campo' => 'nome', 'rotulo' => 'Nome da intervenção', 'tipo' => 'texto', 'obrigatorio' => true, 'exemplo' => 'Ex.: Mural coletivo no pátio'],
-                ['campo' => 'linguagem', 'rotulo' => 'Linguagem', 'tipo' => 'texto', 'exemplo' => 'Ex.: grafite, dança, escultura'],
-                ['campo' => 'coordenacao', 'rotulo' => 'Coordenação', 'tipo' => 'texto'],
-                ['campo' => 'artistas', 'rotulo' => 'Artistas (um por linha)', 'tipo' => 'linhas'],
-                ['campo' => 'plano_chuva', 'rotulo' => 'Se chover', 'tipo' => 'texto', 'exemplo' => 'Ex.: vai para o hall do bloco A'],
+                ['campo' => 'atividade', 'rotulo' => 'Atividade', 'tipo' => 'texto', 'max' => 200, 'obrigatorio' => true, 'exemplo' => 'Ex.: Colagem de memórias', 'largo' => true],
+                ['campo' => 'linguagem', 'rotulo' => 'Linguagem', 'tipo' => 'escolha', 'opcoes' => [
+                    'Desenho' => 'Desenho', 'Pintura' => 'Pintura', 'Colagem' => 'Colagem', 'Modelagem' => 'Modelagem',
+                    'Gravura' => 'Gravura', 'Fotografia' => 'Fotografia', 'Escrita criativa' => 'Escrita criativa',
+                    'Obra coletiva' => 'Obra coletiva', 'Outra' => 'Outra',
+                ]],
+                ['campo' => 'exposicao', 'rotulo' => 'Exposição que inspira', 'tipo' => 'exposicao'],
+                ['campo' => 'mediacao', 'rotulo' => 'Quem conduz', 'tipo' => 'texto', 'max' => 200, 'exemplo' => 'Artista, professor ou educador'],
+                ['campo' => 'publico', 'rotulo' => 'Público estimado', 'tipo' => 'numero', 'min' => 1, 'max' => 5000],
+                ['campo' => 'materiais', 'rotulo' => 'Materiais', 'tipo' => 'texto', 'max' => 400, 'exemplo' => 'Ex.: papel kraft, giz pastel, revistas, cola', 'largo' => true],
             ],
+
             'checklist' => [
-                ['Documentação', 'Autorização para usar o espaço', -21, 'ALTA'],
-                ['Equipamentos', 'Materiais da intervenção', -7, 'ALTA'],
-                ['Infraestrutura', 'Plano para chuva', -7, 'MEDIA'],
-                ['Divulgação', 'Divulgar a intervenção', -7, 'MEDIA'],
-                ['Infraestrutura', 'Montar e sinalizar o espaço', 0, 'MEDIA'],
-                ['Outro', 'Limpar e devolver o espaço', 1, 'MEDIA'],
+                ['Proposta da atividade', 'Definir a proposta a partir da exposição em cartaz', -14, 'ALTA'],
+                ['Mediação e debate', 'Confirmar quem conduz a atividade', -10, 'ALTA'],
+                ['Materiais', 'Listar e separar os materiais artísticos', -7, 'ALTA'],
+                ['Materiais', 'Comprar ou pedir o que faltar', -5, 'MEDIA'],
+                ['Divulgação', 'Divulgar nas redes e para as turmas', -5, 'MEDIA'],
+                ['Espaço e ambientação', 'Combinar o plano B se chover', -2, 'MEDIA'],
+                ['Espaço e ambientação', 'Preparar a Varanda Cultural (mesas, proteção do chão, água para limpeza)', 0, 'ALTA'],
+                ['Espaço e ambientação', 'Guardar os materiais e limpar o espaço', 0, 'MEDIA'],
+                ['Elaboração do relatório', 'Fotografar as produções e escrever o relatório', 1, 'BAIXA'],
             ],
         ],
+
         self::AMOSTRA_DE_TALENTOS => [
             'nome' => 'Amostra de Talentos',
             'tipo' => 'Amostra de Talentos',
-            'plural' => 'Edições',
+            'lista' => 'amostra-de-talentos',
+            'pagina' => 'amostra-de-talentos',
+            'menu' => 'amostra-de-talentos',
+            'icone' => '★',
+            'tema' => 'palco',
             'singular' => 'edição',
+            'plural' => 'Edições',
             'artigo' => 'a',
             'este' => 'esta',
             'novo' => 'Nova edição',
-            'menu' => 'amostra-de-talentos',
-            'lista' => 'amostra-de-talentos',
             'rota_nova' => 'nova-edicao',
-            'pagina' => 'edicao',
-            'tema' => 'talentos',
-            'icone' => '🎤',
-            'momento' => 'Apresentação',
-            'capa' => 'Imagem da edição',
             'cancelado' => 'Edição cancelada',
-            'sobretitulo' => 'Amostra de Talentos',
-            'frase_lista' => 'Música, poesia, dança: o palco aberto da comunidade.',
-            'frase_nova' => 'A programação, quem apresenta e o dia.',
+            'momento' => 'Amostra',
+            'sobretitulo' => 'Amostra de Talentos · Varanda Cultural',
+            'frase_lista' => 'Apresentações na Varanda Cultural: as inscrições, a programação e o palco.',
+            'frase_nova' => 'A edição, a programação, o dia e quem organiza junto. O resto se organiza no checklist.',
+            'passo_ficha' => ['A edição', 'O nome, as apresentações e quem organiza junto com a galeria.'],
+            'vazio' => ['Nenhuma edição ainda', 'Crie a primeira edição da Amostra de Talentos: a programação, o dia e o checklist do que precisa ficar pronto.'],
             'proxima' => 'Próxima edição',
             'anteriores' => 'Edições anteriores',
-            'vazio' => ['Nenhuma edição marcada', 'Crie a primeira edição: a programação e o dia.'],
-            'passo_ficha' => ['A edição', 'O nome, a programação e quem apresenta.'],
-            'descricao' => 'Sobre a edição',
-            'campo_titulo' => 'nome',
-            'linha' => ['inscricoes_ate'],
-            'destaques' => [['apresentacao', 'Apresentação:']],
-            'selo' => null,
+            'capa' => 'Cartaz da edição',
+            'descricao' => 'Sobre esta edição',
+            'icone_capa' => '★',
+
+            'titulo_campo' => 'edicao',
+            // ['programacao', ...] conta as linhas: "5 apresentações"
+            'linha_ficha' => [['programacao', '', ['apresentação', 'apresentações']], ['publico', 'até ', ' pessoas']],
+            'destaques' => [['apresentacao', 'Apresentação de'], ['organizacao', 'Organização com']],
             'lista_destaque' => 'programacao',
+            'selo' => null,
+            'etiquetas' => [],
             'campos' => [
-                ['campo' => 'nome', 'rotulo' => 'Nome da edição', 'tipo' => 'texto', 'obrigatorio' => true, 'exemplo' => 'Ex.: Amostra de Talentos 2026'],
-                ['campo' => 'apresentacao', 'rotulo' => 'Apresentação', 'tipo' => 'texto', 'exemplo' => 'Quem conduz o palco'],
-                ['campo' => 'inscricoes_ate', 'rotulo' => 'Inscrições até', 'tipo' => 'data'],
-                ['campo' => 'programacao', 'rotulo' => 'Programação (uma por linha)', 'tipo' => 'linhas'],
+                ['campo' => 'edicao', 'rotulo' => 'Nome da edição', 'tipo' => 'texto', 'max' => 200, 'obrigatorio' => true, 'exemplo' => 'Ex.: Amostra de Talentos — 2º semestre', 'largo' => true],
+                ['campo' => 'programacao', 'rotulo' => 'Programação (uma apresentação por linha)', 'tipo' => 'linhas', 'max' => 2000, 'exemplo' => "Ex.:\nBanda Maré Alta — música\nGrupo Passos — dança\nAna Clara — poesia", 'largo' => true],
+                ['campo' => 'apresentacao', 'rotulo' => 'Quem apresenta', 'tipo' => 'texto', 'max' => 200, 'exemplo' => 'Mestre de cerimônias'],
+                ['campo' => 'organizacao', 'rotulo' => 'Quem organiza junto com a galeria', 'tipo' => 'texto', 'max' => 200, 'exemplo' => 'Ex.: Diretório Acadêmico'],
+                ['campo' => 'publico', 'rotulo' => 'Público estimado', 'tipo' => 'numero', 'min' => 1, 'max' => 5000],
             ],
+
             'checklist' => [
-                ['Divulgação', 'Abrir as inscrições', -30, 'ALTA'],
-                ['Outro', 'Selecionar as apresentações', -14, 'ALTA'],
-                ['Divulgação', 'Divulgar a programação', -7, 'MEDIA'],
-                ['Equipamentos', 'Som, microfones e luz', -2, 'ALTA'],
-                ['Infraestrutura', 'Ensaio técnico no palco', -1, 'MEDIA'],
-                ['Documentação', 'Certificados de participação', 3, 'BAIXA'],
+                ['Inscrições', 'Abrir as inscrições das apresentações', -30, 'ALTA'],
+                ['Divulgação', 'Divulgar a chamada para as inscrições', -28, 'MEDIA'],
+                ['Inscrições', 'Encerrar as inscrições e montar a programação', -10, 'ALTA'],
+                ['Inscrições', 'Confirmar cada apresentação (horário e o que precisa)', -7, 'ALTA'],
+                ['Divulgação', 'Divulgar a programação', -5, 'MEDIA'],
+                ['Som e palco', 'Reservar som, microfones e extensões', -5, 'ALTA'],
+                ['Espaço e ambientação', 'Combinar o plano B se chover', -2, 'MEDIA'],
+                ['Som e palco', 'Montar o palco na Varanda Cultural e passar o som', 0, 'ALTA'],
+                ['Recepção do público', 'Organizar a recepção e a ordem das apresentações', 0, 'MEDIA'],
+                ['Agradecimentos', 'Agradecer e enviar certificados aos participantes', 3, 'BAIXA'],
+                ['Elaboração do relatório', 'Registrar fotos e vídeos e escrever o relatório', 3, 'BAIXA'],
             ],
         ],
     ];
 
-    /** @return list<string> */
-    public static function chaves(): array
-    {
-        return array_keys(self::PROJETOS);
-    }
-
     /**
-     * Configuração completa de um projeto (chave desconhecida = Exposições).
-     *
      * @return array<string, mixed>
      */
     public static function dados(string $chave): array
     {
-        $chave = isset(self::PROJETOS[$chave]) ? $chave : self::EXPOSICOES;
+        return ['chave' => $chave] + (self::LISTA[$chave] ?? self::LISTA[self::EXPOSICOES]);
+    }
 
-        return ['chave' => $chave] + self::PROJETOS[$chave];
+    /** Todos os projetos, na ordem do menu. @return list<string> */
+    public static function chaves(): array
+    {
+        return array_keys(self::LISTA);
+    }
+
+    /** Só os projetos com área própria (todos menos as exposições). @return list<string> */
+    public static function comArea(): array
+    {
+        return array_values(array_filter(self::chaves(), static fn(string $c): bool => $c !== self::EXPOSICOES));
     }
 
     /**
      * Projeto de um tipo de evento (registro de /api/tipos-evento), pela
-     * coluna projeto. Vazia ou desconhecida = Exposições.
+     * coluna tipos_evento.projeto. Não depende do nome: renomear o tipo
+     * não muda o projeto. Vazia ou desconhecida = Exposições.
      *
      * @param array<string, mixed> $tipo
      */
@@ -282,7 +309,7 @@ final class Projetos
         return self::chaveValida($tipo['projeto'] ?? null);
     }
 
-    /** @param array<string, mixed> $evento Registro de /api/eventos. */
+    /** Projeto de um evento (pelo tipo_evento_projeto, que a API manda). */
     public static function doEvento(array $evento): string
     {
         return self::chaveValida($evento['tipo_evento_projeto'] ?? null);
@@ -290,10 +317,24 @@ final class Projetos
 
     private static function chaveValida(mixed $chave): string
     {
-        return is_string($chave) && isset(self::PROJETOS[$chave]) ? $chave : self::EXPOSICOES;
+        return is_string($chave) && isset(self::LISTA[$chave]) ? $chave : self::EXPOSICOES;
+    }
+
+    /** Projeto pelo endereço da página dos eventos ("cine-clube"); null se não for de projeto. */
+    public static function daPagina(string $pagina): ?string
+    {
+        foreach (self::comArea() as $chave) {
+            if (self::LISTA[$chave]['pagina'] === $pagina) {
+                return $chave;
+            }
+        }
+
+        return null;
     }
 
     /**
+     * Só os eventos de um projeto.
+     *
      * @param list<array<string, mixed>> $eventos
      * @return list<array<string, mixed>>
      */
@@ -301,19 +342,22 @@ final class Projetos
     {
         return array_values(array_filter(
             $eventos,
-            static fn (array $evento): bool => self::doEvento($evento) === $chave
+            static fn(array $evento): bool => self::doEvento($evento) === $chave
         ));
     }
 
     /**
-     * Id do tipo de evento do projeto (o de nome igual ao do projeto;
-     * senão o primeiro do projeto). null se ainda não existe.
+     * Id do tipo de evento do projeto (null se ainda não existe no banco).
      *
-     * @param list<array<string, mixed>> $tipos
+     * @param list<array<string, mixed>> $tipos lista de /api/tipos-evento
      */
     public static function idDoTipo(array $tipos, string $chave): ?int
     {
-        $nomeDoTipo = mb_strtolower(self::dados($chave)['tipo']);
+        if ($chave === self::EXPOSICOES) {
+            return null;
+        }
+
+        // O de nome igual ao do projeto; senão, o primeiro do projeto.
         $achado = null;
 
         foreach ($tipos as $tipo) {
@@ -321,7 +365,7 @@ final class Projetos
                 continue;
             }
 
-            if (mb_strtolower(trim((string) ($tipo['nome'] ?? ''))) === $nomeDoTipo) {
+            if (mb_strtolower(trim((string) ($tipo['nome'] ?? ''))) === mb_strtolower(self::LISTA[$chave]['tipo'])) {
                 return (int) $tipo['id'];
             }
 
@@ -331,233 +375,265 @@ final class Projetos
         return $achado;
     }
 
-    /** Projeto pelo começo do endereço do evento (exposicao, sessao...). */
-    public static function daPagina(string $pagina): ?string
-    {
-        foreach (self::PROJETOS as $chave => $projeto) {
-            if ($projeto['pagina'] === $pagina) {
-                return $chave;
-            }
-        }
-
-        return null;
-    }
-
-    /** Projeto pela lista (cine-clube, cafe-cultural...). */
-    public static function daLista(string $lista): ?string
-    {
-        foreach (self::PROJETOS as $chave => $projeto) {
-            if ($projeto['lista'] === $lista) {
-                return $chave;
-            }
-        }
-
-        return null;
-    }
-
-    // -----------------------------------------------------------
+    // ---------------------------------------------------------------
     // Ficha
-    // -----------------------------------------------------------
+    // ---------------------------------------------------------------
 
     /**
-     * Nome a mostrar: o campo principal da ficha (o filme, o tema...),
-     * ou o título do evento.
+     * Exposições para o campo do tipo "exposicao" (id => título): as que
+     * não foram canceladas, mais a já escolhida (mesmo que tenha acabado).
      *
-     * @param array<string, mixed>|null $ficha
+     * @return array<int, string>
      */
-    public static function tituloDoEvento(array $projeto, ?array $ficha, string $padrao): string
+    public static function exposicoesParaEscolher(int $escolhida = 0): array
     {
-        $campo = $projeto['campo_titulo'] ?? null;
-        $valor = $campo !== null ? trim((string) ($ficha[$campo] ?? '')) : '';
+        $opcoes = [];
 
-        return $valor !== '' ? $valor : $padrao;
+        foreach (self::filtrar(apiLista('/api/eventos', 'eventos') ?? [], self::EXPOSICOES) as $evento) {
+            $id = (int) $evento['id'];
+            $ativa = !in_array($evento['status'] ?? '', ['CONCLUIDO', 'CANCELADO'], true);
+            if ($ativa || $id === $escolhida) {
+                $opcoes[$id] = (string) $evento['titulo'];
+            }
+        }
+
+        asort($opcoes);
+
+        return $opcoes;
     }
 
-    /** "Walter Salles · 1998 · 113 min" */
-    public static function linhaDaFicha(array $projeto, array $ficha): string
+    /**
+     * Lê e confere os campos da ficha vindos de um formulário.
+     *
+     * @param array<string, mixed> $projeto dados($chave)
+     * @param array<string, mixed> $post
+     * @return array{dados: array<string, scalar|null>, valores: array<string, string>, erro: string}
+     */
+    public static function lerFicha(array $projeto, array $post): array
+    {
+        $dados = [];
+        $valores = [];
+        $erro = '';
+
+        foreach ($projeto['campos'] ?? [] as $campo) {
+            $nome = $campo['campo'];
+
+            if ($campo['tipo'] === 'marcar') {
+                $marcado = ($post[$nome] ?? '') === '1';
+                $dados[$nome] = $marcado;
+                $valores[$nome] = $marcado ? '1' : '';
+                continue;
+            }
+
+            $valor = trim((string) ($post[$nome] ?? ''));
+            $valores[$nome] = $valor;
+
+            if ($valor === '') {
+                $dados[$nome] = null;
+                if ($erro === '' && !empty($campo['obrigatorio'])) {
+                    $erro = 'Preencha: ' . $campo['rotulo'] . '.';
+                }
+                continue;
+            }
+
+            switch ($campo['tipo']) {
+                case 'numero':
+                    if (!ctype_digit($valor) || (int) $valor < $campo['min'] || (int) $valor > $campo['max']) {
+                        $erro = $erro !== '' ? $erro : $campo['rotulo'] . ': número inválido.';
+                    }
+                    $dados[$nome] = (int) $valor;
+                    break;
+
+                case 'exposicao':
+                    if (!ctype_digit($valor) || !isset(self::exposicoesParaEscolher((int) $valor)[(int) $valor])) {
+                        $erro = $erro !== '' ? $erro : $campo['rotulo'] . ': escolha uma exposição da lista.';
+                    }
+                    $dados[$nome] = (int) $valor;
+                    break;
+
+                case 'linhas':
+                    $dados[$nome] = mb_substr(implode("\n", self::linhas($valor)), 0, (int) ($campo['max'] ?? 2000));
+                    $valores[$nome] = (string) $dados[$nome];
+                    break;
+
+                case 'escolha':
+                    if (!array_key_exists($valor, $campo['opcoes'])) {
+                        $erro = $erro !== '' ? $erro : $campo['rotulo'] . ': escolha uma opção da lista.';
+                    }
+                    $dados[$nome] = $valor;
+                    break;
+
+                default:
+                    $dados[$nome] = mb_substr($valor, 0, (int) ($campo['max'] ?? 200));
+            }
+        }
+
+        return ['dados' => $dados, 'valores' => $valores, 'erro' => $erro];
+    }
+
+    /**
+     * Valores da ficha como texto, para preencher os formulários.
+     *
+     * @param array<string, mixed>|null $ficha
+     * @return array<string, string>
+     */
+    public static function valoresDaFicha(array $projeto, ?array $ficha): array
+    {
+        $valores = [];
+
+        foreach ($projeto['campos'] ?? [] as $campo) {
+            $valor = $ficha[$campo['campo']] ?? null;
+            $valores[$campo['campo']] = $campo['tipo'] === 'marcar'
+                ? (!empty($valor) ? '1' : '')
+                : (string) ($valor ?? '');
+        }
+
+        return $valores;
+    }
+
+    /** "Direção: Walter Salles · 1998 · 113 min" */
+    public static function linhaDaFicha(array $projeto, ?array $ficha): string
     {
         $partes = [];
 
-        foreach ($projeto['linha'] ?? [] as $campo) {
-            if (isset($ficha[$campo]) && $ficha[$campo] !== '' && $ficha[$campo] !== null) {
-                $partes[] = self::rotuloDoValor($projeto, $campo, $ficha[$campo]);
+        foreach ($projeto['linha_ficha'] ?? [] as [$campo, $antes, $depois]) {
+            $valor = (string) ($ficha[$campo] ?? '');
+
+            // [singular, plural]: conta as linhas do campo ("5 apresentações").
+            if (is_array($depois)) {
+                $total = count(self::linhas($valor));
+                if ($total > 0) {
+                    $partes[] = $antes . $total . ' ' . ($total === 1 ? $depois[0] : $depois[1]);
+                }
+                continue;
+            }
+
+            if ($valor !== '') {
+                $partes[] = $antes . $valor . $depois;
             }
         }
 
         return implode(' · ', $partes);
     }
 
-    /** Valor de um campo pronto para mostrar (rótulo da opção, sufixo, data). */
-    public static function rotuloDoValor(array $projeto, string $campo, mixed $valor): string
-    {
-        $definicao = self::campo($projeto, $campo);
-
-        if ($definicao === null) {
-            return (string) $valor;
-        }
-
-        return match ($definicao['tipo']) {
-            'opcoes' => (string) ($definicao['opcoes'][(string) $valor] ?? $valor),
-            'numero' => $valor . ($definicao['sufixo'] ?? ''),
-            'data' => dataBr((string) $valor),
-            'marcar' => $valor ? 'Sim' : 'Não',
-            default => (string) $valor,
-        };
-    }
-
-    /** @return list<string> */
+    /**
+     * Linhas não vazias de um campo de várias linhas (ex.: programação).
+     *
+     * @return list<string>
+     */
     public static function linhas(string $texto): array
     {
         return array_values(array_filter(
-            array_map('trim', preg_split('/\r?\n/', $texto) ?: []),
-            static fn (string $linha): bool => $linha !== ''
+            array_map('trim', preg_split('/\R/', $texto) ?: []),
+            static fn(string $linha): bool => $linha !== ''
         ));
     }
 
-    /**
-     * Valores dos campos como texto, para o formulário.
-     *
-     * @param array<string, mixed>|null $dados
-     * @return array<string, string>
-     */
-    public static function valoresDaFicha(array $projeto, ?array $dados): array
+    /** Nome a mostrar do evento: o campo principal da ficha ou o título. */
+    public static function tituloDoEvento(array $projeto, ?array $ficha, string $titulo): string
     {
-        $valores = [];
+        $campo = $projeto['titulo_campo'] ?? '';
+        $valor = $campo !== '' ? trim((string) ($ficha[$campo] ?? '')) : '';
 
-        foreach ($projeto['campos'] as $campo) {
-            $valor = $dados[$campo['campo']] ?? null;
-            $valores[$campo['campo']] = $campo['tipo'] === 'marcar'
-                ? (!empty($valor) ? '1' : '')
-                : ($valor === null ? '' : (string) $valor);
+        return $valor !== '' ? $valor : $titulo;
+    }
+
+    /** Tipo de um campo da ficha ("texto", "exposicao"...); "" se não existe. */
+    public static function tipoDoCampo(array $projeto, string $campo): string
+    {
+        foreach ($projeto['campos'] ?? [] as $definicao) {
+            if ($definicao['campo'] === $campo) {
+                return (string) $definicao['tipo'];
+            }
         }
 
-        return $valores;
+        return '';
+    }
+
+    /** Rótulo de uma opção escolhida ("12" -> "12 anos"). */
+    public static function rotuloDoValor(array $projeto, string $campo, mixed $valor): string
+    {
+        foreach ($projeto['campos'] ?? [] as $definicao) {
+            if ($definicao['campo'] === $campo) {
+                return match ($definicao['tipo']) {
+                    'escolha' => (string) ($definicao['opcoes'][(string) $valor] ?? $valor),
+                    'exposicao' => self::exposicoesParaEscolher((int) $valor)[(int) $valor] ?? 'Exposição apagada',
+                    'marcar' => !empty($valor) ? 'Sim' : 'Não',
+                    'linhas' => implode(' · ', self::linhas((string) $valor)),
+                    default => (string) $valor,
+                };
+            }
+        }
+
+        return (string) $valor;
     }
 
     /**
-     * Lê e confere a ficha enviada (campos ficha[...]).
-     *
-     * @return array{valores: array<string, string>, dados: array<string, mixed>, erro: string}
-     */
-    public static function lerFicha(array $projeto, array $post): array
-    {
-        $enviado = is_array($post['ficha'] ?? null) ? $post['ficha'] : [];
-        $valores = [];
-        $dados = [];
-        $erro = '';
-
-        foreach ($projeto['campos'] as $campo) {
-            $nome = $campo['campo'];
-            $texto = is_string($enviado[$nome] ?? null) ? trim($enviado[$nome]) : '';
-            $valores[$nome] = $campo['tipo'] === 'marcar' ? ($texto !== '' ? '1' : '') : $texto;
-
-            if ($campo['tipo'] === 'marcar') {
-                $dados[$nome] = $texto !== '';
-                continue;
-            }
-
-            if ($texto === '') {
-                if (!empty($campo['obrigatorio']) && $erro === '') {
-                    $erro = 'Preencha: ' . $campo['rotulo'] . '.';
-                }
-                continue;
-            }
-
-            $problema = match ($campo['tipo']) {
-                'numero' => !preg_match('/^\d{1,6}$/', $texto)
-                    || (isset($campo['min']) && (int) $texto < $campo['min'])
-                    || (isset($campo['max']) && (int) $texto > $campo['max']),
-                'opcoes' => !array_key_exists($texto, $campo['opcoes']),
-                'data' => !dataValida($texto),
-                default => false,
-            };
-
-            if ($problema) {
-                $erro = $erro !== '' ? $erro : 'Confira o campo: ' . $campo['rotulo'] . '.';
-                continue;
-            }
-
-            $dados[$nome] = match ($campo['tipo']) {
-                'numero' => (int) $texto,
-                'linhas' => implode("\n", self::linhas($texto)),
-                default => mb_substr($texto, 0, $campo['tipo'] === 'linhas' ? 4000 : 200),
-            };
-        }
-
-        return ['valores' => $valores, 'dados' => $dados, 'erro' => $erro];
-    }
-
-    /**
-     * Campos da ficha no formulário.
+     * Desenha os campos da ficha de um projeto (formulário "novo" e
+     * edição na página do evento). $largoClasse é a classe dos campos
+     * que ocupam a linha inteira.
      *
      * @param array<string, string> $valores
      */
-    public static function campos(array $projeto, array $valores): void
+    public static function campos(array $projeto, array $valores, string $prefixo = '', string $largoClasse = 'campo-largo'): void
     {
-        foreach ($projeto['campos'] as $campo) {
+        foreach ($projeto['campos'] ?? [] as $campo) {
             $nome = $campo['campo'];
-            $id = 'ficha-' . $nome;
+            $id = $prefixo . $nome;
             $valor = $valores[$nome] ?? '';
-            $largo = in_array($campo['tipo'], ['linhas', 'marcar'], true) || !empty($campo['obrigatorio']);
-            ?>
-            <div class="campo<?= $largo ? ' campo-largo' : '' ?>">
-                <?php if ($campo['tipo'] === 'marcar'): ?>
-                    <label class="opcao-marcar">
-                        <input type="checkbox" name="ficha[<?= esc($nome) ?>]" value="1" <?= $valor === '1' ? 'checked' : '' ?>>
-                        <span><?= esc($campo['rotulo']) ?></span>
-                    </label>
-                <?php else: ?>
-                    <label for="<?= esc($id) ?>">
-                        <?= esc($campo['rotulo']) ?>
-                        <?php if (empty($campo['obrigatorio'])): ?><span>(opcional)</span><?php endif; ?>
-                    </label>
-                    <?php if ($campo['tipo'] === 'linhas'): ?>
-                        <textarea id="<?= esc($id) ?>" name="ficha[<?= esc($nome) ?>]" rows="4"><?= esc($valor) ?></textarea>
-                    <?php elseif ($campo['tipo'] === 'opcoes'): ?>
-                        <select id="<?= esc($id) ?>" name="ficha[<?= esc($nome) ?>]">
-                            <option value="">Não informada</option>
-                            <?php foreach ($campo['opcoes'] as $opcao => $rotulo): ?>
-                                <option value="<?= esc($opcao) ?>" <?= (string) $opcao === $valor ? 'selected' : '' ?>><?= esc($rotulo) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    <?php else: ?>
-                        <input
-                            id="<?= esc($id) ?>"
-                            name="ficha[<?= esc($nome) ?>]"
-                            type="<?= match ($campo['tipo']) { 'numero' => 'number', 'data' => 'date', default => 'text' } ?>"
-                            value="<?= esc($valor) ?>"
-                            <?= isset($campo['min']) ? 'min="' . (int) $campo['min'] . '"' : '' ?>
-                            <?= isset($campo['max']) ? 'max="' . (int) $campo['max'] . '"' : '' ?>
-                            <?= $campo['tipo'] === 'texto' ? 'maxlength="200"' : '' ?>
-                            <?= !empty($campo['exemplo']) ? 'placeholder="' . esc($campo['exemplo']) . '"' : '' ?>
-                            <?= !empty($campo['obrigatorio']) ? 'required' : '' ?>
-                        >
-                    <?php endif; ?>
-                <?php endif; ?>
-            </div>
-            <?php
+            $opcional = empty($campo['obrigatorio']) && $campo['tipo'] !== 'marcar' ? ' <span>(opcional)</span>' : '';
+            $classe = 'campo' . (!empty($campo['largo']) ? ' ' . $largoClasse : '');
+
+            if ($campo['tipo'] === 'marcar') {
+                echo '<label class="' . $classe . ' opcao-ficha"><input type="checkbox" name="' . esc($nome) . '" value="1"'
+                    . ($valor === '1' ? ' checked' : '') . '> ' . esc($campo['rotulo']) . '</label>';
+                continue;
+            }
+
+            echo '<div class="' . $classe . '"><label for="' . esc($id) . '">' . esc($campo['rotulo']) . $opcional . '</label>';
+
+            if ($campo['tipo'] === 'exposicao') {
+                echo '<select id="' . esc($id) . '" name="' . esc($nome) . '"><option value="">Nenhuma</option>';
+                foreach (self::exposicoesParaEscolher((int) $valor) as $idExposicao => $titulo) {
+                    echo '<option value="' . $idExposicao . '"' . ((string) $idExposicao === $valor ? ' selected' : '') . '>' . esc($titulo) . '</option>';
+                }
+                echo '</select>';
+            } elseif ($campo['tipo'] === 'escolha') {
+                echo '<select id="' . esc($id) . '" name="' . esc($nome) . '"><option value="">Não informado</option>';
+                foreach ($campo['opcoes'] as $opcao => $rotulo) {
+                    echo '<option value="' . esc($opcao) . '"' . ((string) $opcao === $valor ? ' selected' : '') . '>' . esc($rotulo) . '</option>';
+                }
+                echo '</select>';
+            } elseif ($campo['tipo'] === 'linhas') {
+                echo '<textarea id="' . esc($id) . '" name="' . esc($nome) . '" rows="5" maxlength="' . (int) ($campo['max'] ?? 2000) . '"'
+                    . (!empty($campo['exemplo']) ? ' placeholder="' . esc($campo['exemplo']) . '"' : '') . '>' . esc($valor) . '</textarea>';
+            } elseif ($campo['tipo'] === 'numero') {
+                echo '<input id="' . esc($id) . '" type="number" name="' . esc($nome) . '" min="' . (int) $campo['min']
+                    . '" max="' . (int) $campo['max'] . '" value="' . esc($valor) . '">';
+            } else {
+                echo '<input id="' . esc($id) . '" type="text" name="' . esc($nome) . '" maxlength="' . (int) ($campo['max'] ?? 200) . '"'
+                    . (!empty($campo['obrigatorio']) ? ' required' : '')
+                    . (!empty($campo['exemplo']) ? ' placeholder="' . esc($campo['exemplo']) . '"' : '')
+                    . ' value="' . esc($valor) . '">';
+            }
+
+            echo '</div>';
         }
     }
 
-    /** Prazo de um item do checklist padrão: o dia do evento ± dias. */
+    /**
+     * Prazo de um item do checklist padrão: o dia do evento mais os
+     * dias do item, sem cair antes de hoje (evento marcado em cima da
+     * hora não começa com tudo atrasado). Sem dia, fica sem prazo.
+     */
     public static function prazoDoItem(string $dia, int $dias): ?string
     {
-        if ($dia === '' || !dataValida($dia)) {
+        if ($dia === '') {
             return null;
         }
 
-        return date('Y-m-d', strtotime($dia . ' ' . ($dias >= 0 ? '+' : '') . $dias . ' days'));
-    }
+        $prazo = date('Y-m-d', strtotime($dia . ' ' . ($dias >= 0 ? '+' : '') . $dias . ' days'));
 
-    /** @return array<string, mixed>|null */
-    private static function campo(array $projeto, string $nome): ?array
-    {
-        foreach ($projeto['campos'] ?? [] as $campo) {
-            if ($campo['campo'] === $nome) {
-                return $campo;
-            }
-        }
-
-        return null;
+        return $dias < 0 && $prazo < hoje() ? min(hoje(), $dia) : $prazo;
     }
 }

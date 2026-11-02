@@ -6,11 +6,9 @@ use Elos\Controllers\AgendaEventoController;
 use Elos\Controllers\AnexoController;
 use Elos\Controllers\EventoController;
 use Elos\Controllers\EventoCursoController;
-use Elos\Controllers\FormularioController;
 use Elos\Controllers\HistoricoController;
+use Elos\Controllers\EventoFichaController;
 use Elos\Controllers\TarefaController;
-use Elos\Controllers\TransporteController;
-use Elos\Controllers\VisitaController;
 use Elos\Services\AuthorizationService;
 
 /**
@@ -20,12 +18,10 @@ use Elos\Services\AuthorizationService;
  * @param callable(): EventoCursoController $eventoCursoControllerFactory
  * @param callable(): AgendaEventoController $agendaEventoControllerFactory
  * @param callable(): TarefaController $tarefaControllerFactory
- * @param callable(): FormularioController $formularioControllerFactory
- * @param callable(): TransporteController $transporteControllerFactory
- * @param callable(): VisitaController $visitaControllerFactory
  * @param callable(): AnexoController $anexoControllerFactory
  * @param callable(): HistoricoController $historicoControllerFactory
  * @param callable(): AuthorizationService $authorizationFactory
+ * @param callable(): EventoFichaController $eventoFichaControllerFactory
  */
 function handleEventosDispatcherRequest(
     string $method,
@@ -34,12 +30,10 @@ function handleEventosDispatcherRequest(
     callable $eventoCursoControllerFactory,
     callable $agendaEventoControllerFactory,
     callable $tarefaControllerFactory,
-    callable $formularioControllerFactory,
-    callable $transporteControllerFactory,
-    callable $visitaControllerFactory,
     callable $anexoControllerFactory,
     callable $historicoControllerFactory,
-    callable $authorizationFactory
+    callable $authorizationFactory,
+    callable $eventoFichaControllerFactory
 ): bool {
     if ($path === '/api/eventos') {
         handleEventoRequest(
@@ -57,8 +51,26 @@ function handleEventosDispatcherRequest(
         );
     }
 
+    if ($path === '/api/eventos/planejamento') {
+        handleEventosPlanejamentoRequest(
+            $method,
+            $agendaEventoControllerFactory,
+            $tarefaControllerFactory,
+            $authorizationFactory
+        );
+    }
+
     if (preg_match('#^/api/eventos/(\d+)$#', $path, $matches)) {
         handleEventoByIdRequest(
+            $method,
+            (int) $matches[1],
+            $eventoControllerFactory,
+            $authorizationFactory
+        );
+    }
+
+    if (preg_match('#^/api/eventos/(\d+)/identidade$#', $path, $matches)) {
+        handleEventoIdentidadeRequest(
             $method,
             (int) $matches[1],
             $eventoControllerFactory,
@@ -123,63 +135,6 @@ function handleEventosDispatcherRequest(
         );
     }
 
-    if (preg_match('#^/api/eventos/(\d+)/formularios$#', $path, $matches)) {
-        handleFormularioRequest(
-            $method,
-            (int) $matches[1],
-            $formularioControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/formularios/(\d+)$#', $path, $matches)) {
-        handleFormularioByIdRequest(
-            $method,
-            (int) $matches[1],
-            (int) $matches[2],
-            $formularioControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/transportes$#', $path, $matches)) {
-        handleTransporteRequest(
-            $method,
-            (int) $matches[1],
-            $transporteControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/transportes/(\d+)$#', $path, $matches)) {
-        handleTransporteByIdRequest(
-            $method,
-            (int) $matches[1],
-            (int) $matches[2],
-            $transporteControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/visitas$#', $path, $matches)) {
-        handleVisitaRequest(
-            $method,
-            (int) $matches[1],
-            $visitaControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/eventos/(\d+)/visitas/(\d+)$#', $path, $matches)) {
-        handleVisitaByIdRequest(
-            $method,
-            (int) $matches[1],
-            (int) $matches[2],
-            $visitaControllerFactory,
-            $authorizationFactory
-        );
-    }
-
     if (preg_match('#^/api/eventos/(\d+)/anexos$#', $path, $matches)) {
         handleAnexoRequest(
             $method,
@@ -195,6 +150,16 @@ function handleEventosDispatcherRequest(
             (int) $matches[1],
             (int) $matches[2],
             $anexoControllerFactory,
+            $authorizationFactory
+        );
+    }
+
+    if (preg_match('#^/api/eventos/(\d+)/ficha$#', $path, $matches)) {
+        handleEventoFichaRequest(
+            $method,
+            (int) $matches[1],
+            $eventoFichaControllerFactory,
+            $eventoControllerFactory,
             $authorizationFactory
         );
     }
@@ -218,4 +183,60 @@ function handleEventosDispatcherRequest(
     }
 
     return false;
+}
+
+/**
+ * Agenda e checklist de várias exposições numa resposta só.
+ *
+ * GET /api/eventos/planejamento?ids=1,2,3
+ *
+ * As telas que mostram várias exposições (Início, Exposições,
+ * Calendário, Relatório) faziam dois pedidos por exposição; agora
+ * fazem um só, com duas consultas ao banco.
+ *
+ * @param callable(): AgendaEventoController $agendaEventoControllerFactory
+ * @param callable(): TarefaController $tarefaControllerFactory
+ * @param callable(): AuthorizationService $authorizationFactory
+ */
+function handleEventosPlanejamentoRequest(
+    string $method,
+    callable $agendaEventoControllerFactory,
+    callable $tarefaControllerFactory,
+    callable $authorizationFactory
+): never {
+    requireRole($authorizationFactory, 'COLABORADOR');
+
+    if ($method !== 'GET') {
+        sendJsonResponse(405, [
+            'erro' => 'Método não permitido.',
+        ]);
+    }
+
+    $ids = array_values(array_unique(array_filter(
+        array_map('intval', explode(',', (string) ($_GET['ids'] ?? ''))),
+        static fn (int $id): bool => $id > 0
+    )));
+
+    if (count($ids) > 500) {
+        sendJsonResponse(400, [
+            'erro' => 'Exposições demais num pedido só.',
+        ]);
+    }
+
+    $agendas = $agendaEventoControllerFactory()->showMany($ids);
+    $tarefas = $tarefaControllerFactory()->indexByEventos($ids);
+
+    $planejamento = [];
+
+    foreach ($ids as $id) {
+        $planejamento[] = [
+            'evento_id' => $id,
+            'agenda' => $agendas[$id] ?? null,
+            'tarefas' => $tarefas[$id] ?? [],
+        ];
+    }
+
+    sendJsonResponse(200, [
+        'planejamento' => $planejamento,
+    ]);
 }

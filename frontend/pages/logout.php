@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../src/elos.php';
+require_once __DIR__ . '/../src/Api.php';
 
 \Elos\Frontend\iniciarSessao();
 
@@ -34,5 +34,5 @@ if (ini_get('session.use_cookies')) {
 
 session_destroy();
 
-header('Location: ' . \Elos\Frontend\raizDoSite() . '/entrar');
+header('Location: entrar');
 exit();

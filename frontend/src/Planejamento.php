@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Elos\Frontend;
 
 require_once __DIR__ . '/elos.php';
+require_once __DIR__ . '/Fases.php';
 
 /**
  * Tudo o que uma exposição tem, carregado da API e organizado.
@@ -68,26 +69,52 @@ final class Planejamento
     }
 
     /**
-     * Vários eventos de uma vez: busca a agenda e o checklist de todos
-     * em paralelo e depois monta cada um.
+     * Carrega várias exposições com um pedido só à API (em vez de dois
+     * por exposição). Se a API ainda não tiver a rota de lote, carrega
+     * uma por uma, como antes.
      *
-     * @param iterable<array<string, mixed>> $eventos
-     * @return list<self>
+     * @param list<array<string, mixed>> $eventos
+     * @return list<self> na mesma ordem de $eventos
      */
-    public static function carregarVarios(iterable $eventos): array
+    public static function carregarVarios(array $eventos): array
     {
-        $eventos = array_values(is_array($eventos) ? $eventos : iterator_to_array($eventos, false));
-        $paths = [];
+        $eventos = array_values($eventos);
 
-        foreach ($eventos as $evento) {
-            $base = '/api/eventos/' . (int) ($evento['id'] ?? 0);
-            $paths[] = $base . '/agenda';
-            $paths[] = $base . '/tarefas';
+        if ($eventos === []) {
+            return [];
         }
 
-        preCarregar($paths);
+        $ids = array_map(static fn(array $e): int => (int) ($e['id'] ?? 0), $eventos);
 
-        return array_map(static fn (array $evento): self => self::carregar($evento), $eventos);
+        try {
+            $dados = Api::get('/api/eventos/planejamento?ids=' . implode(',', $ids));
+        } catch (ApiException) {
+            return array_map(static fn(array $e): self => self::carregar($e), $eventos);
+        }
+
+        $porEvento = [];
+        foreach ($dados['planejamento'] ?? [] as $item) {
+            if (is_array($item)) {
+                $porEvento[(int) ($item['evento_id'] ?? 0)] = $item;
+            }
+        }
+
+        return array_map(static function (array $evento) use ($porEvento): self {
+            $item = $porEvento[(int) ($evento['id'] ?? 0)] ?? null;
+
+            if ($item === null) {
+                return self::carregar($evento);
+            }
+
+            $tarefas = is_array($item['tarefas'] ?? null) ? array_values(array_filter($item['tarefas'], 'is_array')) : [];
+
+            return new self(
+                $evento,
+                is_array($item['agenda'] ?? null) ? $item['agenda'] : null,
+                false,
+                self::ordenarNecessidades($tarefas)
+            );
+        }, $eventos);
     }
 
     public function id(): int

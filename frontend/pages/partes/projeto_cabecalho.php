@@ -3,101 +3,132 @@
 declare(strict_types=1);
 
 /*
- * Cabeçalho de um evento de projeto (sessão do Cine Clube, encontro do
- * Café Cultural...): a capa, o nome tirado da ficha (o filme, o tema...),
- * o dia, o local e o andamento do checklist. Incluído por evento.php,
- * que já carregou $evento, $projeto, $ficha, $plano, $resumo e $agenda.
+ * CABEÇALHO DE UM EVENTO DE PROJETO (sessão do Cine Clube, encontro do
+ * Café Cultural...) — usado por pages/evento.php no lugar do cabeçalho
+ * da exposição: a capa (cartaz, capa do livro), a ficha, as pessoas em
+ * destaque e um "bilhete" com o dia e o horário. O visual de cada
+ * projeto vem do CSS do tema (cinema.css, cafe.css...).
+ *
+ * Usa as variáveis da página: $projeto, $evento, $ficha, $agenda,
+ * $resumo, $eventoId, $podeGerenciar, $tituloPagina.
  */
 
 use Elos\Frontend\Identidade;
 use Elos\Frontend\Projetos;
 
 use function Elos\Frontend\classeStatusEvento;
-use function Elos\Frontend\dataHoraBr;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\rotuloStatusEvento;
 use function Elos\Frontend\slugDaExposicao;
 
-$fichaAtual = is_array($ficha) ? $ficha : [];
-$nomeDoEvento = Projetos::tituloDoEvento($projeto, $fichaAtual, $tituloPagina);
-$capaDoEvento = Identidade::urlCapa($evento, 640);
-$linhaFicha = Projetos::linhaDaFicha($projeto, $fichaAtual);
-$selo = !empty($projeto['selo']) && !empty($fichaAtual[$projeto['selo']]) ? (string) $fichaAtual[$projeto['selo']] : '';
-?>
-<section class="projeto-cabecalho identidade" style="<?= esc(Identidade::estilo($evento, 640)) ?>">
+const DIAS_DA_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const MESES_CURTOS = [1 => 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-    <div class="projeto-cabecalho-capa<?= $capaDoEvento !== null ? ' com-imagem' : '' ?>">
-        <?php if ($capaDoEvento !== null): ?>
-            <img src="<?= esc($capaDoEvento) ?>" alt="">
+$capa = Identidade::urlCapa($evento);
+$diaEvento = (string) ($agenda['abertura'] ?? '');
+$horaEvento = substr((string) ($agenda['horario'] ?? ''), 0, 5);
+$nomeEvento = Projetos::tituloDoEvento($projeto, $ficha, $tituloPagina);
+$linhaFicha = Projetos::linhaDaFicha($projeto, $ficha);
+$selo = !empty($projeto['selo']) ? (string) ($ficha[$projeto['selo']] ?? '') : '';
+?>
+<section class="projeto-cabecalho" style="<?= esc(Identidade::estilo($evento)) ?>">
+
+    <div class="projeto-capa<?= $capa !== null ? ' com-imagem' : '' ?>">
+        <?php if ($capa !== null): ?>
+            <img src="<?= esc($capa) ?>" alt="<?= esc($projeto['capa'] . ': ' . $nomeEvento) ?>">
         <?php else: ?>
-            <span class="projeto-capa-vazia"><?= esc($nomeDoEvento) ?></span>
+            <span class="projeto-capa-vazia"><?= esc($nomeEvento) ?></span>
         <?php endif; ?>
     </div>
 
-    <div class="projeto-cabecalho-texto">
-        <p class="eyebrow">
-            <?= esc($projeto['nome']) ?>
+    <div class="projeto-ficha">
+        <p class="projeto-sobretitulo">
+            <?= esc($projeto['sobretitulo']) ?>
             <span class="status-badge <?= classeStatusEvento((string) ($evento['status'] ?? '')) ?>">
                 <?= esc(rotuloStatusEvento((string) ($evento['status'] ?? ''))) ?>
             </span>
         </p>
 
-        <h1><?= esc($nomeDoEvento) ?></h1>
+        <h1><?= esc($nomeEvento) ?></h1>
 
-        <?php if ($selo !== '' || $linhaFicha !== ''): ?>
+        <?php if ($nomeEvento !== $tituloPagina): ?>
+            <p class="projeto-subtitulo"><?= esc($tituloPagina) ?></p>
+        <?php endif; ?>
+
+        <?php if ($selo !== '' || $linhaFicha !== '' || $ficha === null): ?>
             <p class="projeto-tecnica">
                 <?php if ($selo !== ''): ?>
-                    <span class="selo selo-<?= esc(strtolower($selo)) ?>"><?= esc($selo) ?></span>
+                    <span class="selo selo-<?= esc(strtolower($selo)) ?>" title="<?= esc(Projetos::rotuloDoValor($projeto, $projeto['selo'], $selo)) ?>"><?= esc($selo) ?></span>
                 <?php endif; ?>
-                <?= esc($linhaFicha) ?>
+                <?= esc($linhaFicha !== '' ? $linhaFicha : ($ficha === null ? 'Ficha ainda não preenchida' : '')) ?>
             </p>
         <?php endif; ?>
 
-        <?php foreach ($projeto['destaques'] as [$campoDestaque, $rotuloDestaque]): ?>
-            <?php if (!empty($fichaAtual[$campoDestaque])): ?>
-                <p class="projeto-pessoa"><span><?= esc($rotuloDestaque) ?></span> <?= esc(Projetos::rotuloDoValor($projeto, $campoDestaque, $fichaAtual[$campoDestaque])) ?></p>
+        <?php foreach ($projeto['destaques'] ?? [] as [$campo, $rotulo]): ?>
+            <?php if (!empty($ficha[$campo])): ?>
+                <p class="projeto-pessoa">
+                    <span><?= esc($rotulo) ?></span>
+                    <?php if (Projetos::tipoDoCampo($projeto, $campo) === 'exposicao'): ?>
+                        <a href="<?= esc(linkExposicao((int) $ficha[$campo])) ?>"><?= esc(Projetos::rotuloDoValor($projeto, $campo, $ficha[$campo])) ?></a>
+                    <?php else: ?>
+                        <?= esc(Projetos::rotuloDoValor($projeto, $campo, $ficha[$campo])) ?>
+                    <?php endif; ?>
+                </p>
             <?php endif; ?>
         <?php endforeach; ?>
 
-        <ul class="expo-fatos">
-            <li><span aria-hidden="true">◷</span> <?= esc(dataHoraBr($agenda['abertura'] ?? null, $agenda['horario'] ?? null, 'Dia a definir')) ?></li>
-            <?php if (!empty($evento['local_nome'])): ?>
-                <li><span aria-hidden="true">⌖</span> <?= esc($evento['local_nome']) ?></li>
+        <?php foreach ($projeto['etiquetas'] ?? [] as [$campo, $rotulo]): ?>
+            <?php if (!empty($ficha[$campo])): ?>
+                <span class="projeto-etiqueta"><?= esc($rotulo) ?></span>
             <?php endif; ?>
-            <?php if (!empty($evento['responsavel_nome'])): ?>
-                <li><span aria-hidden="true">◎</span> <?= esc($evento['responsavel_nome']) ?></li>
-            <?php endif; ?>
-        </ul>
+        <?php endforeach; ?>
+
+        <?php if (!empty($projeto['lista_destaque']) && !empty($ficha[$projeto['lista_destaque']])): ?>
+            <!-- A programação, como num cartaz de show. -->
+            <ul class="projeto-lineup">
+                <?php foreach (Projetos::linhas((string) $ficha[$projeto['lista_destaque']]) as $linha): ?>
+                    <li><?= esc($linha) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
 
         <div class="acoes-cabecalho">
-            <a href="relatorio?evento=<?= esc(slugDaExposicao($eventoId)) ?>" class="botao-secundario">⎙ Relatório</a>
+            <a href="relatorio?evento=<?= esc(slugDaExposicao($eventoId)) ?>" class="botao-secundario">⎙ Relatório para imprimir</a>
             <?php if ($podeGerenciar): ?>
-                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'ficha'], 'ficha')) ?>" class="botao-secundario">✎ Editar ficha</a>
-                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'identidade'], 'identidade')) ?>" class="botao-secundario">◐ <?= esc($projeto['capa']) ?> e cor</a>
+                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'ficha'], 'ficha')) ?>" class="botao-secundario">✎ Ficha e horário</a>
+                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'identidade'], 'identidade')) ?>" class="botao-secundario">◐ <?= esc($projeto['capa']) ?></a>
                 <a href="<?= esc(linkExposicao($eventoId, [], '', 'apagar-exposicao')) ?>" class="botao-secundario botao-apagar">Apagar <?= esc($projeto['singular']) ?></a>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="expo-progresso">
-        <?php if ($resumo['total'] > 0): ?>
-            <p class="progresso-numero">
-                <strong><?= $resumo['concluidas'] ?></strong> de <?= $resumo['total'] ?> prontos
-            </p>
-            <div class="progresso" role="progressbar" aria-label="Checklist pronto" aria-valuenow="<?= $resumo['percentual'] ?>" aria-valuemin="0" aria-valuemax="100">
-                <span style="width: <?= $resumo['percentual'] ?>%"></span>
-            </div>
-            <p class="progresso-legenda">
-                <?= $resumo['pendentes'] ?> pendente<?= $resumo['pendentes'] === 1 ? '' : 's' ?>
-                <?php if ($resumo['atrasadas'] > 0): ?>
-                    · <span class="texto-atrasado"><?= $resumo['atrasadas'] ?> atrasado<?= $resumo['atrasadas'] === 1 ? '' : 's' ?></span>
-                <?php endif; ?>
-            </p>
+    <!-- O bilhete: dia, horário, local e o andamento do checklist. -->
+    <aside class="projeto-bilhete" aria-label="Dia e horário">
+        <?php if ($diaEvento !== ''): ?>
+            <?php $quando = strtotime($diaEvento); ?>
+            <span class="bilhete-semana"><?= esc(DIAS_DA_SEMANA[(int) date('w', $quando)]) ?></span>
+            <strong class="bilhete-dia"><?= esc(date('d', $quando)) ?></strong>
+            <span class="bilhete-mes"><?= esc(MESES_CURTOS[(int) date('n', $quando)]) ?> <?= esc(date('Y', $quando)) ?></span>
+            <span class="bilhete-hora"><?= $horaEvento !== '' ? esc(str_replace(':', 'h', $horaEvento)) : 'horário a definir' ?></span>
         <?php else: ?>
-            <p class="progresso-numero">Checklist vazio</p>
-            <p class="progresso-legenda">Diga o que precisa ficar pronto até o dia.</p>
+            <strong class="bilhete-dia bilhete-sem-data">?</strong>
+            <span class="bilhete-mes">data a definir</span>
         <?php endif; ?>
-    </div>
+        <?php if (!empty($evento['local_nome'])): ?>
+            <span class="bilhete-local"><?= esc($evento['local_nome']) ?></span>
+        <?php endif; ?>
+
+        <span class="bilhete-andamento">
+            <?php if ($resumo['total'] > 0): ?>
+                <?= $resumo['concluidas'] ?> de <?= $resumo['total'] ?> prontos
+                <?php if ($resumo['atrasadas'] > 0): ?>
+                    · <b><?= $resumo['atrasadas'] ?> atrasado<?= $resumo['atrasadas'] === 1 ? '' : 's' ?></b>
+                <?php endif; ?>
+            <?php else: ?>
+                checklist vazio
+            <?php endif; ?>
+        </span>
+    </aside>
 
 </section>

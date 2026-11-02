@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/etapa_routes.php';
 require_once __DIR__ . '/categoria_tarefa_routes.php';
 require_once __DIR__ . '/auth_routes.php';
 require_once __DIR__ . '/tipo_evento_routes.php';
@@ -13,13 +12,11 @@ require_once __DIR__ . '/evento_routes.php';
 require_once __DIR__ . '/evento_curso_routes.php';
 require_once __DIR__ . '/agenda_evento_routes.php';
 require_once __DIR__ . '/tarefa_routes.php';
-require_once __DIR__ . '/formulario_routes.php';
-require_once __DIR__ . '/transporte_routes.php';
-require_once __DIR__ . '/visita_routes.php';
 require_once __DIR__ . '/anexo_routes.php';
 require_once __DIR__ . '/historico_routes.php';
 require_once __DIR__ . '/eventos_dispatcher_routes.php';
-require_once __DIR__ . '/projeto_routes.php';
+require_once __DIR__ . '/painel_routes.php';
+require_once __DIR__ . '/evento_ficha_routes.php';
 
 use Elos\Controllers\UsuarioController;
 use Elos\Services\AuthorizationService;
@@ -42,22 +39,30 @@ function handleApiRequest(
     callable $eventoControllerFactory,
     callable $eventoCursoControllerFactory,
     callable $agendaEventoControllerFactory,
-    callable $etapaControllerFactory,
     callable $categoriaTarefaControllerFactory,
     callable $tarefaControllerFactory,
-    callable $formularioControllerFactory,
-    callable $transporteControllerFactory,
-    callable $visitaControllerFactory,
     callable $anexoControllerFactory,
     callable $historicoControllerFactory,
-    ?callable $pdoFactory = null
+    callable $painelControllerFactory,
+    callable $eventoFichaControllerFactory
 ): void {
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-    // Capa e cor, fichas dos projetos e painel ao vivo.
-    if ($pdoFactory !== null) {
-        handleProjetoRequest($method, (string) $path, $pdoFactory, $authorizationFactory);
+    if ($path === '/api/lote') {
+        handleLoteRequest($method, func_get_args());
+    }
+
+    if ($path === '/api/painel') {
+        handlePainelRequest($method, $painelControllerFactory, $authorizationFactory);
+    }
+
+    if ($path === '/api/painel/codigo') {
+        handlePainelCodigoRequest($method, $painelControllerFactory, $authorizationFactory);
+    }
+
+    if ($path === '/api/fichas') {
+        handleFichasRequest($method, $eventoFichaControllerFactory, $authorizationFactory);
     }
 
     if ($path === '/api/login') {
@@ -197,11 +202,27 @@ function handleApiRequest(
         );
     }
 
+    // Evento pelo endereço, atual ou antigo (a exposição mudou de nome).
+    if (preg_match('#^/api/eventos/endereco/([a-z0-9-]{1,220})$#', $path, $matches)) {
+        requireRole($authorizationFactory, 'COLABORADOR');
+
+        if ($method !== 'GET') {
+            sendJsonResponse(405, ['erro' => 'Método não permitido.']);
+        }
+
+        $id = $eventoControllerFactory()->idDoEndereco($matches[1]);
+
+        $id === null
+            ? sendJsonResponse(404, ['erro' => 'Endereço não encontrado.'])
+            : sendJsonResponse(200, ['evento_id' => $id]);
+    }
+
     if (
         str_starts_with($path, '/api/eventos')
         && (
             $path === '/api/eventos'
             || $path === '/api/eventos/conflitos'
+            || $path === '/api/eventos/planejamento'
             || preg_match('#^/api/eventos/(\d+)($|/.*)$#', $path)
         )
     ) {
@@ -212,29 +233,10 @@ function handleApiRequest(
             $eventoCursoControllerFactory,
             $agendaEventoControllerFactory,
             $tarefaControllerFactory,
-            $formularioControllerFactory,
-            $transporteControllerFactory,
-            $visitaControllerFactory,
             $anexoControllerFactory,
             $historicoControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if ($path === '/api/etapas') {
-        handleEtapaRequest(
-            $method,
-            $etapaControllerFactory,
-            $authorizationFactory
-        );
-    }
-
-    if (preg_match('#^/api/etapas/(\d+)$#', $path, $matches)) {
-        handleEtapaByIdRequest(
-            $method,
-            (int) $matches[1],
-            $etapaControllerFactory,
-            $authorizationFactory
+            $authorizationFactory,
+            $eventoFichaControllerFactory
         );
     }
 
@@ -319,6 +321,11 @@ function sendJsonResponse(
     int $statusCode,
     array $data
 ): never {
+    // Dentro de um lote, a resposta volta para quem montou o lote.
+    if (!empty($GLOBALS['ELOS_EM_LOTE'])) {
+        throw new RespostaDoLote($statusCode, $data);
+    }
+
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
 
@@ -328,4 +335,97 @@ function sendJsonResponse(
     );
 
     exit;
+}
+
+/**
+ * Resposta de um pedido feito dentro de um lote (ver handleLoteRequest).
+ */
+final class RespostaDoLote extends RuntimeException
+{
+    /** @param array<string, mixed> $dados */
+    public function __construct(
+        public readonly int $status,
+        public readonly array $dados
+    ) {
+        parent::__construct('Resposta do lote');
+    }
+}
+
+/**
+ * Vários GETs numa ida só.
+ *
+ * GET /api/lote?caminhos[]=/api/eventos/5&caminhos[]=/api/eventos/5/tarefas
+ *
+ * Na hospedagem, cada pedido à API abre um processo PHP novo; a página
+ * de uma exposição fazia uns 12. Aqui cada caminho passa pelas mesmas
+ * rotas e permissões de sempre, só que dentro de um pedido.
+ * Só aceita leituras de listas e de exposições (nada que grave).
+ *
+ * @param list<callable> $fabricas  Os mesmos argumentos de handleApiRequest.
+ */
+function handleLoteRequest(string $method, array $fabricas): never
+{
+    if ($method !== 'GET') {
+        sendJsonResponse(405, [
+            'erro' => 'Método não permitido.',
+        ]);
+    }
+
+    $caminhos = $_GET['caminhos'] ?? null;
+
+    if (!is_array($caminhos) || $caminhos === [] || count($caminhos) > 20) {
+        sendJsonResponse(400, [
+            'erro' => 'Informe de 1 a 20 caminhos.',
+        ]);
+    }
+
+    $permitidos = [
+        '#^/api/(usuarios|tipos-evento|responsaveis|cursos|locais|categorias-tarefa|eventos)$#',
+        '#^/api/eventos/planejamento$#',
+        '#^/api/painel$#',
+        '#^/api/fichas$#',
+        '#^/api/eventos/\d+(/(agenda|tarefas|cursos|anexos|historico|ficha))?$#',
+    ];
+
+    $uriOriginal = $_SERVER['REQUEST_URI'] ?? '/';
+    $getOriginal = $_GET;
+    $respostas = [];
+
+    foreach (array_values(array_unique(array_filter($caminhos, 'is_string'))) as $caminho) {
+        $rota = (string) parse_url($caminho, PHP_URL_PATH);
+        $aceito = false;
+
+        foreach ($permitidos as $padrao) {
+            $aceito = $aceito || preg_match($padrao, $rota) === 1;
+        }
+
+        if (!$aceito) {
+            $respostas[] = ['caminho' => $caminho, 'status' => 400, 'dados' => ['erro' => 'Caminho não permitido no lote.']];
+            continue;
+        }
+
+        $_SERVER['REQUEST_URI'] = $caminho;
+        parse_str((string) parse_url($caminho, PHP_URL_QUERY), $consulta);
+        $_GET = $consulta;
+        $GLOBALS['ELOS_EM_LOTE'] = true;
+        ob_start();
+
+        try {
+            handleApiRequest(...$fabricas);
+        } catch (RespostaDoLote $resposta) {
+            $respostas[] = ['caminho' => $caminho, 'status' => $resposta->status, 'dados' => $resposta->dados];
+        } catch (Throwable $erro) {
+            error_log('ELOS lote ' . $rota . ': ' . $erro);
+            $respostas[] = ['caminho' => $caminho, 'status' => 500, 'dados' => ['erro' => 'Erro interno do servidor.']];
+        } finally {
+            ob_end_clean();
+            $GLOBALS['ELOS_EM_LOTE'] = false;
+            $_SERVER['REQUEST_URI'] = $uriOriginal;
+            $_GET = $getOriginal;
+        }
+    }
+
+    sendJsonResponse(200, [
+        'respostas' => $respostas,
+    ]);
 }

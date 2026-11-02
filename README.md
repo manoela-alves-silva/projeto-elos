@@ -371,7 +371,7 @@ iniciar-dev.sh                    liga o backend e o frontend no seu computador
 mysql -u SEU_USUARIO -p < backend/database/elos.sql
 ```
 
-Esse comando cria o banco `elos_db`, as tabelas, as etapas e as categorias
+Esse comando cria o banco `elos_db`, as tabelas, os tipos de evento e as categorias
 sugeridas.
 
 **Se você já tem o banco de uma versão antiga:** rode uma vez cada arquivo
@@ -382,6 +382,11 @@ datas:
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-22_responsavel_livre.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-09-23_checklist_unico.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-14_codigo_recuperacao.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-27_identidade_visual.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-27_remove_tabelas_antigas.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_cor_tipo_evento.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_painel.sql
+mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_prazo_dispensado.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-10-29_projetos.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-11-02_projeto_do_tipo.sql
 mysql -u SEU_USUARIO -p elos_db < backend/database/migracoes/2026-11-02_enderecos.sql
@@ -482,9 +487,6 @@ perfil pode usar.
 | `/api/eventos/{id}/tarefas[/{id}]` | GET, POST, PUT, DELETE | checklist |
 | `/api/eventos/{id}/tarefas/{id}/status` | PUT | marcar como feito (colaborador: só os seus) |
 | `/api/eventos/{id}/cursos[/{id}]` | GET, POST, DELETE | |
-| `/api/eventos/{id}/formularios[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas (ver seção 9) |
-| `/api/eventos/{id}/transportes[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
-| `/api/eventos/{id}/visitas[/{id}]` | GET, POST, PUT, DELETE | antigas, sem uso nas telas |
 | `/api/eventos/{id}/anexos[/{id}]` | GET, POST, DELETE | até 10 MB. PDF, imagens, Office/LibreOffice, TXT, CSV |
 | `/api/eventos/{id}/historico` | GET, POST | gravado automaticamente pelas outras rotas |
 | `/api/eventos/{id}/ficha` | GET, PUT | ficha de um evento de projeto. PUT: Gestor |
@@ -493,7 +495,9 @@ perfil pode usar.
 | `/api/eventos/endereco/{nome}` | GET | evento pelo nome no endereço, atual ou antigo |
 | `/api/painel` | GET | painel ao vivo. Logado, ou o monitor com o cabeçalho `X-Elos-Painel` |
 | `/api/painel/codigo` | GET, POST, DELETE | link do monitor: situação / gerar novo / desligar. Gestor |
-| `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/etapas`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
+| `/api/eventos/planejamento` | GET | agenda e checklist de todos os eventos, num pedido só |
+| `/api/lote` | GET | `?caminhos[]=...`: até 20 leituras num pedido só (as telas usam para abrir mais rápido) |
+| `/api/tipos-evento`, `/api/responsaveis`, `/api/locais`, `/api/cursos`, `/api/categorias-tarefa` (e `/{id}`) | GET, POST, PUT | cadastros de apoio |
 
 Os detalhes de cada rota (campos aceitos e respostas) estão nos arquivos
 de `backend/routes/`.
@@ -621,13 +625,11 @@ api-elos.seusite.com.br  → pasta backend/public/
 
 ## 9. O que ainda falta
 
-- **Tabelas e rotas antigas de transportes, visitas e formulários:** as
-  telas foram aposentadas (agora tudo é checklist), mas as tabelas e as
-  rotas continuam no backend, sem uso. Podem ser removidas depois, com
-  uma migração.
-- **Coluna `eventos.prioridade`:** as telas não usam mais (a API grava
-  `MEDIA` quando não recebe nada). Também pode ser removida com uma
-  migração.
+- **Editar os projetos pela tela:** os campos da ficha e os checklists
+  padrão de cada projeto ficam no código (`frontend/src/Projetos.php`).
+  Uma tela de configuração deixaria a equipe ajustar sozinha.
+- **Capas no backup:** as imagens ficam em `storage/capas/`, fora do banco.
+  Elas precisam entrar na rotina de backup junto com o banco.
 
 ---
 

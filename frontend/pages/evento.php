@@ -329,7 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                 }
 
                 // Tipo, responsável e local: escolhidos ou escritos como novos.
-                // Um tipo novo fica no mesmo projeto do evento.
+                // Um tipo novo escrito aqui fica no mesmo projeto do evento.
                 $projetoAtual = Projetos::doEvento(Api::get('/api/eventos/' . $eventoId)['evento'] ?? []);
                 $cadastros = resolverCadastrosDaExposicao($_POST, $projetoAtual);
 

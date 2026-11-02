@@ -28,6 +28,17 @@ final class AgendaEventoController
     }
 
     /**
+     * Agendas de vários eventos, por id do evento.
+     *
+     * @param list<int> $eventoIds
+     * @return array<int, array<string, mixed>>
+     */
+    public function showMany(array $eventoIds): array
+    {
+        return $this->repository->findByEventIds($eventoIds);
+    }
+
+    /**
      * Cria a agenda de um evento.
      *
      * @return array<string, mixed>|null

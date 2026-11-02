@@ -429,3 +429,16 @@
         grid-column: span 3;
     }
 }
+
+/* identidade visual (ver planejamento.css): nos cards estreitos a capa
+   ocupa menos espaço e some mais devagar, para não cobrir o texto */
+.expo-cartao.identidade {
+    border-left: 5px solid var(--expo-cor);
+}
+
+.expo-cartao.identidade.com-capa::after {
+    width: 48%;
+
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 45%, #000 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 45%, #000 100%);
+}

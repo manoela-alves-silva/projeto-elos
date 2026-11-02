@@ -49,6 +49,48 @@ final class AgendaEventoRepository
     }
 
     /**
+     * Agendas de vários eventos numa consulta só, por id do evento.
+     *
+     * @param list<int> $eventoIds
+     * @return array<int, array<string, mixed>>
+     */
+    public function findByEventIds(array $eventoIds): array
+    {
+        if ($eventoIds === []) {
+            return [];
+        }
+
+        $marcadores = implode(', ', array_fill(0, count($eventoIds), '?'));
+        $statement = $this->connection->prepare(
+            'SELECT
+                id,
+                evento_id,
+                montagem_inicio,
+                montagem_fim,
+                abertura,
+                horario,
+                permanencia_inicio,
+                permanencia_fim,
+                desmontagem_inicio,
+                desmontagem_fim,
+                tipo_horario,
+                observacoes
+             FROM agenda_eventos
+             WHERE evento_id IN (' . $marcadores . ')'
+        );
+
+        $statement->execute($eventoIds);
+
+        $agendas = [];
+
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $agenda) {
+            $agendas[(int) $agenda['evento_id']] ??= $agenda;
+        }
+
+        return $agendas;
+    }
+
+    /**
      * Cria a agenda de um evento.
      *
      * @return array<string, mixed>|null

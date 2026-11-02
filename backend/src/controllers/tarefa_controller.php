@@ -24,6 +24,17 @@ final class TarefaController
     }
 
     /**
+     * Tarefas de vários eventos, agrupadas pelo id do evento.
+     *
+     * @param list<int> $eventoIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    public function indexByEventos(array $eventoIds): array
+    {
+        return $this->repository->findByEventoIds($eventoIds);
+    }
+
+    /**
      * Busca uma tarefa pelo ID.
      *
      * @return array<string, mixed>|null
@@ -41,7 +52,6 @@ final class TarefaController
     public function create(
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -50,12 +60,12 @@ final class TarefaController
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         return $this->repository->create(
             $eventoId,
             $usuarioResponsavelId,
-            $etapaId,
             $categoriaId,
             $titulo,
             $descricao,
@@ -64,7 +74,8 @@ final class TarefaController
             $status,
             $observacoes,
             $responsavelNome,
-            $horario
+            $horario,
+            $prazoDispensado
         );
     }
 
@@ -77,7 +88,6 @@ final class TarefaController
         int $id,
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -86,13 +96,13 @@ final class TarefaController
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         return $this->repository->update(
             $id,
             $eventoId,
             $usuarioResponsavelId,
-            $etapaId,
             $categoriaId,
             $titulo,
             $descricao,
@@ -101,7 +111,8 @@ final class TarefaController
             $status,
             $observacoes,
             $responsavelNome,
-            $horario
+            $horario,
+            $prazoDispensado
         );
     }
 
@@ -122,18 +133,6 @@ final class TarefaController
     /**
      * Exclui uma tarefa.
      */
-    /**
-     * Grava "não precisa de prazo" e devolve a tarefa atualizada.
-     *
-     * @return array<string, mixed>|null
-     */
-    public function definirPrazoDispensado(int $id, bool $dispensado): ?array
-    {
-        $this->repository->definirPrazoDispensado($id, $dispensado);
-
-        return $this->repository->findById($id);
-    }
-
     public function delete(int $id, int $eventoId): bool
     {
         return $this->repository->delete(

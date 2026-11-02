@@ -1,63 +1,70 @@
 /* =========================================================
-   PROJETOS DA GALERIA (Cine Clube, Café Cultural, Arte ao Ar
-   Livre, Amostra de Talentos): lista, novo evento e cabeçalho
-   do evento. As cores e a fonte vêm do tema de cada projeto
-   (cinema.css, cafe.css...), por estas variáveis:
-     --tema-cor     destaque (botões, datas, selos)
-     --tema-fundo   fundo do destaque e das capas vazias
-     --tema-tinta   texto sobre o fundo
-     --tema-fonte   fonte dos títulos
+   ELOS — PROJETOS DA GALERIA (estrutura comum)
+
+   Cine Clube, Café Cultural...: o fundo creme e os cartões brancos do
+   ELOS continuam; cada evento ganha um destaque com a capa (cartaz,
+   capa do livro), a ficha e um "bilhete" com o dia e o horário.
+
+   Aqui fica só a estrutura. As cores e os enfeites de cada projeto
+   ficam no CSS do tema (cinema.css, cafe.css), que define as
+   variáveis abaixo e pode acrescentar detalhes.
    ========================================================= */
 
-:root {
-    --tema-cor: var(--turquoise);
+[class*="tema-"] {
+    /* destaque (cabeçalho do evento e próximo evento na lista) */
     --tema-fundo: var(--navy);
-    --tema-tinta: var(--white);
-    --tema-fonte: var(--font-display, "Poppins", sans-serif);
+    --tema-texto: var(--white);
+    --tema-texto-2: rgba(255, 255, 255, 0.72);
+    --tema-luz: var(--yellow);              /* sobretítulo, detalhes */
+    --tema-cor: var(--turquoise);           /* cor do projeto */
+    --tema-borda-botao: rgba(255, 255, 255, 0.28);
+
+    /* bilhete com o dia */
+    --bilhete-fundo: var(--cream);
+    --bilhete-texto: var(--navy);
 }
 
+.tema-cinema .welcome-section .eyebrow,
+.tema-cafe .welcome-section .eyebrow {
+    color: var(--tema-cor);
+}
+
+/* botões do topo da lista (relatório, novo) */
 .projeto-acoes {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
 
-    gap: var(--sp-12);
+    gap: var(--sp-8);
 }
 
-[class*="tema-"] .welcome-section h1 {
-    font-family: var(--tema-fonte);
-}
+/* ---------- destaque: cabeçalho do evento e próximo da lista ---------- */
 
-[class*="tema-"] .eyebrow {
-    color: var(--tema-cor);
-}
-
-[class*="tema-"] .primary-button {
-    background: var(--tema-cor);
-    border-color: var(--tema-cor);
-}
-
-/* ---------- O PRÓXIMO, EM DESTAQUE ---------- */
-
+.projeto-cabecalho,
 .projeto-destaque {
-    display: grid;
+    position: relative;
 
-    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) minmax(180px, 220px);
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) 190px;
+    align-items: center;
 
     gap: var(--sp-28);
 
-    margin-bottom: var(--sp-32);
-    padding: var(--sp-24);
+    margin-bottom: var(--sp-24);
+    padding: var(--sp-40) var(--sp-32);
 
-    border-radius: var(--radius-md);
+    overflow: hidden;
+
+    border-radius: 18px;
 
     background: var(--tema-fundo);
+    color: var(--tema-texto);
 
-    color: var(--tema-tinta);
+    box-shadow: var(--shadow-elevated);
+    text-decoration: none;
+}
 
-    box-shadow: var(--shadow-soft);
-
+.projeto-destaque {
     transition: transform 0.2s ease;
 }
 
@@ -65,189 +72,330 @@
     transform: translateY(-2px);
 }
 
-.projeto-capa,
-.projeto-cartao-capa,
-.projeto-cabecalho-capa {
+/* ---------- capa ---------- */
+
+.projeto-capa {
     position: relative;
 
-    display: grid;
-    place-items: center;
-
     aspect-ratio: 2 / 3;
+
+    display: flex;
+    align-items: flex-end;
+
+    padding: var(--sp-12);
+
     overflow: hidden;
 
-    border-radius: var(--radius-sm);
+    border-radius: 10px;
 
-    background:
-        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.22), transparent 50%),
-        linear-gradient(160deg, var(--expo-cor, var(--tema-cor)), color-mix(in srgb, var(--expo-cor, var(--tema-cor)) 50%, #000));
+    background: linear-gradient(160deg, var(--expo-cor, var(--tema-cor)), #000 120%);
+    color: var(--white);
 
-    color: #fff;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
 }
 
-.projeto-capa img,
-.projeto-cartao-capa img,
-.projeto-cabecalho-capa img {
-    position: absolute;
-    inset: 0;
+.projeto-capa.com-imagem {
+    padding: 0;
+}
 
+.projeto-capa img {
     width: 100%;
     height: 100%;
 
     object-fit: cover;
 }
 
-.projeto-capa-vazia,
-.projeto-cartao-capa > span {
-    padding: var(--sp-16);
-
-    font-family: var(--tema-fonte);
-    font-size: var(--fs-20);
+.projeto-capa-vazia {
+    font-family: var(--font-display);
+    font-size: var(--fs-16);
     font-weight: 700;
-    line-height: 1.2;
-    text-align: center;
+    line-height: 1.15;
+
+    overflow-wrap: anywhere;
 }
 
-.projeto-ficha {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+/* ---------- ficha ---------- */
 
-    gap: var(--sp-8);
+.projeto-ficha {
+    min-width: 0;
 }
 
 .projeto-sobretitulo {
-    color: var(--tema-cor);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
 
-    font-size: var(--fs-12);
+    gap: var(--sp-12);
+
+    margin-bottom: var(--sp-8);
+
+    color: var(--tema-luz);
+
+    font-size: var(--fs-11);
     font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
 }
 
-.projeto-ficha h2 {
-    font-family: var(--tema-fonte);
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    line-height: 1.1;
+.projeto-cabecalho h1,
+.projeto-destaque h2 {
+    color: var(--tema-texto);
+
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 2.6vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.12;
+
+    overflow-wrap: anywhere;
 }
 
-.projeto-tecnica {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+.projeto-subtitulo {
+    margin-top: var(--sp-4);
 
-    gap: var(--sp-8);
-
-    opacity: 0.85;
+    color: var(--tema-texto-2);
 
     font-size: var(--fs-14);
 }
 
+.projeto-tecnica {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8) var(--sp-12);
+
+    margin-top: var(--sp-12);
+
+    color: var(--tema-texto-2);
+
+    font-size: var(--fs-13);
+}
+
 .projeto-pessoa {
-    font-size: var(--fs-16);
+    margin-top: var(--sp-8);
+
+    color: var(--tema-texto);
+
+    font-size: var(--fs-14);
+    font-weight: 600;
+}
+
+.projeto-pessoa a {
+    color: inherit;
+
+    text-decoration: underline;
+    text-decoration-color: var(--tema-luz);
+    text-underline-offset: 3px;
 }
 
 .projeto-pessoa span {
-    opacity: 0.7;
+    color: var(--tema-texto-2);
+
+    font-weight: 500;
 }
 
+.projeto-etiqueta {
+    display: inline-block;
+
+    margin-top: var(--sp-12);
+    padding: var(--sp-4) var(--sp-12);
+
+    border: 1px solid currentColor;
+    border-radius: var(--radius-pill);
+
+    color: var(--tema-luz);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+}
+
+/* lista em destaque (ex.: a programação da Amostra de Talentos) */
 .projeto-lineup {
     display: flex;
     flex-wrap: wrap;
 
-    gap: 6px;
+    gap: var(--sp-4) var(--sp-12);
 
-    margin-top: var(--sp-4);
-    padding: 0;
+    margin-top: var(--sp-12);
+
+    color: var(--tema-texto);
+
+    font-size: var(--fs-13);
+    font-weight: 700;
 
     list-style: none;
 }
 
-.projeto-lineup li {
-    padding: 4px 10px;
+.projeto-lineup li + li::before {
+    content: "•";
 
-    border: 1px solid currentColor;
-    border-radius: 999px;
+    margin-right: var(--sp-12);
 
-    font-size: var(--fs-13);
+    color: var(--tema-luz);
 }
 
-/* bilhete: o quando e o onde, como um ingresso destacável */
-.projeto-bilhete {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-
-    gap: var(--sp-8);
-
-    padding: var(--sp-20);
-
-    border-left: 2px dashed color-mix(in srgb, var(--tema-tinta) 40%, transparent);
-}
-
-.bilhete-quando {
-    font-family: var(--tema-fonte);
-    font-size: var(--fs-20);
-    font-weight: 700;
-}
-
-.bilhete-local {
-    opacity: 0.85;
-}
-
-.bilhete-andamento {
-    margin-top: var(--sp-8);
-
-    font-size: var(--fs-13);
-    font-weight: 600;
-
-    opacity: 0.75;
-}
-
-/* selo de classificação indicativa */
+/* selo (ex.: classificação indicativa do filme) */
 .selo {
     display: inline-grid;
     place-items: center;
 
-    min-width: 26px;
-    height: 26px;
+    min-width: 28px;
+    height: 28px;
     padding: 0 6px;
 
-    border-radius: 4px;
+    border-radius: 6px;
 
-    background: #555;
+    background: var(--tema-cor);
+    color: var(--white);
 
-    color: #fff;
+    font-size: var(--fs-13);
+    font-weight: 900;
+}
+
+/* botões sobre o destaque */
+.projeto-cabecalho .acoes-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: var(--sp-8);
+
+    margin-top: var(--sp-20);
+}
+
+.projeto-cabecalho .botao-secundario {
+    border-color: var(--tema-borda-botao);
+
+    background: transparent;
+    color: var(--tema-texto);
+}
+
+.projeto-cabecalho .botao-secundario:hover {
+    border-color: var(--tema-luz);
+
+    color: var(--tema-luz);
+}
+
+/* ---------- bilhete com o dia ---------- */
+
+.projeto-bilhete {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: var(--sp-2);
+
+    padding: var(--sp-20) var(--sp-16);
+
+    border-radius: 12px;
+
+    background: var(--bilhete-fundo);
+    color: var(--bilhete-texto);
+
+    text-align: center;
+}
+
+.bilhete-semana,
+.bilhete-quando {
+    color: var(--tema-cor);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.bilhete-dia {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.bilhete-sem-data {
+    color: var(--text-muted);
+}
+
+.bilhete-mes {
+    color: var(--text-soft);
 
     font-size: var(--fs-12);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.bilhete-hora {
+    margin-top: var(--sp-8);
+    padding: var(--sp-4) var(--sp-12);
+
+    border-radius: var(--radius-pill);
+
+    background: var(--navy);
+    color: var(--yellow);
+
+    font-size: var(--fs-14);
     font-weight: 800;
 }
 
-.selo-l { background: #0a8a3a; }
-.selo-10 { background: #1f78c1; }
-.selo-12 { background: #e2b100; color: #222; }
-.selo-14 { background: #e06c00; }
-.selo-16 { background: #d0021b; }
-.selo-18 { background: #111; }
+.bilhete-local {
+    margin-top: var(--sp-8);
 
-/* ---------- EM BREVE (cartões) ---------- */
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 600;
+}
+
+.bilhete-andamento {
+    margin-top: var(--sp-8);
+    padding-top: var(--sp-8);
+
+    border-top: 1px solid var(--border);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 600;
+}
+
+.bilhete-andamento b {
+    color: var(--red-dark);
+}
+
+/* no destaque da lista, o bilhete é mais enxuto */
+.projeto-destaque .projeto-bilhete {
+    gap: var(--sp-8);
+}
+
+.projeto-destaque .bilhete-quando {
+    font-size: var(--fs-13);
+    letter-spacing: 0.06em;
+}
+
+/* ---------- lista: seções, cartões e anteriores ---------- */
 
 .projeto-secao {
     margin-bottom: var(--sp-32);
 }
 
 .projeto-secao-titulo {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-12);
+
     margin-bottom: var(--sp-16);
 
     color: var(--navy);
 
-    font-family: var(--tema-fonte);
-    font-size: var(--fs-20);
+    font-family: var(--font-display);
+    font-size: var(--fs-18);
+    font-weight: 700;
 }
 
 .projeto-cartoes {
     display: grid;
-
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 
     gap: var(--sp-20);
@@ -260,71 +408,95 @@
     overflow: hidden;
 
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: 14px;
 
     background: var(--white);
+    color: inherit;
 
     box-shadow: var(--shadow-card);
+    text-decoration: none;
 
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .projeto-cartao:hover {
-    box-shadow: var(--shadow-soft);
+    transform: translateY(-3px);
 
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
 }
 
 .projeto-cartao-capa {
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 2 / 3;
 
-    border-radius: 0;
+    display: flex;
+    align-items: flex-end;
+
+    padding: var(--sp-16);
+
+    background: linear-gradient(170deg, var(--expo-cor, var(--tema-cor)), #12151d 95%);
+    color: var(--white);
+}
+
+.projeto-cartao-capa.com-imagem {
+    padding: 0;
+}
+
+.projeto-cartao-capa img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.projeto-cartao-capa span {
+    font-family: var(--font-display);
+    font-size: var(--fs-20);
+    font-weight: 700;
+    line-height: 1.15;
 }
 
 .projeto-cartao-info {
     display: flex;
     flex-direction: column;
 
-    gap: 4px;
+    gap: var(--sp-4);
 
-    padding: var(--sp-16);
+    padding: var(--sp-12) var(--sp-16) var(--sp-16);
 }
 
 .projeto-cartao-quando {
     color: var(--tema-cor);
 
-    font-size: var(--fs-12);
+    font-size: var(--fs-11);
     font-weight: 800;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
 .projeto-cartao-info strong {
     color: var(--navy);
 
-    font-size: var(--fs-16);
-    line-height: 1.25;
+    font-size: var(--fs-14);
+    line-height: 1.3;
 }
 
 .projeto-cartao-pessoa,
 .projeto-cartao-andamento {
     color: var(--text-soft);
 
-    font-size: var(--fs-13);
+    font-size: var(--fs-11);
 }
 
-.com-atraso {
-    color: var(--red-dark) !important;
-
-    font-weight: 600;
+.projeto-cartao-andamento.com-atraso {
+    color: var(--red-dark);
+    font-weight: 700;
 }
-
-/* ---------- ANTERIORES ---------- */
 
 .projeto-anteriores {
-    padding: 0;
+    overflow: hidden;
 
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: 14px;
 
     background: var(--white);
 
@@ -332,32 +504,115 @@
 }
 
 .projeto-anteriores li + li {
-    border-top: 1px solid var(--cream-dark);
+    border-top: 1px solid var(--border);
 }
 
 .projeto-anteriores a {
-    display: grid;
-
-    grid-template-columns: 170px minmax(0, 1fr) auto;
+    display: flex;
     align-items: center;
+    flex-wrap: wrap;
 
-    gap: var(--sp-16);
+    gap: var(--sp-8) var(--sp-16);
 
     padding: var(--sp-12) var(--sp-20);
+
+    color: var(--navy);
+
+    text-decoration: none;
 }
 
 .projeto-anteriores a:hover {
     background: var(--cream-light);
 }
 
-.anterior-quando,
+.anterior-quando {
+    min-width: 140px;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
 .anterior-pessoa {
     color: var(--text-soft);
 
-    font-size: var(--fs-13);
+    font-size: var(--fs-12);
 }
 
-/* ---------- NOVO EVENTO: checklist padrão ---------- */
+/* ---------- ficha na lateral ---------- */
+
+.ficha-projeto .data-linha-lista {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.ficha-projeto .data-linha-lista ol {
+    margin: var(--sp-4) 0 0;
+    padding-left: var(--sp-20);
+
+    text-align: left;
+}
+
+.ficha-projeto .data-linha-lista li + li {
+    margin-top: var(--sp-4);
+}
+
+.ficha-projeto .a-definir {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ---------- formulários: número, caixa de marcar, checklist padrão ---------- */
+
+.form-elos input[type="number"] {
+    width: 100%;
+    min-height: 42px;
+
+    padding: 0 var(--sp-12);
+
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+    color: var(--text);
+
+    font-size: var(--fs-13);
+
+    outline: none;
+}
+
+.form-elos input[type="number"]:focus {
+    border-color: var(--turquoise);
+
+    box-shadow: 0 0 0 3px rgba(53, 167, 167, 0.12);
+}
+
+.form-elos .opcao-ficha {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+
+    grid-column: 1 / -1;
+
+    gap: var(--sp-8);
+
+    color: var(--navy);
+
+    font-size: var(--fs-13);
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.form-elos .opcao-ficha input {
+    width: 18px;
+    height: 18px;
+
+    accent-color: var(--navy);
+}
 
 .passo-checklist {
     display: block;
@@ -365,26 +620,34 @@
 
 .opcao-checklist {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
 
     gap: var(--sp-8);
 
+    color: var(--navy);
+
+    font-size: var(--fs-14);
     font-weight: 600;
+
+    cursor: pointer;
 }
 
 .opcao-checklist input {
-    width: auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+
+    accent-color: var(--navy);
 }
 
 .checklist-previa {
     display: grid;
-
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 
-    gap: 6px var(--sp-20);
+    gap: var(--sp-8) var(--sp-20);
 
-    margin: var(--sp-12) 0;
-    padding: 0;
+    margin: var(--sp-16) 0 var(--sp-12);
+    padding-left: var(--sp-28);
 
     list-style: none;
 }
@@ -392,106 +655,64 @@
 .checklist-previa li {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
 
     gap: var(--sp-12);
 
-    padding: 6px 0;
+    padding-bottom: var(--sp-8);
 
-    border-bottom: 1px dashed var(--cream-dark);
+    border-bottom: 1px dashed var(--border);
 
-    font-size: var(--fs-14);
+    color: var(--text);
+
+    font-size: var(--fs-13);
 }
 
 .checklist-previa small {
-    flex: none;
+    flex-shrink: 0;
 
     color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
 }
 
-/* ---------- CABEÇALHO DO EVENTO DE PROJETO ---------- */
+/* ---------- telas menores ---------- */
 
-.projeto-cabecalho {
-    display: grid;
+@media (max-width: 1000px) {
+    .projeto-cabecalho,
+    .projeto-destaque {
+        grid-template-columns: 110px minmax(0, 1fr);
 
-    grid-template-columns: 160px minmax(0, 1fr) minmax(220px, 300px);
-    align-items: center;
-
-    gap: var(--sp-28);
-
-    margin-bottom: var(--sp-28);
-    padding: var(--sp-24);
-
-    border-radius: var(--radius-md);
-
-    background: var(--white);
-
-    box-shadow: var(--shadow-soft);
-}
-
-.projeto-cabecalho-texto {
-    display: flex;
-    flex-direction: column;
-
-    gap: var(--sp-8);
-}
-
-.projeto-cabecalho-texto .eyebrow {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-
-    gap: var(--sp-12);
-}
-
-.projeto-cabecalho h1 {
-    color: var(--navy);
-
-    font-family: var(--tema-fonte);
-    font-size: clamp(1.75rem, 2.6vw, 2.5rem);
-    line-height: 1.1;
-}
-
-.projeto-cabecalho .projeto-tecnica,
-.projeto-cabecalho .projeto-pessoa {
-    color: var(--text);
-}
-
-.projeto-cabecalho .expo-fatos {
-    margin-top: var(--sp-4);
-}
-
-.projeto-cabecalho .acoes-cabecalho {
-    margin-top: var(--sp-8);
-}
-
-.ficha-linhas {
-    margin: 0;
-    padding-left: 18px;
-}
-
-.form-ficha .campo-largo {
-    grid-column: 1 / -1;
-}
-
-@media (max-width: 960px) {
-    .projeto-destaque,
-    .projeto-cabecalho {
-        grid-template-columns: 1fr;
-    }
-
-    .projeto-capa,
-    .projeto-cabecalho-capa {
-        max-width: 220px;
+        padding: var(--sp-32) var(--sp-20);
     }
 
     .projeto-bilhete {
-        border-top: 2px dashed color-mix(in srgb, var(--tema-tinta) 40%, transparent);
-        border-left: 0;
+        grid-column: 1 / -1;
+
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+
+        gap: var(--sp-8) var(--sp-16);
     }
 
-    .projeto-anteriores a {
-        grid-template-columns: 1fr;
+    .bilhete-dia {
+        font-size: 2rem;
+    }
 
-        gap: 2px;
+    .bilhete-andamento {
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .projeto-cabecalho,
+    .projeto-destaque {
+        grid-template-columns: 1fr;
+    }
+
+    .projeto-capa {
+        width: 140px;
     }
 }

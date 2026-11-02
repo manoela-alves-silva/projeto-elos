@@ -11,6 +11,7 @@ declare(strict_types=1);
 use Elos\Frontend\Api;
 use Elos\Frontend\ApiException;
 
+require_once __DIR__ . '/../src/Api.php';
 require_once __DIR__ . '/../src/elos.php';
 
 \Elos\Frontend\iniciarSessao();

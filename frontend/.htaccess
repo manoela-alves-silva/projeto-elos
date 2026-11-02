@@ -3,16 +3,20 @@
     Require all denied
 </FilesMatch>
 
-# Endereços curtos (/exposicoes, /exposicao/nome...): tudo que não é
-# arquivo de verdade vai para o roteador. As páginas .php também passam
-# por ele (os endereços antigos redirecionam para os novos), menos a
-# volta do login com Google, que tem endereço cadastrado no Google.
+# Manifesto do site (instalar o ELOS como app, ícone no celular).
+AddType application/manifest+json .webmanifest
+
+# Endereços limpos: tudo passa pelo roteador.php, menos os arquivos de
+# assets/ (CSS, JS, imagens), que o servidor entrega direto. Assim
+# pages/ e src/ nunca são abertos diretamente pelo navegador.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^src/ - [F,L]
+
     RewriteRule ^roteador\.php$ - [L]
-    RewriteRule ^pages/google_retorno\.php$ - [L]
-    RewriteCond %{REQUEST_FILENAME} !-f [OR]
-    RewriteCond %{REQUEST_FILENAME} \.php$
+
+    RewriteCond %{REQUEST_URI} /assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
     RewriteRule ^ roteador.php [L,QSA]
 </IfModule>

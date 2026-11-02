@@ -5,117 +5,173 @@ declare(strict_types=1);
 namespace Elos\Frontend;
 
 /**
- * O checklist dividido em fases, a partir da categoria de cada item.
+ * Fases do trabalho de uma exposição, montadas a partir da categoria
+ * de cada item do checklist.
  *
- * Cada categoria vira uma fase (Documentação, Transporte...) e cada
- * fase pertence a uma etapa do trabalho — Preparação, Produção ou
- * Realização — que dá a cor. Categorias novas, criadas na hora,
- * entram em "Outros cuidados".
+ * A equipe já organiza o trabalho pelas categorias (Curadoria,
+ * Montagem, Divulgação…). Aqui cada categoria ganha uma fase, que dá
+ * a ordem em que aparecem e a cor. Nada muda no banco: a ligação é
+ * feita pelo nome da categoria. Nomes parecidos ("Galeria Virtual" e
+ * "Galeria Virtual e Instagram") caem na mesma fase.
+ *
+ * Categoria que não se encaixa em nenhuma fase vira um grupo próprio,
+ * no fim, com o próprio nome.
  */
 final class Fases
 {
-    /** Etapas, na ordem do trabalho. */
+    /**
+     * Cores por etapa do trabalho. Fases da mesma etapa dividem a cor.
+     * [cor da marca (bolinha, barra, traço), cor clara (fundo)]
+     */
+    public const CORES = [
+        // Paleta conferida para daltonismo (todos os pares). A cor marca
+        // bolinhas, barras e fundos; o texto fica sempre na cor de texto.
+        'planejamento' => ['#4a89f2', '#e4eefd'],
+        'producao' => ['#5b3eae', '#ebe6f6'],
+        'divulgacao' => ['#d85891', '#fae6ef'],
+        'montagem' => ['#cb9317', '#faf0d9'],
+        'encerramento' => ['#23690d', '#e0ede0'],
+        'outros' => ['#7a868c', '#eceff0'],
+    ];
+
     public const ROTULOS_ETAPA = [
-        'preparacao' => 'Preparação',
+        'planejamento' => 'Planejamento',
         'producao' => 'Produção',
-        'realizacao' => 'Realização',
-        'geral' => 'Outros cuidados',
-    ];
-
-    private const CORES_ETAPA = [
-        'preparacao' => '#5a9fbe',
-        'producao' => '#d9a521',
-        'realizacao' => '#35a7a7',
-        'geral' => '#a89677',
-    ];
-
-    /** Categoria (em minúsculas) => [chave, rótulo, etapa], na ordem em que aparecem. */
-    private const CATEGORIAS = [
-        'documentação' => ['documentacao', 'Documentação', 'preparacao'],
-        'divulgação' => ['divulgacao', 'Divulgação', 'preparacao'],
-        'transporte' => ['transporte', 'Transporte', 'producao'],
-        'infraestrutura' => ['infraestrutura', 'Infraestrutura', 'producao'],
-        'equipamentos' => ['equipamentos', 'Equipamentos', 'producao'],
-        'alimentação' => ['alimentacao', 'Alimentação', 'realizacao'],
-        'visita' => ['visitas', 'Visitas', 'realizacao'],
-        'outro' => ['outros', 'Outros', 'geral'],
+        'divulgacao' => 'Divulgação',
+        'montagem' => 'Montagem e abertura',
+        'encerramento' => 'Encerramento',
+        'outros' => 'Outros',
     ];
 
     /**
-     * Fase de uma categoria.
+     * Na ordem do trabalho (é a ordem em que aparecem na tela).
      *
-     * @return array{chave: string, rotulo: string, etapa: string}
+     * chave => [rótulo, etapa, termos que reconhecem a categoria]
+     */
+    private const FASES = [
+        'planejamento' => ['Planejamento e cronograma', 'planejamento', ['planejamento', 'cronograma']],
+        'conceito' => ['Conceito curatorial', 'planejamento', ['conceito', 'tema central']],
+        'curadoria' => ['Curadoria', 'planejamento', ['curadoria', 'curatorial']],
+        'vistoria' => ['Vistoria do espaço', 'planejamento', ['vistoria']],
+        // Projetos da galeria (Cine Clube, Café Cultural, Arte ao Ar Livre, Amostra de Talentos)
+        'filme' => ['Escolha do filme', 'planejamento', ['escolha do filme']],
+        'convidados' => ['Convidados', 'planejamento', ['convidados']],
+        'proposta' => ['Proposta da atividade', 'planejamento', ['proposta da atividade']],
+        'inscricoes' => ['Inscrições', 'planejamento', ['inscrições']],
+        'direitos' => ['Direitos de exibição', 'producao', ['direitos de exibi']],
+        'projecao' => ['Projeção e som', 'producao', ['projeção e som']],
+        'livros' => ['Livros e autógrafos', 'producao', ['livros e autógrafos']],
+        'materiais' => ['Materiais', 'producao', ['materiais']],
+        'som-palco' => ['Som e palco', 'producao', ['som e palco']],
+        'setores' => ['Sinalização aos setores', 'producao', ['sinaliza', 'setores']],
+        'identidade' => ['Identidade visual', 'producao', ['identidade visual']],
+        'documentacao' => ['Documentação', 'producao', ['documenta']],
+        'transporte' => ['Transporte e laudo', 'producao', ['transporte', 'laudo']],
+        'infraestrutura' => ['Infraestrutura', 'producao', ['infraestrutura', 'equipamento']],
+        'divulgacao' => ['Divulgação', 'divulgacao', ['divulga']],
+        'galeria-virtual' => ['Galeria Virtual e Instagram', 'divulgacao', ['galeria virtual', 'instagram', 'redes sociais']],
+        'montagem' => ['Montagem', 'montagem', ['montagem']],
+        'inauguracao' => ['Inauguração (vernissage)', 'montagem', ['inaugura', 'vernis', 'abertura']],
+        'visita' => ['Visitas', 'montagem', ['visita']],
+        'alimentacao' => ['Alimentação', 'montagem', ['alimenta']],
+        // Projetos da galeria: o dia do evento
+        'ambientacao' => ['Espaço e ambientação', 'montagem', ['espaço e ambientação']],
+        'mediacao' => ['Mediação e debate', 'montagem', ['mediação e debate']],
+        'recepcao' => ['Recepção do público', 'montagem', ['recepção do público']],
+        'desmontagem' => ['Desmontagem e devolução', 'encerramento', ['desmontagem', 'devolu']],
+        'relatorio' => ['Elaboração do relatório', 'encerramento', ['relat']],
+        'agradecimentos' => ['Agradecimentos', 'encerramento', ['agradec']],
+    ];
+
+    /**
+     * Fases conferidas antes das outras, porque o nome delas contém o
+     * termo de outra fase: "Desmontagem" contém "montagem" e "Vistoria
+     * do espaço expositivo para montagem" também.
+     */
+    private const CONFERIR_PRIMEIRO = ['desmontagem', 'vistoria'];
+
+    /**
+     * Fase de um nome de categoria.
+     *
+     * @return array{chave: string, rotulo: string, etapa: string, ordem: int}
      */
     public static function daCategoria(?string $categoria): array
     {
         $nome = trim((string) $categoria);
-        $chave = mb_strtolower($nome);
+        $busca = mb_strtolower($nome);
+        $ordens = array_flip(array_keys(self::FASES));
+        $sequencia = array_unique([...self::CONFERIR_PRIMEIRO, ...array_keys(self::FASES)]);
 
-        if (isset(self::CATEGORIAS[$chave])) {
-            [$fase, $rotulo, $etapa] = self::CATEGORIAS[$chave];
-
-            return ['chave' => $fase, 'rotulo' => $rotulo, 'etapa' => $etapa];
+        foreach ($sequencia as $chave) {
+            [$rotulo, $etapa, $termos] = self::FASES[$chave];
+            foreach ($termos as $termo) {
+                if ($busca !== '' && str_contains($busca, $termo)) {
+                    return ['chave' => $chave, 'rotulo' => $rotulo, 'etapa' => $etapa, 'ordem' => $ordens[$chave]];
+                }
+            }
         }
 
-        if ($nome === '') {
-            return ['chave' => 'sem-categoria', 'rotulo' => 'Sem categoria', 'etapa' => 'geral'];
+        // Fora das fases conhecidas: grupo com o próprio nome, no fim.
+        if ($nome === '' || $busca === 'outro') {
+            return ['chave' => 'outro', 'rotulo' => 'Outros', 'etapa' => 'outros', 'ordem' => 1000];
         }
 
-        return ['chave' => self::slug($nome), 'rotulo' => $nome, 'etapa' => 'geral'];
+        return ['chave' => 'cat-' . self::slug($nome), 'rotulo' => $nome, 'etapa' => 'outros', 'ordem' => 500];
     }
 
     /**
-     * Itens agrupados por fase, na ordem das etapas. Em cada fase:
-     * total (sem os cancelados), feitas, pendentes e atrasadas.
+     * Itens do checklist agrupados por fase, na ordem do trabalho.
+     * Dentro de cada fase, pendentes primeiro (pela data), resolvidos no fim.
      *
-     * @param list<array<string, mixed>> $necessidades
+     * @param list<array<string, mixed>> $tarefas
      * @return list<array{chave: string, rotulo: string, etapa: string, itens: list<array<string, mixed>>, total: int, feitas: int, pendentes: int, atrasadas: int}>
      */
-    public static function agrupar(array $necessidades): array
+    public static function agrupar(array $tarefas): array
     {
-        $fases = [];
+        $grupos = [];
 
-        foreach ($necessidades as $tarefa) {
+        foreach ($tarefas as $tarefa) {
             $fase = self::daCategoria($tarefa['categoria_nome'] ?? null);
-            $chave = $fase['chave'];
-
-            $fases[$chave] ??= $fase + ['itens' => [], 'total' => 0, 'feitas' => 0, 'pendentes' => 0, 'atrasadas' => 0];
-            $fases[$chave]['itens'][] = $tarefa;
+            $grupos[$fase['chave']] ??= $fase + ['itens' => [], 'total' => 0, 'feitas' => 0, 'pendentes' => 0, 'atrasadas' => 0];
+            $grupo = &$grupos[$fase['chave']];
+            $grupo['itens'][] = $tarefa;
 
             $estado = Planejamento::estadoNecessidade($tarefa);
-
-            if ($estado === 'cancelado') {
-                continue;
+            if ($estado !== 'cancelado') {
+                $grupo['total']++;
+                if ($estado === 'concluido') {
+                    $grupo['feitas']++;
+                } else {
+                    $grupo['pendentes']++;
+                    if ($estado === 'atrasado') {
+                        $grupo['atrasadas']++;
+                    }
+                }
             }
-
-            $fases[$chave]['total']++;
-
-            if ($estado === 'concluido') {
-                $fases[$chave]['feitas']++;
-            } else {
-                $fases[$chave]['pendentes']++;
-                $fases[$chave]['atrasadas'] += $estado === 'atrasado' ? 1 : 0;
-            }
+            unset($grupo);
         }
 
-        $ordemEtapa = array_flip(array_keys(self::ROTULOS_ETAPA));
-        $ordemFase = array_flip(array_column(array_values(self::CATEGORIAS), 0));
+        uasort($grupos, static fn(array $a, array $b): int => [$a['ordem'], $a['rotulo']] <=> [$b['ordem'], $b['rotulo']]);
 
-        usort($fases, static fn (array $a, array $b): int =>
-            [$ordemEtapa[$a['etapa']] ?? 99, $ordemFase[$a['chave']] ?? 50, $a['rotulo']]
-            <=> [$ordemEtapa[$b['etapa']] ?? 99, $ordemFase[$b['chave']] ?? 50, $b['rotulo']]);
+        return array_map(static function (array $grupo): array {
+            unset($grupo['ordem']);
 
-        return array_values($fases);
+            return $grupo;
+        }, array_values($grupos));
     }
 
-    /** style="" com a cor da etapa (--fase-cor). */
+    /** Estilo inline com as cores da etapa, para usar em style="". */
     public static function estiloCor(string $etapa): string
     {
-        return '--fase-cor: ' . (self::CORES_ETAPA[$etapa] ?? self::CORES_ETAPA['geral']) . ';';
+        [$forte, $clara] = self::CORES[$etapa] ?? self::CORES['outros'];
+
+        return '--fase-cor: ' . $forte . '; --fase-fundo: ' . $clara . ';';
     }
 
     private static function slug(string $texto): string
     {
-        return slugDeTexto($texto) ?: 'fase';
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower($texto)) ?: $texto;
+
+        return trim((string) preg_replace('/[^a-z0-9]+/', '-', $ascii), '-') ?: 'categoria';
     }
 }

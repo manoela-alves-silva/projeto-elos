@@ -26,13 +26,12 @@ final class TarefaRepository
                 t.evento_id,
                 t.usuario_responsavel_id,
                 t.responsavel_nome,
-                t.etapa_id,
                 t.categoria_id,
                 t.titulo,
                 t.descricao,
                 t.prazo,
-                t.horario,
                 t.prazo_dispensado,
+                t.horario,
                 t.prioridade,
                 t.status,
                 t.observacoes,
@@ -40,13 +39,10 @@ final class TarefaRepository
                 t.updated_at,
                 u.nome AS usuario_responsavel_nome,
                 COALESCE(u.nome, t.responsavel_nome) AS responsavel_exibicao,
-                e.nome AS etapa_nome,
                 c.nome AS categoria_nome
             FROM tarefas t
             LEFT JOIN usuarios u
                 ON u.id = t.usuario_responsavel_id
-            LEFT JOIN etapas e
-                ON e.id = t.etapa_id
             LEFT JOIN categorias_tarefa c
                 ON c.id = t.categoria_id
             WHERE t.evento_id = :evento_id
@@ -67,6 +63,65 @@ final class TarefaRepository
     }
 
     /**
+     * Tarefas de vários eventos numa consulta só, agrupadas pelo id do
+     * evento (mesma ordem de findByEventoId).
+     *
+     * @param list<int> $eventoIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    public function findByEventoIds(array $eventoIds): array
+    {
+        if ($eventoIds === []) {
+            return [];
+        }
+
+        $sql = sprintf('
+            SELECT
+                t.id,
+                t.evento_id,
+                t.usuario_responsavel_id,
+                t.responsavel_nome,
+                t.categoria_id,
+                t.titulo,
+                t.descricao,
+                t.prazo,
+                t.prazo_dispensado,
+                t.horario,
+                t.prioridade,
+                t.status,
+                t.observacoes,
+                t.created_at,
+                t.updated_at,
+                u.nome AS usuario_responsavel_nome,
+                COALESCE(u.nome, t.responsavel_nome) AS responsavel_exibicao,
+                c.nome AS categoria_nome
+            FROM tarefas t
+            LEFT JOIN usuarios u
+                ON u.id = t.usuario_responsavel_id
+            LEFT JOIN categorias_tarefa c
+                ON c.id = t.categoria_id
+            WHERE t.evento_id IN (%s)
+            ORDER BY
+                t.prazo IS NULL,
+                t.prazo ASC,
+                t.horario IS NULL,
+                t.horario ASC,
+                t.id ASC
+        ', implode(', ', array_fill(0, count($eventoIds), '?')));
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($eventoIds);
+
+        $tarefas = array_fill_keys($eventoIds, []);
+
+        foreach ($statement->fetchAll() as $tarefa) {
+            $tarefas[(int) $tarefa['evento_id']][] = $tarefa;
+        }
+
+        return $tarefas;
+    }
+
+    /**
      * Busca uma tarefa pelo ID.
      *
      * @return array<string, mixed>|null
@@ -79,13 +134,12 @@ final class TarefaRepository
                 t.evento_id,
                 t.usuario_responsavel_id,
                 t.responsavel_nome,
-                t.etapa_id,
                 t.categoria_id,
                 t.titulo,
                 t.descricao,
                 t.prazo,
-                t.horario,
                 t.prazo_dispensado,
+                t.horario,
                 t.prioridade,
                 t.status,
                 t.observacoes,
@@ -93,13 +147,10 @@ final class TarefaRepository
                 t.updated_at,
                 u.nome AS usuario_responsavel_nome,
                 COALESCE(u.nome, t.responsavel_nome) AS responsavel_exibicao,
-                e.nome AS etapa_nome,
                 c.nome AS categoria_nome
             FROM tarefas t
             LEFT JOIN usuarios u
                 ON u.id = t.usuario_responsavel_id
-            LEFT JOIN etapas e
-                ON e.id = t.etapa_id
             LEFT JOIN categorias_tarefa c
                 ON c.id = t.categoria_id
             WHERE t.id = :id
@@ -117,23 +168,11 @@ final class TarefaRepository
     }
 
     /**
-     * Marca (ou desmarca) "não precisa de prazo". Só vale sem data:
-     * com prazo, a marca é sempre apagada.
-     */
-    public function definirPrazoDispensado(int $id, bool $dispensado): void
-    {
-        $this->pdo
-            ->prepare('UPDATE tarefas SET prazo_dispensado = CASE WHEN prazo IS NULL THEN :d ELSE 0 END WHERE id = :id')
-            ->execute(['d' => $dispensado ? 1 : 0, 'id' => $id]);
-    }
-
-    /**
      * Cria uma tarefa.
      */
     public function create(
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -142,17 +181,18 @@ final class TarefaRepository
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         $sql = '
             INSERT INTO tarefas (
                 evento_id,
                 usuario_responsavel_id,
-                etapa_id,
                 categoria_id,
                 titulo,
                 descricao,
                 prazo,
+                prazo_dispensado,
                 prioridade,
                 status,
                 observacoes,
@@ -161,11 +201,11 @@ final class TarefaRepository
             ) VALUES (
                 :evento_id,
                 :usuario_responsavel_id,
-                :etapa_id,
                 :categoria_id,
                 :titulo,
                 :descricao,
                 :prazo,
+                :prazo_dispensado,
                 :prioridade,
                 :status,
                 :observacoes,
@@ -179,11 +219,11 @@ final class TarefaRepository
         $success = $statement->execute([
             'evento_id' => $eventoId,
             'usuario_responsavel_id' => $usuarioResponsavelId,
-            'etapa_id' => $etapaId,
             'categoria_id' => $categoriaId,
             'titulo' => $titulo,
             'descricao' => $descricao,
             'prazo' => $prazo,
+            'prazo_dispensado' => $prazo === null && $prazoDispensado ? 1 : 0,
             'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,
@@ -205,7 +245,6 @@ final class TarefaRepository
         int $id,
         int $eventoId,
         ?int $usuarioResponsavelId,
-        ?int $etapaId,
         ?int $categoriaId,
         string $titulo,
         ?string $descricao,
@@ -214,17 +253,18 @@ final class TarefaRepository
         string $status,
         ?string $observacoes,
         ?string $responsavelNome = null,
-        ?string $horario = null
+        ?string $horario = null,
+        bool $prazoDispensado = false
     ): ?array {
         $sql = '
             UPDATE tarefas
             SET
                 usuario_responsavel_id = :usuario_responsavel_id,
-                etapa_id = :etapa_id,
                 categoria_id = :categoria_id,
                 titulo = :titulo,
                 descricao = :descricao,
                 prazo = :prazo,
+                prazo_dispensado = :prazo_dispensado,
                 prioridade = :prioridade,
                 status = :status,
                 observacoes = :observacoes,
@@ -240,11 +280,11 @@ final class TarefaRepository
             'id' => $id,
             'evento_id' => $eventoId,
             'usuario_responsavel_id' => $usuarioResponsavelId,
-            'etapa_id' => $etapaId,
             'categoria_id' => $categoriaId,
             'titulo' => $titulo,
             'descricao' => $descricao,
             'prazo' => $prazo,
+            'prazo_dispensado' => $prazo === null && $prazoDispensado ? 1 : 0,
             'prioridade' => $prioridade,
             'status' => $status,
             'observacoes' => $observacoes,

@@ -14,7 +14,7 @@
 
     display: grid;
 
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    grid-template-columns: var(--login-sidebar-width, 245px) minmax(0, 1fr);
 }
 
 
@@ -892,7 +892,7 @@
 @media (max-width: 1100px) {
 
     :root {
-        --sidebar-width: 225px;
+        --login-sidebar-width: 225px;
     }
 
 
@@ -924,7 +924,7 @@
 @media (max-width: 850px) {
 
     :root {
-        --sidebar-width: 210px;
+        --login-sidebar-width: 210px;
     }
 
 

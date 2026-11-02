@@ -11,8 +11,9 @@
 ALTER TABLE tipos_evento
     ADD COLUMN projeto VARCHAR(40) NULL AFTER cor;
 
--- Os tipos que já existem: o projeto pelo nome, uma última vez.
+-- Os tipos que já existem: o projeto pelo nome, uma última vez
+-- (mesmos termos que o sistema usava para adivinhar).
 UPDATE tipos_evento SET projeto = 'cine-clube' WHERE LOWER(nome) LIKE '%cine%';
-UPDATE tipos_evento SET projeto = 'cafe-cultural' WHERE LOWER(nome) LIKE '%café%' OR LOWER(nome) LIKE '%cafe%';
+UPDATE tipos_evento SET projeto = 'cafe-cultural' WHERE LOWER(nome) LIKE '%caf%';
 UPDATE tipos_evento SET projeto = 'arte-ao-ar-livre' WHERE LOWER(nome) LIKE '%ar livre%';
-UPDATE tipos_evento SET projeto = 'amostra-de-talentos' WHERE LOWER(nome) LIKE '%amostra%' OR LOWER(nome) LIKE '%talento%';
+UPDATE tipos_evento SET projeto = 'amostra-de-talentos' WHERE LOWER(nome) LIKE '%amostra%';

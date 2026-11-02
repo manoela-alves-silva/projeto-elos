@@ -266,39 +266,36 @@ final class Api
     // Não é o mesmo cookie do usuário no frontend — são sessões distintas.
     private const SESSION_COOKIE_KEY = '_elos_backend_cookie';
 
-    // Respostas de GET já buscadas nesta página: cada endereço vai à API
-    // uma vez só. Qualquer alteração (POST, PUT, DELETE) esvazia.
-    /** @var array<string, array{0: int, 1: array<string, mixed>}> */
-    private static array $cache = [];
+    // Respostas de GET já recebidas nesta página. A mesma lista (ex.:
+    // usuários) costuma ser pedida mais de uma vez; assim vai só um
+    // pedido. Qualquer POST/PUT/DELETE limpa, para nada ficar velho.
+    private static array $cacheGet = [];
 
-    // Quantos php-cgi o pré-carregamento abre de uma vez.
-    private const CGI_AO_MESMO_TEMPO = 4;
+    /** @var array<string, ApiException> erros que vieram num lote */
+    private static array $errosGet = [];
 
-    // Monitor do painel ao vivo: entra pelo código do link, sem conta.
+    // Código do link secreto do painel ao vivo (monitor da produção),
+    // enviado à API no cabeçalho X-Elos-Painel. Ver pages/painel.php.
     private static string $codigoPainel = '';
+
+    public static function usarCodigoPainel(string $codigo): void
+    {
+        self::$codigoPainel = $codigo;
+    }
 
     public static function get(string $path): array
     {
-        if (!isset(self::$cache[$path])) {
-            try {
-                self::$cache[$path] = [200, self::request('GET', $path)];
-            } catch (ApiException $e) {
-                self::$cache[$path] = [$e->statusCode, ['_erro' => $e->getMessage()] + $e->body];
-            }
+        if (isset(self::$errosGet[$path])) {
+            throw self::$errosGet[$path];
         }
 
-        [$status, $dados] = self::$cache[$path];
-
-        if ($status >= 400 || $status === 0) {
-            throw new ApiException((string) ($dados['_erro'] ?? 'Erro ao comunicar com a API.'), $status, $dados);
-        }
-
-        return $dados;
+        return self::$cacheGet[$path] ??= self::request('GET', $path);
     }
 
     /**
-     * Busca vários endereços de uma vez (em paralelo) e guarda as
-     * respostas: os Api::get() seguintes da página já não esperam.
+     * Busca vários GETs num pedido só (rota /api/lote) e guarda as
+     * respostas: os Api::get() seguintes desses caminhos não vão mais
+     * à API. Se o lote falhar, nada muda — cada get() busca como antes.
      *
      * @param list<string> $paths
      */
@@ -306,52 +303,40 @@ final class Api
     {
         $faltam = array_values(array_unique(array_filter(
             $paths,
-            static fn (string $p): bool => !isset(self::$cache[$p])
+            static fn(string $p): bool => !isset(self::$cacheGet[$p]) && !isset(self::$errosGet[$p])
         )));
 
         if (count($faltam) < 2) {
-            foreach ($faltam as $path) {
-                try {
-                    self::get($path);
-                } catch (ApiException) {
-                }
-            }
-
             return;
         }
 
-        self::garantirSessao();
-        $headers = self::cabecalhos(null);
-        $cgi = trim((string) getenv('ELOS_API_CGI'));
+        try {
+            $dados = self::request('GET', '/api/lote?' . http_build_query(['caminhos' => $faltam]));
+        } catch (ApiException) {
+            return;
+        }
 
-        $respostas = $cgi !== ''
-            ? self::enviarVariosPorCgi($cgi, $faltam, $headers)
-            : self::enviarVariosPorHttp($faltam, $headers);
+        foreach ($dados['respostas'] ?? [] as $resposta) {
+            $caminho = $resposta['caminho'] ?? null;
 
-        foreach ($respostas as $path => $resposta) {
-            if ($resposta === null) {
-                self::$cache[$path] = [0, ['_erro' => 'Não foi possível conectar ao servidor do ELOS.']];
+            if (!is_array($resposta) || !in_array($caminho, $faltam, true)) {
                 continue;
             }
 
-            [$status, $headersResposta, $corpo] = $resposta;
-            self::capturarCookie($headersResposta);
-            $dados = json_decode($corpo, true);
-            $dados = is_array($dados) ? $dados : [];
+            $status = (int) ($resposta['status'] ?? 0);
+            $corpo = is_array($resposta['dados'] ?? null) ? $resposta['dados'] : [];
 
-            if ($status >= 400) {
-                $dados['_erro'] = is_string($dados['erro'] ?? null) ? $dados['erro'] : 'Erro ao comunicar com a API (HTTP ' . $status . ').';
+            if ($status >= 200 && $status < 400) {
+                self::$cacheGet[$caminho] = $corpo;
+            } elseif ($status !== 500) {
+                // 500 fica de fora: o get() tenta de novo sozinho.
+                self::$errosGet[$caminho] = new ApiException(
+                    is_string($corpo['erro'] ?? null) ? $corpo['erro'] : 'Erro ao comunicar com a API (HTTP ' . $status . ').',
+                    $status,
+                    $corpo
+                );
             }
-
-            self::$cache[$path] = [$status, $dados];
         }
-    }
-
-    /** O painel do monitor fala com a API pelo código do link. */
-    public static function usarCodigoPainel(string $codigo): void
-    {
-        self::$codigoPainel = $codigo;
-        self::$cache = [];
     }
 
     public static function post(string $path, array $body = []): array
@@ -377,6 +362,7 @@ final class Api
     {
         self::garantirSessao();
         unset($_SESSION[self::SESSION_COOKIE_KEY]);
+        self::$cacheGet = self::$errosGet = [];
     }
 
     private static function request(string $method, string $path, ?array $body = null): array
@@ -384,13 +370,43 @@ final class Api
         self::garantirSessao();
 
         if ($method !== 'GET') {
-            self::$cache = [];
+            self::$cacheGet = self::$errosGet = [];
         }
 
-        $headers = self::cabecalhos($body);
-        $payload = $body !== null
-            ? json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-            : null;
+        $headers = ['Accept: application/json'];
+
+        // O backend usa o endereço de quem acessa para frear tentativas
+        // de adivinhar senha (ele só vê o servidor do frontend).
+        $ipCliente = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+
+        if (filter_var($ipCliente, FILTER_VALIDATE_IP) !== false) {
+            $headers[] = 'X-Elos-Cliente-IP: ' . $ipCliente;
+        }
+
+        // Chave combinada com a API (quando ela fica em endereço público).
+        $chaveApi = trim((string) getenv('ELOS_API_CHAVE'));
+
+        if ($chaveApi !== '') {
+            $headers[] = 'X-Elos-Chave: ' . $chaveApi;
+        }
+
+        if (self::$codigoPainel !== '') {
+            $headers[] = 'X-Elos-Painel: ' . self::$codigoPainel;
+        }
+
+        $payload = null;
+
+        if ($body !== null) {
+            $headers[] = 'Content-Type: application/json';
+            $payload = json_encode(
+                $body,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+        }
+
+        if (!empty($_SESSION[self::SESSION_COOKIE_KEY])) {
+            $headers[] = 'Cookie: ' . $_SESSION[self::SESSION_COOKIE_KEY];
+        }
 
         // Hospedagem com um processo PHP só (alwaysdata grátis): a API roda
         // aqui mesmo, como programa à parte (ELOS_API_CGI = caminho do
@@ -415,143 +431,6 @@ final class Api
         }
 
         return $dados;
-    }
-
-    /**
-     * Cabeçalhos de todo pedido: IP de quem acessa, chave da API, cookie
-     * da sessão no backend (ou o código do monitor).
-     *
-     * @return list<string>
-     */
-    private static function cabecalhos(?array $body): array
-    {
-        $headers = ['Accept: application/json'];
-
-        // O backend usa o endereço de quem acessa para frear tentativas
-        // de adivinhar senha (ele só vê o servidor do frontend).
-        $ipCliente = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-
-        if (filter_var($ipCliente, FILTER_VALIDATE_IP) !== false) {
-            $headers[] = 'X-Elos-Cliente-IP: ' . $ipCliente;
-        }
-
-        // Chave combinada com a API (quando ela fica em endereço público).
-        $chaveApi = trim((string) getenv('ELOS_API_CHAVE'));
-
-        if ($chaveApi !== '') {
-            $headers[] = 'X-Elos-Chave: ' . $chaveApi;
-        }
-
-        if ($body !== null) {
-            $headers[] = 'Content-Type: application/json';
-        }
-
-        if (self::$codigoPainel !== '') {
-            $headers[] = 'X-Elos-Painel: ' . self::$codigoPainel;
-        } elseif (!empty($_SESSION[self::SESSION_COOKIE_KEY])) {
-            $headers[] = 'Cookie: ' . $_SESSION[self::SESSION_COOKIE_KEY];
-        }
-
-        return $headers;
-    }
-
-    /**
-     * Vários GET ao mesmo tempo por HTTP (curl), ou um por um sem curl.
-     *
-     * @param list<string> $paths
-     * @param list<string> $headers
-     * @return array<string, array{int, list<string>, string}|null>
-     */
-    private static function enviarVariosPorHttp(array $paths, array $headers): array
-    {
-        $respostas = [];
-
-        if (!function_exists('curl_multi_init')) {
-            foreach ($paths as $path) {
-                try {
-                    $respostas[$path] = self::enviarPorHttp('GET', $path, $headers, null);
-                } catch (ApiException) {
-                    $respostas[$path] = null;
-                }
-            }
-
-            return $respostas;
-        }
-
-        $multi = curl_multi_init();
-        $alcas = [];
-
-        foreach ($paths as $path) {
-            $alca = curl_init(self::baseUrl() . $path);
-            curl_setopt_array($alca, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HEADER => true,
-                CURLOPT_HTTPHEADER => $headers,
-                CURLOPT_TIMEOUT => 8,
-            ]);
-            curl_multi_add_handle($multi, $alca);
-            $alcas[$path] = $alca;
-        }
-
-        do {
-            $situacao = curl_multi_exec($multi, $rodando);
-            if ($rodando) {
-                curl_multi_select($multi, 1.0);
-            }
-        } while ($rodando && $situacao === CURLM_OK);
-
-        foreach ($alcas as $path => $alca) {
-            $saida = curl_multi_getcontent($alca);
-            $status = (int) curl_getinfo($alca, CURLINFO_RESPONSE_CODE);
-            $tamanhoCabecalho = (int) curl_getinfo($alca, CURLINFO_HEADER_SIZE);
-
-            $respostas[$path] = !is_string($saida) || $status === 0
-                ? null
-                : [
-                    $status,
-                    preg_split('/\r?\n/', substr($saida, 0, $tamanhoCabecalho)) ?: [],
-                    (string) substr($saida, $tamanhoCabecalho),
-                ];
-
-            curl_multi_remove_handle($multi, $alca);
-        }
-
-        curl_multi_close($multi);
-
-        return $respostas;
-    }
-
-    /**
-     * Vários GET ao mesmo tempo pelo php-cgi: abre todos os processos e
-     * depois lê as respostas.
-     *
-     * @param list<string> $paths
-     * @param list<string> $headers
-     * @return array<string, array{int, list<string>, string}|null>
-     */
-    private static function enviarVariosPorCgi(string $cgi, array $paths, array $headers): array
-    {
-        $respostas = [];
-
-        // No máximo alguns processos ao mesmo tempo: hospedagem grátis
-        // limita processos e memória.
-        foreach (array_chunk($paths, self::CGI_AO_MESMO_TEMPO) as $lote) {
-            $abertos = [];
-
-            foreach ($lote as $path) {
-                $abertos[$path] = self::abrirCgi($cgi, 'GET', $path, $headers, '');
-            }
-
-            foreach ($abertos as $path => $aberto) {
-                try {
-                    $respostas[$path] = $aberto === null ? null : self::lerCgi(...$aberto);
-                } catch (ApiException) {
-                    $respostas[$path] = null;
-                }
-            }
-        }
-
-        return $respostas;
     }
 
     /**
@@ -600,23 +479,6 @@ final class Api
      */
     private static function enviarPorCgi(string $cgi, string $method, string $path, array $headers, ?string $payload): array
     {
-        $aberto = self::abrirCgi($cgi, $method, $path, $headers, $payload);
-
-        if ($aberto === null) {
-            throw new ApiException('Não foi possível conectar ao servidor do ELOS.', 0);
-        }
-
-        return self::lerCgi(...$aberto);
-    }
-
-    /**
-     * Inicia o php-cgi com o pedido (sem esperar a resposta).
-     *
-     * @param list<string> $headers
-     * @return array{0: resource, 1: array<int, resource>}|null
-     */
-    private static function abrirCgi(string $cgi, string $method, string $path, array $headers, ?string $payload): ?array
-    {
         $indice = dirname(__DIR__, 2) . '/backend/public/index.php';
         $corpo = $payload ?? '';
 
@@ -654,24 +516,11 @@ final class Api
         );
 
         if (!is_resource($processo)) {
-            return null;
+            throw new ApiException('Não foi possível conectar ao servidor do ELOS.', 0);
         }
 
         fwrite($canos[0], $corpo);
         fclose($canos[0]);
-
-        return [$processo, $canos];
-    }
-
-    /**
-     * Espera o php-cgi terminar e separa status, cabeçalhos e corpo.
-     *
-     * @param resource $processo
-     * @param array<int, resource> $canos
-     * @return array{int, list<string>, string}
-     */
-    private static function lerCgi($processo, array $canos): array
-    {
         $saida = (string) stream_get_contents($canos[1]);
         fclose($canos[1]);
         proc_close($processo);
