@@ -58,5 +58,7 @@ backend/storage/limite_login/
 storage/sessoes/
 backend/storage/sessoes/
 
+# =========================
 # Capas das exposições (enviadas pelo site)
+# =========================
 storage/capas/
