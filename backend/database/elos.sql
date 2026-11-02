@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS usuarios (
 CREATE TABLE IF NOT EXISTS tipos_evento (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL UNIQUE,
+    -- Cor do tipo (Exposição, Cine Clube...) no calendário e no painel.
+    cor CHAR(7) NULL,
+    -- Projeto da galeria a que o tipo pertence (cine-clube, cafe-cultural...).
+    -- Vazio = Exposições. É isso que liga o evento ao projeto, não o nome.
+    projeto VARCHAR(40) NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -58,16 +63,23 @@ CREATE TABLE IF NOT EXISTS eventos (
     responsavel_id INT UNSIGNED NULL,
     local_id INT UNSIGNED NULL,
     titulo VARCHAR(200) NOT NULL,
+    -- Endereço atual (/exposicao/<slug>), tirado do nome.
+    slug VARCHAR(220) NULL,
     descricao TEXT NULL,
     prioridade ENUM('BAIXA', 'MEDIA', 'ALTA') NOT NULL DEFAULT 'MEDIA',
     status ENUM('PLANEJAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'PLANEJAMENTO',
     observacoes TEXT NULL,
+    -- Identidade visual: cor escolhida e nome do arquivo da capa
+    -- (a imagem fica em storage/capas/, fora das pastas públicas).
+    cor CHAR(7) NULL,
+    imagem_capa VARCHAR(64) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_eventos_tipo_evento (tipo_evento_id),
     INDEX idx_eventos_responsavel (responsavel_id),
     INDEX idx_eventos_local (local_id),
     INDEX idx_eventos_status (status),
+    UNIQUE KEY uq_eventos_slug (slug),
     CONSTRAINT fk_eventos_tipo_evento FOREIGN KEY (tipo_evento_id)
         REFERENCES tipos_evento (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_eventos_responsavel FOREIGN KEY (responsavel_id)
@@ -131,6 +143,8 @@ CREATE TABLE IF NOT EXISTS tarefas (
     prazo DATE NULL,
     -- Horário opcional do item (visita, transporte, entrega...).
     horario TIME NULL,
+    -- "Não precisa de prazo": não entra nos lembretes de itens sem data.
+    prazo_dispensado TINYINT(1) NOT NULL DEFAULT 0,
     prioridade ENUM('BAIXA', 'MEDIA', 'ALTA') NOT NULL DEFAULT 'MEDIA',
     status ENUM('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'BLOQUEADA', 'CANCELADA') NOT NULL DEFAULT 'PENDENTE',
     observacoes TEXT NULL,
@@ -234,6 +248,39 @@ CREATE TABLE IF NOT EXISTS historico (
         REFERENCES usuarios (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Endereços anteriores de cada evento: links antigos continuam valendo.
+CREATE TABLE IF NOT EXISTS eventos_enderecos (
+    slug VARCHAR(220) NOT NULL,
+    evento_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (slug),
+    INDEX idx_eventos_enderecos_evento (evento_id),
+    CONSTRAINT fk_eventos_enderecos_evento FOREIGN KEY (evento_id)
+        REFERENCES eventos (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ficha dos eventos de projeto (o filme, o convidado, a programação...).
+CREATE TABLE IF NOT EXISTS eventos_fichas (
+    evento_id INT UNSIGNED NOT NULL,
+    dados LONGTEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (evento_id),
+    CONSTRAINT fk_eventos_fichas_evento FOREIGN KEY (evento_id)
+        REFERENCES eventos (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Link secreto do painel ao vivo (monitor da produção): só o hash.
+CREATE TABLE IF NOT EXISTS painel_acesso (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    codigo_hash CHAR(64) NOT NULL,
+    criado_por INT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_painel_acesso_codigo (codigo_hash),
+    CONSTRAINT fk_painel_acesso_usuario FOREIGN KEY (criado_por)
+        REFERENCES usuarios (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Etapas padrão do ciclo de um evento.
 INSERT INTO etapas (nome, ordem, ativa) VALUES
     ('Contato inicial', 1, 1),
@@ -261,4 +308,14 @@ INSERT IGNORE INTO categorias_tarefa (nome) VALUES
     ('Alimentação'),
     ('Equipamentos'),
     ('Documentação'),
+    ('Divulgação'),
     ('Outro');
+
+-- Tipos de evento: as exposições e um tipo por projeto da galeria
+-- (a coluna projeto liga o evento ao projeto: Cine Clube, Café Cultural...).
+INSERT IGNORE INTO tipos_evento (nome, cor, projeto) VALUES
+    ('Exposição', '#2b6cb0', NULL),
+    ('Cine Clube', '#b5462b', 'cine-clube'),
+    ('Café Cultural', '#7a5230', 'cafe-cultural'),
+    ('Arte ao Ar Livre', '#2f7d4f', 'arte-ao-ar-livre'),
+    ('Amostra de Talentos', '#be185d', 'amostra-de-talentos');

@@ -13,10 +13,14 @@ declare(strict_types=1);
 
 use Elos\Frontend\Api;
 use Elos\Frontend\ApiException;
+use Elos\Frontend\Fases;
+use Elos\Frontend\Identidade;
 use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
+use Elos\Frontend\Projetos;
 
 use function Elos\Frontend\apiGet;
+use function Elos\Frontend\slugDaExposicao;
 use function Elos\Frontend\apiLista;
 use function Elos\Frontend\avisoConflito;
 use function Elos\Frontend\conflitosNoLocal;
@@ -29,6 +33,8 @@ use function Elos\Frontend\dataHoraBr;
 use function Elos\Frontend\diasAte;
 use function Elos\Frontend\distanciaRelativa;
 use function Elos\Frontend\esc;
+use function Elos\Frontend\exposicaoDoEndereco;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\flash;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\mesAbreviado;
@@ -44,17 +50,53 @@ use function Elos\Frontend\sugestoesDeResponsavel;
 use function Elos\Frontend\rotuloPrioridade;
 use function Elos\Frontend\rotuloStatusEvento;
 use function Elos\Frontend\rotuloTipoHorario;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 use const Elos\Frontend\PRIORIDADES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
+require_once __DIR__ . '/../src/Identidade.php';
 
-$usuario = usuarioLogado('login.php');
+// Tudo que a página usa em dois pedidos à API (antes eram uns 12):
+// primeiro a lista de exposições (para achar a exposição pelo nome do
+// endereço), depois tudo dela.
+preCarregar(['/api/eventos']);
+$idPedido = exposicaoDoEndereco();
+if ($idPedido > 0) {
+    $base = '/api/eventos/' . $idPedido;
+    $listasDeGestor = in_array($_SESSION['usuario']['perfil'] ?? '', ['GESTOR', 'ADMIN'], true)
+        ? ['/api/categorias-tarefa', '/api/tipos-evento', '/api/responsaveis', '/api/locais', '/api/cursos']
+        : [];
+    // "/ficha" só existe nos eventos de projeto (Cine Clube...); nas exposições volta 404, sem problema.
+    preCarregar([$base, $base . '/agenda', $base . '/tarefas', $base . '/cursos', $base . '/anexos', $base . '/historico', $base . '/ficha', ...$listasDeGestor]);
+}
+
+$usuario = usuarioLogado('entrar');
 $podeGerenciar = $usuario['podeGerenciar'];
 
+/**
+ * Endereço da exposição mantendo o filtro do checklist (?fase= ou
+ * ?prazo=), para que marcar ou editar um item não tire o filtro.
+ */
+function enderecoComFiltro(int $eventoId): string
+{
+    $params = ['id' => $eventoId];
+
+    foreach (['fase', 'prazo'] as $chave) {
+        $valor = (string) ($_GET[$chave] ?? '');
+        if (preg_match('/^[a-z0-9-]{1,60}$/', $valor) === 1) {
+            $params[$chave] = $valor;
+        }
+    }
+
+    unset($params['id']);
+
+    return linkExposicao($eventoId, $params);
+}
+
 const TIPOS_HORARIO = ['HORARIO_ESPECIFICO', 'DIA_TODO', 'TURNO_MANHA', 'TURNO_NOITE', 'MANHA_E_NOITE'];
-const CAMPOS_NECESSIDADE = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'horario', 'responsavel', 'prioridade', 'observacoes'];
+const CAMPOS_NECESSIDADE = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'prazo_dispensado', 'horario', 'responsavel', 'prioridade', 'observacoes'];
 
 /**
  * Lê e valida os campos de uma necessidade vindos do POST.
@@ -93,6 +135,8 @@ function lerNecessidade(array $post): array
             'categoria_id' => $categoria['id'],
             'titulo' => $valores['titulo'],
             'prazo' => $valores['prazo'] !== '' ? $valores['prazo'] : null,
+            // Com data, "não precisa de prazo" não faz sentido: vale a data.
+            'prazo_dispensado' => $valores['prazo'] === '' && $valores['prazo_dispensado'] === '1',
             'horario' => $valores['horario'] !== '' ? $valores['horario'] : null,
             'prioridade' => $valores['prioridade'],
             'observacoes' => $valores['observacoes'] !== '' ? $valores['observacoes'] : null,
@@ -101,11 +145,34 @@ function lerNecessidade(array $post): array
     ];
 }
 
+/**
+ * Grava as datas do evento: POST cria a agenda na primeira vez, PUT altera.
+ *
+ * @param array<string, mixed> $corpo
+ */
+function salvarAgenda(int $eventoId, array $corpo): void
+{
+    $agendaExiste = true;
+
+    try {
+        Api::get('/api/eventos/' . $eventoId . '/agenda');
+    } catch (ApiException $e) {
+        if ($e->statusCode !== 404) {
+            throw $e;
+        }
+        $agendaExiste = false;
+    }
+
+    $agendaExiste
+        ? Api::put('/api/eventos/' . $eventoId . '/agenda', $corpo)
+        : Api::post('/api/eventos/' . $eventoId . '/agenda', $corpo);
+}
+
 // ---------------------------------------------------------------
 // Ações (POST → redireciona de volta para a seção certa)
 // ---------------------------------------------------------------
 
-$eventoId = (int) ($_GET['id'] ?? 0);
+$eventoId = exposicaoDoEndereco();
 $erroForm = '';         // mensagem do formulário que falhou
 $formComErro = '';      // qual reabrir: nova | item-N | info | datas | geral
 $valoresNova = array_fill_keys(CAMPOS_NECESSIDADE, '') + [];
@@ -116,7 +183,6 @@ $conflitos = [];        // local ocupado: reabre o formulário com o aviso
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
     $acao = (string) ($_POST['acao'] ?? '');
     $tarefaId = (int) ($_POST['tarefa_id'] ?? 0);
-    $base = 'evento.php?id=' . $eventoId;
 
     try {
         if ($acao === 'marcar_necessidade') {
@@ -125,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
             $novoStatus = ($_POST['novo_status'] ?? '') === 'CONCLUIDA' ? 'CONCLUIDA' : 'PENDENTE';
             Api::put('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId . '/status', ['status' => $novoStatus]);
             flash('evento', $novoStatus === 'CONCLUIDA' ? 'Marcado como concluído.' : 'Voltou para pendente.');
-            redirecionar($base . '#item-' . $tarefaId);
+            redirecionar(enderecoComFiltro($eventoId) . '#item-' . $tarefaId);
         }
 
         if (!$podeGerenciar) {
@@ -143,13 +209,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     break;
                 }
 
-                // Toda necessidade nasce PENDENTE; etapa não se aplica.
+                // Toda necessidade nasce PENDENTE.
                 $resposta = Api::post(
                     '/api/eventos/' . $eventoId . '/tarefas',
-                    $lida['corpo'] + ['etapa_id' => null, 'descricao' => null, 'status' => 'PENDENTE']
+                    $lida['corpo'] + ['descricao' => null, 'status' => 'PENDENTE']
                 );
                 flash('evento', 'Adicionado: ' . $lida['valores']['titulo'] . '.');
-                redirecionar($base . '#item-' . (int) ($resposta['tarefa']['id'] ?? 0));
+                redirecionar(enderecoComFiltro($eventoId) . '#item-' . (int) ($resposta['tarefa']['id'] ?? 0));
 
             case 'editar_necessidade':
                 $lida = lerNecessidade($_POST);
@@ -161,15 +227,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     break;
                 }
 
-                // Sem etapa_id/status no corpo: o backend mantém os atuais.
+                // Sem status no corpo: o backend mantém o atual.
                 Api::put('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId, $lida['corpo']);
                 flash('evento', 'Alterações salvas.');
-                redirecionar($base . '#item-' . $tarefaId);
+                redirecionar(enderecoComFiltro($eventoId) . '#item-' . $tarefaId);
 
             case 'remover_necessidade':
                 Api::delete('/api/eventos/' . $eventoId . '/tarefas/' . $tarefaId);
                 flash('evento', 'Removido do planejamento.');
-                redirecionar($base . '#necessidades');
+                redirecionar(enderecoComFiltro($eventoId) . '#necessidades');
 
             case 'salvar_datas':
                 $corpo = [];
@@ -206,24 +272,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     }
                 }
 
-                // POST cria, PUT altera; a agenda é criada na primeira vez.
-                $agendaExiste = true;
-
-                try {
-                    Api::get('/api/eventos/' . $eventoId . '/agenda');
-                } catch (ApiException $e) {
-                    if ($e->statusCode !== 404) {
-                        throw $e;
-                    }
-                    $agendaExiste = false;
-                }
-
-                $agendaExiste
-                    ? Api::put('/api/eventos/' . $eventoId . '/agenda', $corpo)
-                    : Api::post('/api/eventos/' . $eventoId . '/agenda', $corpo);
+                salvarAgenda($eventoId, $corpo);
 
                 flash('evento', 'Datas salvas. O calendário já acompanha.');
-                redirecionar($base . '#datas');
+                redirecionar(enderecoComFiltro($eventoId) . '#datas');
+
+            case 'salvar_ficha':
+                // Evento de projeto (Cine Clube, Café Cultural...): a ficha
+                // e o dia/horário, num formulário só. Os campos vêm do projeto.
+                $atual = Api::get('/api/eventos/' . $eventoId)['evento'] ?? [];
+                $projetoDoEvento = Projetos::dados(Projetos::doEvento($atual));
+                $fichaLida = Projetos::lerFicha($projetoDoEvento, $_POST);
+                $diaFicha = trim((string) ($_POST['ficha_data'] ?? ''));
+                $horarioFicha = trim((string) ($_POST['ficha_horario'] ?? ''));
+
+                $erroForm = match (true) {
+                    $fichaLida['erro'] !== '' => $fichaLida['erro'],
+                    $diaFicha !== '' && !dataValida($diaFicha) => 'Essa data não existe. Confira o dia e o mês.',
+                    $horarioFicha !== '' && !preg_match('/^\d{2}:\d{2}$/', $horarioFicha) => 'Horário inválido.',
+                    default => '',
+                };
+
+                if ($erroForm !== '') {
+                    $formComErro = 'ficha';
+                    break;
+                }
+
+                $corpo = array_fill_keys(array_keys(Planejamento::CAMPOS_AGENDA), null);
+                $corpo['abertura'] = $diaFicha !== '' ? $diaFicha : null;
+                $corpo['horario'] = $horarioFicha !== '' ? $horarioFicha : null;
+                $corpo['tipo_horario'] = null;
+                $corpo['observacoes'] = null;
+
+                if ($corpo['abertura'] !== null && ($_POST['confirmar_conflito'] ?? '') !== '1' && ($atual['status'] ?? '') !== 'CANCELADO') {
+                    $conflitos = conflitosNoLocal((int) ($atual['local_id'] ?? 0), $corpo, $eventoId);
+
+                    if ($conflitos !== []) {
+                        $formComErro = 'ficha';
+                        break;
+                    }
+                }
+
+                Api::put('/api/eventos/' . $eventoId . '/ficha', ['dados' => $fichaLida['dados']]);
+                salvarAgenda($eventoId, $corpo);
+
+                flash('evento', 'Ficha salva.');
+                redirecionar(enderecoComFiltro($eventoId) . '#ficha');
 
             case 'salvar_informacoes':
                 $titulo = trim((string) ($_POST['titulo'] ?? ''));
@@ -235,7 +329,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                 }
 
                 // Tipo, responsável e local: escolhidos ou escritos como novos.
-                $cadastros = resolverCadastrosDaExposicao($_POST);
+                // Um tipo novo fica no mesmo projeto do evento.
+                $projetoAtual = Projetos::doEvento(Api::get('/api/eventos/' . $eventoId)['evento'] ?? []);
+                $cadastros = resolverCadastrosDaExposicao($_POST, $projetoAtual);
 
                 if ($cadastros['erro'] !== '') {
                     $erroForm = $cadastros['erro'];
@@ -288,9 +384,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
                     Api::delete('/api/eventos/' . $eventoId . '/cursos/' . $cursoId);
                 }
 
-                flash('evento', 'Informações da exposição salvas.'
+                flash('evento', 'Informações salvas.'
                     . ($cursosEscolhidos['falhas'] !== [] ? ' Não foi possível adicionar: ' . implode(', ', $cursosEscolhidos['falhas']) . '.' : ''));
-                redirecionar($base);
+                redirecionar(enderecoComFiltro($eventoId));
+
+            case 'salvar_identidade':
+                // Capa e cor. A imagem é guardada aqui no frontend; a API
+                // guarda só o nome do arquivo.
+                $atual = Api::get('/api/eventos/' . $eventoId)['evento'] ?? [];
+                $capa = $atual['imagem_capa'] ?? null;
+                $cor = strtolower(trim((string) ($_POST['cor'] ?? '')));
+                $corAutomatica = ($_POST['cor_automatica'] ?? '') === '1';
+                $novaCapa = null;
+
+                if (!empty($_FILES['capa']['name'])) {
+                    $envio = Identidade::salvarEnvio($_FILES['capa']);
+                    if ($envio['erro'] !== '') {
+                        $erroForm = $envio['erro'];
+                        $formComErro = 'identidade';
+                        break;
+                    }
+                    $novaCapa = $envio['nome'];
+                    $capa = $novaCapa;
+                    // Cor tirada da imagem, a não ser que alguém tenha escolhido outra agora.
+                    if (($_POST['cor_mudou'] ?? '') !== '1' && $envio['cor'] !== null) {
+                        $cor = $envio['cor'];
+                        $corAutomatica = false;
+                    }
+                } elseif (($_POST['remover_capa'] ?? '') === '1') {
+                    $capa = null;
+                }
+
+                if ($corAutomatica) {
+                    $cor = '';
+                }
+                if ($cor !== '' && preg_match('/^#[0-9a-f]{6}$/', $cor) !== 1) {
+                    Identidade::apagarArquivo($novaCapa);
+                    $erroForm = 'Cor inválida.';
+                    $formComErro = 'identidade';
+                    break;
+                }
+
+                try {
+                    $resposta = Api::put('/api/eventos/' . $eventoId . '/identidade', [
+                        'imagem_capa' => Identidade::nomeValido($capa) ? $capa : null,
+                        'cor' => $cor !== '' ? $cor : null,
+                    ]);
+                } catch (ApiException $e) {
+                    Identidade::apagarArquivo($novaCapa);
+                    throw $e;
+                }
+
+                // A capa antiga só sai do disco depois que o banco aceitou a troca.
+                $anterior = $resposta['capa_anterior'] ?? null;
+                if ($anterior !== null && $anterior !== $capa) {
+                    Identidade::apagarArquivo($anterior);
+                }
+
+                flash('evento', 'Identidade visual salva.');
+                redirecionar(enderecoComFiltro($eventoId));
 
             default:
                 $erroForm = 'Ação inválida.';
@@ -303,6 +455,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoId > 0) {
             'editar_necessidade' => 'item-' . $tarefaId,
             'salvar_datas' => 'datas',
             'salvar_informacoes' => 'info',
+            'salvar_identidade' => 'identidade',
             default => 'geral',
         };
 
@@ -326,7 +479,7 @@ $evento = null;
 $erroEvento = '';
 
 if ($eventoId <= 0) {
-    $erroEvento = 'Nenhuma exposição foi informada.';
+    $erroEvento = defined('ELOS_SLUG_EXPOSICAO') ? 'Exposição não encontrada. Ela pode ter mudado de nome: procure na lista de exposições.' : 'Nenhuma exposição foi informada.';
 } else {
     try {
         $dadosEvento = Api::get('/api/eventos/' . $eventoId);
@@ -341,6 +494,21 @@ if ($eventoId <= 0) {
     }
 }
 
+// Projeto do evento (Exposições, Cine Clube...): muda o visual, os
+// nomes e o endereço. Aberto pelo endereço de outro projeto, redireciona.
+$projeto = Projetos::dados($evento !== null
+    ? Projetos::doEvento($evento)
+    : (Projetos::daPagina(defined('ELOS_PAGINA_PROJETO') ? (string) constant('ELOS_PAGINA_PROJETO') : '') ?? Projetos::EXPOSICOES));
+// Evento de projeto (Cine Clube, Café Cultural...): tem ficha e visual próprios.
+$comFicha = $projeto['chave'] !== Projetos::EXPOSICOES;
+$paginaAtual = defined('ELOS_PAGINA_PROJETO') ? (string) constant('ELOS_PAGINA_PROJETO') : 'exposicao';
+
+if ($evento !== null && $paginaAtual !== $projeto['pagina'] && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    $outros = array_filter($_GET, static fn(mixed $v): bool => is_scalar($v));
+    header('Location: ' . linkExposicao($eventoId, $outros), true, 301);
+    exit();
+}
+
 $mensagem = flash('evento');
 
 if ($evento !== null) {
@@ -353,27 +521,51 @@ if ($evento !== null) {
     $historico = apiLista('/api/eventos/' . $eventoId . '/historico', 'historico') ?? [];
     $proximas = $plano->proximasAtividades(6);
 
-    // Checklist dividido pelo que importa agora.
-    $grupos = ['atrasado' => [], 'semana' => [], 'depois' => [], 'semData' => [], 'feito' => []];
-
-    foreach ($plano->necessidades ?? [] as $tarefa) {
-        $estado = Planejamento::estadoNecessidade($tarefa);
-        $grupo = match (true) {
-            in_array($estado, ['concluido', 'cancelado'], true) => 'feito',
-            $estado === 'atrasado' => 'atrasado',
-            empty($tarefa['prazo']) => 'semData',
-            diasAte((string) $tarefa['prazo']) <= 7 => 'semana',
-            default => 'depois',
-        };
-        $grupos[$grupo][] = $tarefa;
+    // Evento de projeto: os campos da ficha (null se ainda não tem).
+    $ficha = null;
+    if ($comFicha) {
+        try {
+            $ficha = Api::get('/api/eventos/' . $eventoId . '/ficha')['ficha']['dados'] ?? null;
+        } catch (ApiException) {
+            $ficha = null;
+        }
     }
 
-    $titulosGrupos = [
-        'atrasado' => 'Atrasadas',
-        'semana' => 'Nos próximos 7 dias',
-        'depois' => 'Mais adiante',
-        'semData' => 'Sem data definida',
-    ];
+    // Checklist por fase (a partir da categoria de cada item).
+    $fases = Fases::agrupar($plano->necessidades ?? []);
+
+    // Prazos que pedem atenção, para o filtro rápido.
+    $urgentes = ['atrasadas' => [], 'semana' => []];
+    foreach ($plano->necessidades ?? [] as $tarefa) {
+        $estado = Planejamento::estadoNecessidade($tarefa);
+        if ($estado === 'atrasado') {
+            $urgentes['atrasadas'][] = $tarefa;
+        } elseif ($estado === 'pendente' && !empty($tarefa['prazo']) && diasAte((string) $tarefa['prazo']) <= 7) {
+            $urgentes['semana'][] = $tarefa;
+        }
+    }
+
+    // Filtro escolhido: uma fase (?fase=) ou um prazo (?prazo=).
+    $filtroFase = (string) ($_GET['fase'] ?? '');
+    $filtroPrazo = (string) ($_GET['prazo'] ?? '');
+    if (!in_array($filtroFase, array_column($fases, 'chave'), true)) {
+        $filtroFase = '';
+    }
+    if (!isset($urgentes[$filtroPrazo]) || $urgentes[$filtroPrazo] === []) {
+        $filtroPrazo = '';
+    }
+    $fasesVisiveis = $filtroFase === ''
+        ? $fases
+        : array_values(array_filter($fases, static fn(array $f): bool => $f['chave'] === $filtroFase));
+
+    // Um item com erro no formulário de edição precisa ficar visível.
+    if ($formComErro !== '' && str_starts_with($formComErro, 'item-')) {
+        $filtroFase = $filtroPrazo = '';
+        $fasesVisiveis = $fases;
+    }
+
+    $linkFiltro = static fn(array $params): string =>
+        linkExposicao($eventoId, $params, '#necessidades');
 
     // Listas dos formulários (só para quem pode editar).
     $categorias = $usuarios = $tipos = $responsaveis = $locais = $cursos = [];
@@ -384,7 +576,11 @@ if ($evento !== null) {
             static fn(array $c): bool => (int) ($c['ativa'] ?? 1) === 1
         ));
         $usuarios = apiLista('/api/usuarios', 'usuarios') ?? [];
-        $tipos = apiLista('/api/tipos-evento', 'tipos_evento') ?? [];
+        // Só os tipos do mesmo projeto (uma exposição não vira sessão do Cine Clube).
+        $tipos = array_values(array_filter(
+            apiLista('/api/tipos-evento', 'tipos_evento') ?? [],
+            static fn(array $t): bool => Projetos::doTipo($t) === $projeto['chave']
+        ));
         $responsaveis = apiLista('/api/responsaveis', 'responsaveis') ?? [];
         $locais = apiLista('/api/locais', 'locais') ?? [];
         $cursos = apiLista('/api/cursos', 'cursos') ?? [];
@@ -400,7 +596,9 @@ if ($evento !== null) {
     }
 
     $editarInfo = $podeGerenciar && (($_GET['editar'] ?? '') === 'info' || $formComErro === 'info');
+    $editarIdentidade = $podeGerenciar && (($_GET['editar'] ?? '') === 'identidade' || $formComErro === 'identidade');
     $editarDatas = $podeGerenciar && (($_GET['editar'] ?? '') === 'datas' || $formComErro === 'datas');
+    $editarFicha = $podeGerenciar && $comFicha && (($_GET['editar'] ?? '') === 'ficha' || $formComErro === 'ficha');
 }
 
 /**
@@ -451,6 +649,10 @@ function camposNecessidade(string $prefixo, array $v, array $categorias, array $
         <div class="campo campo-curto">
             <label for="<?= $prefixo ?>prazo">Data</label>
             <input id="<?= $prefixo ?>prazo" type="date" name="prazo" value="<?= esc($v['prazo']) ?>">
+            <label class="opcao-prazo">
+                <input type="checkbox" name="prazo_dispensado" value="1"<?= ($v['prazo_dispensado'] ?? '') === '1' ? ' checked' : '' ?>>
+                Não precisa de prazo
+            </label>
         </div>
 
         <div class="campo campo-curto">
@@ -498,8 +700,11 @@ function camposNecessidade(string $prefixo, array $v, array $categorias, array $
 }
 
 /** Uma linha do checklist. */
-function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $usuarioId, string $formComErro, array $valoresItem, string $erroForm, array $categorias, array $usuarios): void
+function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $usuarioId, string $formComErro, array $valoresItem, string $erroForm, array $categorias, array $usuarios, string $nomeDaFase = ''): void
 {
+    // Dentro do bloco da fase, a etiqueta só aparece se disser algo a mais.
+    $categoriaNome = (string) ($tarefa['categoria_nome'] ?? '');
+    $mostrarCategoria = $nomeDaFase === '' || mb_strtolower(trim($categoriaNome)) !== mb_strtolower($nomeDaFase);
     $id = (int) ($tarefa['id'] ?? 0);
     $estado = Planejamento::estadoNecessidade($tarefa);
     $concluida = $estado === 'concluido';
@@ -511,6 +716,7 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
         'nova_categoria' => '',
         'titulo' => (string) ($tarefa['titulo'] ?? ''),
         'prazo' => (string) ($tarefa['prazo'] ?? ''),
+        'prazo_dispensado' => !empty($tarefa['prazo_dispensado']) ? '1' : '',
         'horario' => substr((string) ($tarefa['horario'] ?? ''), 0, 5),
         'responsavel' => nomeDoResponsavel($tarefa),
         'prioridade' => (string) ($tarefa['prioridade'] ?? 'MEDIA'),
@@ -519,7 +725,7 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
     ?>
     <li class="item estado-<?= $estado ?>" id="item-<?= $id ?>">
 
-        <form method="post" action="evento.php?id=<?= $eventoId ?>" class="item-check">
+        <form method="post" action="<?= esc(enderecoComFiltro($eventoId)) ?>" class="item-check">
             <?= \Elos\Frontend\campoCsrf() ?>
             <input type="hidden" name="acao" value="marcar_necessidade">
             <input type="hidden" name="tarefa_id" value="<?= $id ?>">
@@ -538,7 +744,9 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
 
         <div class="item-corpo">
             <p class="item-titulo">
-                <span class="categoria"><?= esc($tarefa['categoria_nome'] ?? 'Sem categoria') ?></span>
+                <?php if ($mostrarCategoria): ?>
+                    <span class="categoria" style="<?= Fases::estiloCor(Fases::daCategoria($categoriaNome)['etapa']) ?>"><?= esc($categoriaNome !== '' ? $categoriaNome : 'Sem categoria') ?></span>
+                <?php endif; ?>
                 <strong><?= esc($tarefa['titulo'] ?? '') ?></strong>
             </p>
 
@@ -547,6 +755,8 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
                     <span class="item-data<?= $estado === 'atrasado' ? ' atrasada' : '' ?>">
                         <?= esc(dataHoraBr($tarefa['prazo'], $tarefa['horario'] ?? null)) ?><?php if (!$concluida && !$cancelada): ?> · <?= esc(distanciaRelativa((string) $tarefa['prazo'])) ?><?php endif; ?>
                     </span>
+                <?php elseif (!empty($tarefa['prazo_dispensado'])): ?>
+                    <span class="item-data sem">Não precisa de prazo</span>
                 <?php else: ?>
                     <span class="item-data sem">Sem data</span>
                 <?php endif; ?>
@@ -572,7 +782,7 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
                 <div class="item-acoes">
                     <details class="acao-editar" <?= $editando ? 'open' : '' ?>>
                         <summary>Editar</summary>
-                        <form method="post" action="evento.php?id=<?= $eventoId ?>" class="form-elos form-item">
+                        <form method="post" action="<?= esc(enderecoComFiltro($eventoId)) ?>" class="form-elos form-item">
                             <?= \Elos\Frontend\campoCsrf() ?>
                             <input type="hidden" name="acao" value="editar_necessidade">
                             <input type="hidden" name="tarefa_id" value="<?= $id ?>">
@@ -588,7 +798,7 @@ function itemChecklist(array $tarefa, int $eventoId, bool $podeGerenciar, int $u
 
                     <details class="acao-remover">
                         <summary>Remover</summary>
-                        <form method="post" action="evento.php?id=<?= $eventoId ?>" class="confirmar-remocao">
+                        <form method="post" action="<?= esc(enderecoComFiltro($eventoId)) ?>" class="confirmar-remocao">
                             <?= \Elos\Frontend\campoCsrf() ?>
                             <input type="hidden" name="acao" value="remover_necessidade">
                             <input type="hidden" name="tarefa_id" value="<?= $id ?>">
@@ -610,26 +820,40 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <!-- O endereço tem o nome da exposição (/exposicao/nome): os links
+         relativos continuam valendo a partir da raiz do site. -->
+    <base href="<?= esc(\Elos\Frontend\raizDoSite()) ?>/">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($tituloPagina) ?> | ELOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/evento.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/evento.css?v=2026-10-29b">
+    <?php if ($comFicha): ?>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,600;1,500&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="../assets/css/projeto.css?v=2026-10-29">
+        <link rel="stylesheet" href="../assets/css/<?= esc($projeto['tema']) ?>.css?v=2026-10-29">
+    <?php endif; ?>
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
-<body>
+<body class="<?= $comFicha ? 'tema-' . esc($projeto['tema']) : '' ?>">
 
 <div class="app-shell">
 
-    <?php MenuLateral::renderizar('eventos', false, $usuario['nome'], $usuario['primeiroNome'], $usuario['perfil']); ?>
+    <?php MenuLateral::renderizar($projeto['menu'], false, $usuario['nome'], $usuario['primeiroNome'], $usuario['perfil']); ?>
 
     <main class="main-content">
 
         <header class="topbar">
-            <a href="eventos.php" class="voltar">← Exposições</a>
+            <a href="<?= esc($projeto['lista']) ?>" class="voltar">← <?= esc($projeto['nome']) ?></a>
             <div class="topbar-actions">
                 <div class="topbar-user">
                     <div class="user-avatar small"><?= esc(mb_strtoupper(mb_substr($usuario['nome'], 0, 1))) ?></div>
@@ -649,8 +873,8 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                 <div class="empty-state large">
                     <div class="empty-icon">▣</div>
                     <h2><?= esc($erroEvento) ?></h2>
-                    <p>Volte para a lista e escolha uma exposição.</p>
-                    <a href="eventos.php" class="primary-button">Ver exposições</a>
+                    <p>Volte para a lista e escolha <?= esc(($projeto['artigo'] === 'a' ? 'uma ' : 'um ') . $projeto['singular']) ?>.</p>
+                    <a href="<?= esc($projeto['lista']) ?>" class="primary-button">Ver <?= esc(mb_strtolower($projeto['nome'])) ?></a>
                 </div>
             </article>
 
@@ -664,8 +888,11 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                 <div class="aviso aviso-erro" role="alert"><?= esc($erroForm) ?></div>
             <?php endif; ?>
 
+            <?php if ($comFicha): ?>
+                <?php require __DIR__ . '/partes/projeto_cabecalho.php'; ?>
+            <?php else: ?>
             <!-- CABEÇALHO DA EXPOSIÇÃO -->
-            <section class="expo-cabecalho">
+            <section class="expo-cabecalho identidade<?= Identidade::urlCapa($evento) !== null ? ' com-capa' : '' ?>" style="<?= esc(Identidade::estilo($evento)) ?>">
 
                 <div class="expo-identidade">
                     <p class="eyebrow">
@@ -688,10 +915,11 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                     </ul>
 
                     <div class="acoes-cabecalho">
-                        <a href="relatorio.php?evento=<?= $eventoId ?>" class="botao-secundario">⎙ Relatório para imprimir</a>
+                        <a href="relatorio?evento=<?= esc(slugDaExposicao($eventoId)) ?>" class="botao-secundario">⎙ Relatório para imprimir</a>
                         <?php if ($podeGerenciar): ?>
-                            <a href="evento.php?id=<?= $eventoId ?>&amp;editar=info#sobre" class="botao-secundario">✎ Editar informações</a>
-                            <a href="apagar_exposicao.php?id=<?= $eventoId ?>" class="botao-secundario botao-apagar">Apagar exposição</a>
+                            <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'info'], 'sobre')) ?>" class="botao-secundario">✎ Editar informações</a>
+                            <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'identidade'], 'identidade')) ?>" class="botao-secundario">◐ Capa e cor</a>
+                            <a href="<?= esc(linkExposicao($eventoId, [], '', 'apagar-exposicao')) ?>" class="botao-secundario botao-apagar">Apagar exposição</a>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -717,6 +945,70 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                 </div>
 
             </section>
+            <?php endif; ?>
+
+            <?php if ($editarIdentidade): ?>
+                <?php $temCapa = Identidade::urlCapa($evento) !== null; ?>
+                <article class="panel painel-identidade" id="identidade">
+                    <div class="panel-header">
+                        <div><p class="eyebrow">Identidade visual</p><h2><?= $comFicha ? esc($projeto['capa']) . ' e cor' : 'Capa e cor da exposição' ?></h2></div>
+                        <a href="<?= esc(linkExposicao($eventoId)) ?>" class="text-link">Cancelar</a>
+                    </div>
+                    <form method="post" action="<?= esc(linkExposicao($eventoId)) ?>" enctype="multipart/form-data" class="form-elos form-identidade">
+                        <?= \Elos\Frontend\campoCsrf() ?>
+                        <input type="hidden" name="acao" value="salvar_identidade">
+                        <input type="hidden" name="cor_mudou" value="0" class="js-cor-mudou">
+                        <?php if ($formComErro === 'identidade' && $erroForm !== ''): ?>
+                            <p class="form-erro" role="alert"><?= esc($erroForm) ?></p>
+                        <?php endif; ?>
+
+                        <div class="identidade-campos">
+                            <div class="campo">
+                                <label for="capa"><?= $comFicha ? esc($projeto['capa']) : 'Imagem de capa' ?></label>
+                                <input type="file" id="capa" name="capa" accept="image/jpeg,image/png,image/webp">
+                                <p class="dica">JPG, PNG ou WebP, até 8 MB. Imagens largas (paisagem) ficam melhores. Ela aparece à direita dos cards e some num degradê.</p>
+                                <?php if ($temCapa): ?>
+                                    <label class="opcao"><input type="checkbox" name="remover_capa" value="1"> Remover a capa atual</label>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="campo">
+                                <label for="cor">Cor d<?= esc($projeto['artigo'] . ' ' . $projeto['singular']) ?></label>
+                                <div class="cor-linha">
+                                    <input type="color" id="cor" name="cor" value="<?= esc(Identidade::cor($evento)) ?>" class="js-cor">
+                                    <span class="dica">Usada nos detalhes do card. Ao enviar uma imagem, o ELOS sugere uma cor tirada dela.</span>
+                                </div>
+                                <?php if (!empty($evento['cor'])): ?>
+                                    <label class="opcao"><input type="checkbox" name="cor_automatica" value="1"> Voltar para a cor automática</label>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="identidade-previa" style="<?= esc(Identidade::estilo($evento)) ?>" aria-hidden="true">
+                                <span class="previa-rotulo">Prévia do card</span>
+                                <span class="previa-titulo"><?= esc($tituloPagina) ?></span>
+                                <span class="previa-numeros"><i></i><i></i><i></i></span>
+                            </div>
+                        </div>
+
+                        <div class="form-botoes">
+                            <p class="dica">Só muda a aparência. Nenhum outro dado é alterado.</p>
+                            <button type="submit" class="primary-button">Salvar</button>
+                        </div>
+                    </form>
+                </article>
+                <script>
+                    // Escolher uma cor à mão impede que a cor da imagem a substitua.
+                    document.getElementById('capa').addEventListener('change', function () {
+                        if (this.files && this.files[0]) {
+                            document.querySelector('.identidade-previa').style.setProperty('--expo-capa', 'url("' + URL.createObjectURL(this.files[0]) + '")');
+                        }
+                    });
+                    document.querySelector('.js-cor').addEventListener('input', function () {
+                        document.querySelector('.js-cor-mudou').value = '1';
+                        document.querySelector('.identidade-previa').style.setProperty('--expo-cor', this.value);
+                    });
+                </script>
+            <?php endif; ?>
 
             <div class="expo-grade">
 
@@ -728,7 +1020,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                         <div class="panel-header">
                             <div>
                                 <p class="eyebrow">Checklist</p>
-                                <h2>O que esta exposição precisa</h2>
+                                <h2>O que <?= esc($projeto['este'] . ' ' . $projeto['singular']) ?> precisa</h2>
                             </div>
                         </div>
 
@@ -736,7 +1028,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                             <details class="adicionar" <?= $formComErro === 'nova' || ($plano->necessidades ?? []) === [] ? 'open' : '' ?>>
                                 <summary class="primary-button"><span>+</span> Adicionar necessidade</summary>
 
-                                <form method="post" action="evento.php?id=<?= $eventoId ?>" class="form-elos form-adicionar">
+                                <form method="post" action="<?= esc(enderecoComFiltro($eventoId)) ?>" class="form-elos form-adicionar">
                                     <?= \Elos\Frontend\campoCsrf() ?>
                                     <input type="hidden" name="acao" value="adicionar_necessidade">
                                     <?php if ($formComErro === 'nova' && $erroForm !== ''): ?>
@@ -761,38 +1053,108 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 <div class="empty-icon">✓</div>
                                 <p>
                                     Nenhuma necessidade registrada.
-                                        <?= $podeGerenciar ? 'Registre aqui os recursos, serviços e providências necessários para a realização da exposição.' : '' ?>
+                                        <?= $podeGerenciar ? 'Registre aqui os recursos, serviços e providências necessários para a realização d' . $projeto['artigo'] . ' ' . $projeto['singular'] . '.' : '' ?>
                                 </p>
                             </div>
 
                         <?php else: ?>
 
-                            <?php foreach ($titulosGrupos as $chave => $titulo): ?>
-                                <?php if ($grupos[$chave] !== []): ?>
-                                    <h3 class="grupo-titulo grupo-<?= $chave ?>"><?= esc($titulo) ?> <span><?= count($grupos[$chave]) ?></span></h3>
-                                    <ul class="checklist">
-                                        <?php foreach ($grupos[$chave] as $tarefa): ?>
-                                            <?php itemChecklist($tarefa, $eventoId, $podeGerenciar, $usuario['id'], $formComErro, $valoresItem, $erroForm, $categorias, $usuarios); ?>
-                                        <?php endforeach; ?>
-                                    </ul>
+                            <!-- FILTROS: por prazo e por fase -->
+                            <nav class="filtros-fase" aria-label="Filtrar o checklist">
+                                <a href="<?= esc($linkFiltro([])) ?>" class="filtro<?= $filtroFase === '' && $filtroPrazo === '' ? ' ativo' : '' ?>">
+                                    Todas <span><?= $resumo['pendentes'] ?></span>
+                                </a>
+                                <?php if ($urgentes['atrasadas'] !== []): ?>
+                                    <a href="<?= esc($linkFiltro(['prazo' => 'atrasadas'])) ?>" class="filtro filtro-atrasadas<?= $filtroPrazo === 'atrasadas' ? ' ativo' : '' ?>">
+                                        Atrasadas <span><?= count($urgentes['atrasadas']) ?></span>
+                                    </a>
                                 <?php endif; ?>
-                            <?php endforeach; ?>
+                                <?php if ($urgentes['semana'] !== []): ?>
+                                    <a href="<?= esc($linkFiltro(['prazo' => 'semana'])) ?>" class="filtro filtro-semana<?= $filtroPrazo === 'semana' ? ' ativo' : '' ?>">
+                                        Próximos 7 dias <span><?= count($urgentes['semana']) ?></span>
+                                    </a>
+                                <?php endif; ?>
+                                <?php foreach (array_keys(Fases::ROTULOS_ETAPA) as $etapa): ?>
+                                    <?php $fasesDaEtapa = array_filter($fases, static fn(array $f): bool => $f['etapa'] === $etapa); ?>
+                                    <?php if ($fasesDaEtapa === []) { continue; } ?>
+                                    <div class="filtros-etapa" style="<?= Fases::estiloCor($etapa) ?>">
+                                        <span class="filtros-etapa-nome"><?= esc(Fases::ROTULOS_ETAPA[$etapa]) ?></span>
+                                        <div class="filtros-etapa-lista">
+                                        <?php foreach ($fasesDaEtapa as $fase): ?>
+                                            <a
+                                                href="<?= esc($linkFiltro(['fase' => $fase['chave']])) ?>"
+                                                class="filtro filtro-fase<?= $filtroFase === $fase['chave'] ? ' ativo' : '' ?><?= $fase['pendentes'] === 0 ? ' completa' : '' ?>"
+                                                <?= $filtroFase === $fase['chave'] ? 'aria-current="true"' : '' ?>
+                                            >
+                                                <i aria-hidden="true"></i><?= esc($fase['rotulo']) ?>
+                                                <span title="<?= $fase['pendentes'] ?> pendente(s)"><?= $fase['pendentes'] === 0 ? '✓' : $fase['pendentes'] ?></span>
+                                            </a>
+                                        <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </nav>
 
-                            <?php if ($grupos['feito'] !== []): ?>
-                                <?php
-                                $abrirFeito = false;
-                                foreach ($grupos['feito'] as $tarefa) {
-                                    $abrirFeito = $abrirFeito || $formComErro === 'item-' . (int) $tarefa['id'];
-                                }
-                                ?>
-                                <details class="grupo-feito" <?= $abrirFeito ? 'open' : '' ?>>
-                                    <summary class="grupo-titulo">Resolvidas <span><?= count($grupos['feito']) ?></span></summary>
+                            <?php if ($filtroPrazo !== ''): ?>
+
+                                <!-- FILTRO POR PRAZO: lista única, por data -->
+                                <section class="bloco-fase bloco-prazo">
+                                    <h3 class="fase-cabecalho">
+                                        <span class="fase-nome"><?= $filtroPrazo === 'atrasadas' ? 'Atrasadas' : 'Nos próximos 7 dias' ?></span>
+                                        <a href="<?= esc($linkFiltro([])) ?>" class="text-link">Ver todas as fases</a>
+                                    </h3>
                                     <ul class="checklist">
-                                        <?php foreach ($grupos['feito'] as $tarefa): ?>
+                                        <?php foreach ($urgentes[$filtroPrazo] as $tarefa): ?>
                                             <?php itemChecklist($tarefa, $eventoId, $podeGerenciar, $usuario['id'], $formComErro, $valoresItem, $erroForm, $categorias, $usuarios); ?>
                                         <?php endforeach; ?>
                                     </ul>
-                                </details>
+                                </section>
+
+                            <?php else: ?>
+
+                                <?php foreach ($fasesVisiveis as $fase): ?>
+                                    <?php
+                                    $pendentesFase = array_values(array_filter($fase['itens'], static fn(array $t): bool => !in_array(Planejamento::estadoNecessidade($t), ['concluido', 'cancelado'], true)));
+                                    $feitasFase = array_values(array_filter($fase['itens'], static fn(array $t): bool => in_array(Planejamento::estadoNecessidade($t), ['concluido', 'cancelado'], true)));
+                                    $abrirFeitas = $filtroFase !== '' || ($pendentesFase === [] && $feitasFase !== []);
+                                    foreach ($feitasFase as $tarefa) {
+                                        $abrirFeitas = $abrirFeitas || $formComErro === 'item-' . (int) $tarefa['id'];
+                                    }
+                                    $percentualFase = $fase['total'] > 0 ? (int) round($fase['feitas'] * 100 / $fase['total']) : 0;
+                                    ?>
+                                    <section class="bloco-fase" id="fase-<?= esc($fase['chave']) ?>" style="<?= Fases::estiloCor($fase['etapa']) ?>">
+                                        <h3 class="fase-cabecalho">
+                                            <span class="fase-etapa"><?= esc(Fases::ROTULOS_ETAPA[$fase['etapa']] ?? '') ?></span>
+                                            <span class="fase-nome"><?= esc($fase['rotulo']) ?></span>
+                                            <span class="fase-progresso" title="<?= $percentualFase ?>% feito">
+                                                <span class="fase-barra"><span style="width: <?= $percentualFase ?>%"></span></span>
+                                                <?= $fase['feitas'] ?> de <?= $fase['total'] ?>
+                                            </span>
+                                        </h3>
+
+                                        <?php if ($pendentesFase !== []): ?>
+                                            <ul class="checklist">
+                                                <?php foreach ($pendentesFase as $tarefa): ?>
+                                                    <?php itemChecklist($tarefa, $eventoId, $podeGerenciar, $usuario['id'], $formComErro, $valoresItem, $erroForm, $categorias, $usuarios, $fase['rotulo']); ?>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        <?php else: ?>
+                                            <p class="fase-completa">✓ Tudo resolvido nesta fase.</p>
+                                        <?php endif; ?>
+
+                                        <?php if ($feitasFase !== []): ?>
+                                            <details class="grupo-feito" <?= $abrirFeitas ? 'open' : '' ?>>
+                                                <summary class="grupo-titulo">Resolvidas <span><?= count($feitasFase) ?></span></summary>
+                                                <ul class="checklist">
+                                                    <?php foreach ($feitasFase as $tarefa): ?>
+                                                        <?php itemChecklist($tarefa, $eventoId, $podeGerenciar, $usuario['id'], $formComErro, $valoresItem, $erroForm, $categorias, $usuarios, $fase['rotulo']); ?>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </details>
+                                        <?php endif; ?>
+                                    </section>
+                                <?php endforeach; ?>
+
                             <?php endif; ?>
 
                         <?php endif; ?>
@@ -843,17 +1205,20 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                 <!-- LATERAL: DATAS, PRÓXIMOS PASSOS, SOBRE -->
                 <aside class="expo-lateral">
 
+                    <?php if ($comFicha): ?>
+                        <?php require __DIR__ . '/partes/projeto_lateral.php'; ?>
+                    <?php else: ?>
                     <article class="panel" id="datas">
                         <div class="panel-header">
                             <div><p class="eyebrow">Agenda</p><h2>Datas da exposição</h2></div>
                             <?php if ($podeGerenciar && !$editarDatas): ?>
-                                <a href="evento.php?id=<?= $eventoId ?>&editar=datas#datas" class="text-link">Editar</a>
+                                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'datas'], 'datas')) ?>" class="text-link">Editar</a>
                             <?php endif; ?>
                         </div>
 
                         <?php if ($editarDatas): ?>
 
-                            <form method="post" action="evento.php?id=<?= $eventoId ?>" class="form-elos form-lateral">
+                            <form method="post" action="<?= esc(linkExposicao($eventoId)) ?>" class="form-elos form-lateral">
                                 <?= \Elos\Frontend\campoCsrf() ?>
                                 <input type="hidden" name="acao" value="salvar_datas">
                                 <?php if ($formComErro === 'datas' && $erroForm !== ''): ?>
@@ -897,7 +1262,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 </div>
                                 <?php if ($formComErro === 'datas' && $conflitos !== []) { avisoConflito($conflitos); } ?>
                                 <div class="form-botoes">
-                                    <a href="evento.php?id=<?= $eventoId ?>#datas" class="text-link">Cancelar</a>
+                                    <a href="<?= esc(linkExposicao($eventoId, [], 'datas')) ?>" class="text-link">Cancelar</a>
                                     <button type="submit" class="primary-button">Salvar datas</button>
                                 </div>
                             </form>
@@ -911,7 +1276,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                             <p class="lateral-vazio">
                                 Nenhuma data definida.
                                 <?php if ($podeGerenciar): ?>
-                                    <a href="evento.php?id=<?= $eventoId ?>&editar=datas#datas" class="text-link">Definir datas</a>
+                                    <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'datas'], 'datas')) ?>" class="text-link">Definir datas</a>
                                 <?php endif; ?>
                             </p>
 
@@ -944,11 +1309,12 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 
                         <?php endif; ?>
                     </article>
+                    <?php endif; ?>
 
                     <article class="panel">
                         <?php
                         $mesCalendario = $periodo['inicio'] ?? ($proximas[0]['data'] ?? null);
-                        $linkCalendario = 'agenda.php?evento=' . $eventoId
+                        $linkCalendario = 'calendario?evento=' . rawurlencode(slugDaExposicao($eventoId))
                             . ($mesCalendario ? '&ano=' . substr((string) $mesCalendario, 0, 4) . '&mes=' . (int) substr((string) $mesCalendario, 5, 2) : '');
                         ?>
                         <div class="panel-header">
@@ -966,7 +1332,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                             <strong><?= esc(substr($item['data'], 8, 2)) ?></strong>
                                             <span><?= esc(mesAbreviado($item['data'])) ?></span>
                                         </span>
-                                        <a href="<?= esc(substr($item['link'], strpos($item['link'], '#'))) ?>" class="lista-datas-texto">
+                                        <a href="<?= esc(linkExposicao($eventoId, [], substr($item['link'], strpos($item['link'], '#') ?: strlen($item['link'])))) ?>" class="lista-datas-texto">
                                             <small><?= esc($item['categoria']) ?><?= $item['horario'] ? ' · ' . esc($item['horario']) : '' ?></small>
                                             <strong><?= esc($item['titulo']) ?></strong>
                                         </a>
@@ -981,9 +1347,9 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 
                     <article class="panel" id="sobre">
                         <div class="panel-header">
-                            <div><p class="eyebrow">Visão geral</p><h2>Sobre a exposição</h2></div>
+                            <div><p class="eyebrow">Visão geral</p><h2>Sobre <?= esc($projeto['artigo'] . ' ' . $projeto['singular']) ?></h2></div>
                             <?php if ($podeGerenciar && !$editarInfo): ?>
-                                <a href="evento.php?id=<?= $eventoId ?>&editar=info#sobre" class="text-link">Editar</a>
+                                <a href="<?= esc(linkExposicao($eventoId, ['editar' => 'info'], 'sobre')) ?>" class="text-link">Editar</a>
                             <?php endif; ?>
                         </div>
 
@@ -997,14 +1363,14 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 ? array_map('intval', (array) ($info['cursos'] ?? []))
                                 : array_map(static fn(array $c): int => (int) $c['id'], $cursosDoEvento);
                             ?>
-                            <form method="post" action="evento.php?id=<?= $eventoId ?>" class="form-elos form-lateral">
+                            <form method="post" action="<?= esc(linkExposicao($eventoId)) ?>" class="form-elos form-lateral">
                                 <?= \Elos\Frontend\campoCsrf() ?>
                                 <input type="hidden" name="acao" value="salvar_informacoes">
                                 <?php if ($formComErro === 'info' && $erroForm !== ''): ?>
                                     <p class="form-erro" role="alert"><?= esc($erroForm) ?></p>
                                 <?php endif; ?>
                                 <div class="campo">
-                                    <label for="titulo">Nome da exposição</label>
+                                    <label for="titulo">Nome d<?= esc($projeto['artigo'] . ' ' . $projeto['singular']) ?></label>
                                     <input id="titulo" type="text" name="titulo" required value="<?= esc($valorInfo('titulo')) ?>">
                                 </div>
                                 <?php selectAberto('tipo_evento_id', 'Tipo', $tipos, $valorInfo('tipo_evento_id'), $valorInfo('tipo_evento_id_novo'), 'Novo tipo', 'Ex.: Mostra acadêmica'); ?>
@@ -1014,7 +1380,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                     <legend>Situação</legend>
                                     <label class="opcao-marcar">
                                         <input type="checkbox" name="cancelada" value="1" <?= ($info !== [] ? ($info['cancelada'] ?? '') === '1' : ($evento['status'] ?? '') === 'CANCELADO') ? 'checked' : '' ?>>
-                                        <span>Exposição cancelada</span>
+                                        <span><?= esc($projeto['cancelado']) ?></span>
                                     </label>
                                 </fieldset>
                                 <fieldset class="campo">
@@ -1041,7 +1407,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
                                 </div>
                                 <?php if ($formComErro === 'info' && $conflitos !== []) { avisoConflito($conflitos); } ?>
                                 <div class="form-botoes">
-                                    <a href="evento.php?id=<?= $eventoId ?>#sobre" class="text-link">Cancelar</a>
+                                    <a href="<?= esc(linkExposicao($eventoId, [], 'sobre')) ?>" class="text-link">Cancelar</a>
                                     <button type="submit" class="primary-button">Salvar</button>
                                 </div>
                             </form>
@@ -1084,7 +1450,7 @@ $tituloPagina = $evento !== null ? (string) ($evento['titulo'] ?? 'Exposição')
 </div>
 
 <?php if ($podeGerenciar && $evento !== null) { sugestoesDeResponsavel($usuarios); } ?>
-<script src="../assets/js/elos.js"></script>
+<script src="../assets/js/elos.js?v=2026-10-29"></script>
 <script>
 // Ao abrir "Adicionar necessidade", o foco vai direto para o que escrever.
 document.querySelectorAll('details.adicionar').forEach(function (details) {

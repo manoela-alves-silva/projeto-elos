@@ -5,58 +5,88 @@ declare(strict_types=1);
 /*
  * CALENDÁRIO — consequência do planejamento, nunca a origem.
  *
- * Mostra tudo o que tem data nas exposições: marcos da agenda
- * (montagem, abertura, período, desmontagem) e os itens do checklist
- * com o status atual. Nada é cadastrado
- * aqui: cada item leva à exposição, onde ele é editado.
+ * Mostra tudo o que tem data na galeria, de todos os projetos
+ * (exposições, sessões do Cine Clube...): marcos da agenda (montagem,
+ * abertura ou sessão, período, desmontagem) e os itens do checklist
+ * com o status atual. Cada marcação tem a cor do tipo de evento, para
+ * ver o que acontece ao mesmo tempo. Nada é cadastrado aqui: cada item
+ * leva ao evento, onde ele é editado.
  */
 
+use Elos\Frontend\Identidade;
 use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
+use Elos\Frontend\Projetos;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\slugDaExposicao;
+use function Elos\Frontend\idDaExposicaoNoParametro;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\dataBr;
 use function Elos\Frontend\esc;
 use function Elos\Frontend\hoje;
 use function Elos\Frontend\redirecionar;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 use const Elos\Frontend\MESES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
+require_once __DIR__ . '/../src/Identidade.php';
 
-$usuario = usuarioLogado('login.php');
+preCarregar(['/api/eventos']);
+$usuario = usuarioLogado('entrar');
 
 // Endereço antigo do editor de agenda: as datas agora são editadas na exposição.
 if ((int) ($_GET['agenda_evento'] ?? 0) > 0) {
-    redirecionar('evento.php?id=' . (int) $_GET['agenda_evento'] . '&editar=datas#datas');
+    redirecionar(linkExposicao((int) $_GET['agenda_evento'], ['editar' => 'datas'], '#datas'));
 }
 
 $eventos = apiLista('/api/eventos', 'eventos');
 $apiIndisponivel = $eventos === null;
 
+// Filtro por projeto (?projeto=cine-clube); vazio = todos.
+$filtroProjeto = (string) ($_GET['projeto'] ?? '');
+if (!in_array($filtroProjeto, Projetos::chaves(), true)) {
+    $filtroProjeto = '';
+}
+if ($eventos !== null && $filtroProjeto !== '') {
+    $eventos = Projetos::filtrar($eventos, $filtroProjeto);
+}
+
 // Canceladas não ocupam o calendário.
 $eventos = array_values(array_filter($eventos ?? [], static fn(array $e): bool => ($e['status'] ?? '') !== 'CANCELADO'));
 usort($eventos, static fn(array $a, array $b): int => strcmp((string) $a['titulo'], (string) $b['titulo']));
 
-$filtroEvento = (int) ($_GET['evento'] ?? 0);
-$planos = [];
-foreach ($eventos as $evento) {
-    if ($filtroEvento === 0 || (int) $evento['id'] === $filtroEvento) {
-        $planos[] = Planejamento::carregar($evento);
-    }
-}
+$filtroEvento = idDaExposicaoNoParametro($_GET['evento'] ?? '');
+$planos = Planejamento::carregarVarios(array_filter(
+    $eventos,
+    static fn(array $e): bool => $filtroEvento === 0 || (int) $e['id'] === $filtroEvento
+));
 
-// Itens por dia e dias em cartaz.
+// Itens por dia e dias em cartaz. Cada item leva a cor do tipo do
+// evento; o marco "Abertura" de um evento de projeto vira "Sessão",
+// "Encontro"...
 $itensPorDia = [];
 $emCartazPorDia = [];
+$tiposNaTela = [];
 foreach ($planos as $plano) {
+    $projetoDoEvento = Projetos::doEvento($plano->evento);
+    $nomeTipo = (string) ($plano->evento['tipo_evento_nome'] ?? 'Exposição');
+    $corTipo = Identidade::corDoTipo($nomeTipo, $plano->evento['tipo_evento_cor'] ?? null);
+
     foreach ($plano->itensDatados() as $item) {
+        $item['cor_tipo'] = $corTipo;
+        if ($projetoDoEvento !== Projetos::EXPOSICOES && $item['origem'] === 'marco' && $item['grupo'] === 'abertura') {
+            $item['titulo'] = Projetos::dados($projetoDoEvento)['momento']; // "Sessão", "Encontro"...
+        }
         $itensPorDia[$item['data']][] = $item;
+        $tiposNaTela[$nomeTipo] = $corTipo;
     }
 
+    // "Em cartaz" (fundo do dia) é só das exposições: os outros eventos são de um dia.
     ['inicio' => $inicio, 'fim' => $fim] = $plano->periodo();
-    if ($inicio !== null && $fim !== null && $inicio <= $fim) {
+    if ($projetoDoEvento === Projetos::EXPOSICOES && $inicio !== null && $fim !== null && $inicio <= $fim) {
         for ($dia = strtotime($inicio); $dia <= strtotime($fim); $dia = strtotime('+1 day', $dia)) {
             $emCartazPorDia[date('Y-m-d', $dia)][] = $plano->titulo();
         }
@@ -92,12 +122,15 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $diaSelecionado)) {
     $diaSelecionado = '';
 }
 
-/** Link mantendo o filtro de exposição. */
+/** Link mantendo os filtros (projeto e evento). */
 function linkCalendario(int $ano, int $mes, int $evento, ?string $dia = null): string
 {
     $parametros = ['ano' => $ano, 'mes' => $mes];
+    if (($GLOBALS['filtroProjeto'] ?? '') !== '') {
+        $parametros['projeto'] = $GLOBALS['filtroProjeto'];
+    }
     if ($evento > 0) {
-        $parametros['evento'] = $evento;
+        $parametros['evento'] = slugDaExposicao($evento);
     }
     if ($dia !== null) {
         $parametros['dia'] = $dia;
@@ -131,14 +164,20 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
     <title>Calendário | ELOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/agenda.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/agenda.css?v=2026-10-29b">
 </head>
 <body>
 
@@ -149,14 +188,24 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
     <main class="main-content">
 
         <header class="topbar">
-            <form method="get" action="agenda.php" class="filtro-exposicao form-elos">
+            <form method="get" action="calendario" class="filtro-exposicao form-elos">
                 <input type="hidden" name="ano" value="<?= $ano ?>">
                 <input type="hidden" name="mes" value="<?= $mes ?>">
-                <label for="evento" class="sr-only">Exposição</label>
+                <?php if ($filtroProjeto !== ''): ?>
+                    <input type="hidden" name="projeto" value="<?= esc($filtroProjeto) ?>">
+                <?php endif; ?>
+                <label for="evento" class="sr-only">Evento</label>
                 <select id="evento" name="evento" onchange="this.form.submit()">
-                    <option value="0">Todas as exposições</option>
-                    <?php foreach ($eventos as $evento): ?>
-                        <option value="<?= (int) $evento['id'] ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
+                    <option value="">Todos os eventos</option>
+                    <?php foreach (Projetos::chaves() as $chaveProjeto): ?>
+                        <?php $doProjeto = Projetos::filtrar($eventos, $chaveProjeto); ?>
+                        <?php if ($doProjeto !== []): ?>
+                            <optgroup label="<?= esc(Projetos::dados($chaveProjeto)['nome']) ?>">
+                                <?php foreach ($doProjeto as $evento): ?>
+                                    <option value="<?= esc(slugDaExposicao((int) $evento['id'])) ?>" <?= (int) $evento['id'] === $filtroEvento ? 'selected' : '' ?>><?= esc($evento['titulo']) ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </select>
                 <noscript><button type="submit" class="text-link">Filtrar</button></noscript>
@@ -175,7 +224,7 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
         <div class="content-wrapper">
 
             <?php if ($apiIndisponivel): ?>
-                <div class="aviso aviso-erro" role="alert">Não foi possível carregar as exposições agora.</div>
+                <div class="aviso aviso-erro" role="alert">Não foi possível carregar os eventos agora.</div>
             <?php endif; ?>
 
             <section class="welcome-section">
@@ -183,10 +232,17 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                     <p class="eyebrow">Acompanhamento</p>
                     <h1>
                         Calendário
-                        <span>Tudo o que tem data nas exposições aparece aqui sozinho.</span>
+                        <span>Tudo o que tem data na galeria aparece aqui sozinho.</span>
                     </h1>
                 </div>
             </section>
+
+            <nav class="abas" aria-label="Filtrar por projeto">
+                <?php foreach (['' => 'Todos'] + array_combine(Projetos::chaves(), array_map(static fn(string $c): string => Projetos::dados($c)['nome'], Projetos::chaves())) as $chaveProjeto => $rotuloProjeto): ?>
+                    <a href="calendario?<?= esc(http_build_query(array_filter(['ano' => $ano, 'mes' => $mes, 'projeto' => $chaveProjeto]))) ?>"
+                       class="<?= $filtroProjeto === $chaveProjeto ? 'ativa' : '' ?>" <?= $filtroProjeto === $chaveProjeto ? 'aria-current="page"' : '' ?>><?= esc($rotuloProjeto) ?></a>
+                <?php endforeach; ?>
+            </nav>
 
             <article class="panel">
 
@@ -198,9 +254,17 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                         <h2><?= esc($nomeMes) ?></h2>
                     </div>
 
+                    <?php if ($tiposNaTela !== []): ?>
+                        <ul class="legenda legenda-tipos" aria-label="Cores dos tipos de evento">
+                            <?php foreach ($tiposNaTela as $nomeTipo => $corTipo): ?>
+                                <li style="--cor-legenda: <?= esc($corTipo) ?>"><?= esc($nomeTipo) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+
                     <ul class="legenda" aria-label="Legenda">
                         <li class="fase-montagem">Montagem</li>
-                        <li class="fase-abertura">Abertura</li>
+                        <li class="fase-abertura">Abertura, sessão ou encontro</li>
                         <li class="fase-permanencia">Período</li>
                         <li class="fase-desmontagem">Desmontagem</li>
                         <li class="estado-pendente">Pendente</li>
@@ -248,6 +312,7 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                                         <a
                                             href="<?= esc($item['link']) ?>"
                                             class="marker-pill <?= corDoItem($item) ?>"
+                                            style="--cor-tipo: <?= esc($item['cor_tipo']) ?>"
                                             title="<?= esc($item['categoria'] . ': ' . $item['titulo'] . ($item['estado'] !== 'marco' ? ' — ' . $item['rotuloEstado'] : '') . ' (' . $item['evento_titulo'] . ')') ?>"
                                         ><?= $item['estado'] === 'concluido' ? '✓ ' : '' ?><?= esc(textoDaPilula($item, $variasExposicoes)) ?></a>
                                     <?php endforeach; ?>
@@ -283,7 +348,7 @@ $nomeMes = ucfirst(MESES[$mes]) . ' de ' . $ano;
                         <ul class="lista-dia">
                             <?php foreach ($itensDoDia as $item): ?>
                                 <li>
-                                    <span class="bolinha <?= corDoItem($item) ?>" aria-hidden="true"></span>
+                                    <span class="bolinha <?= corDoItem($item) ?>" style="--cor-tipo: <?= esc($item['cor_tipo']) ?>" aria-hidden="true"></span>
                                     <a href="<?= esc($item['link']) ?>">
                                         <small><?= esc($item['categoria']) ?><?= $item['horario'] ? ' · ' . esc($item['horario']) : '' ?> · <?= esc($item['evento_titulo']) ?></small>
                                         <strong><?= esc($item['titulo']) ?></strong>

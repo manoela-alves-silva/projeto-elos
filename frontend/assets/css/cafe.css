@@ -1,0 +1,15 @@
+/* Café Cultural: papel creme e tinta de café. */
+.tema-cafe {
+    --tema-cor: #7a5230;
+    --tema-fundo: #efe2cf;
+    --tema-tinta: #3b2716;
+    --tema-fonte: "Lora", Georgia, serif;
+}
+
+.tema-cafe .projeto-destaque {
+    border: 1px solid #dcc6a8;
+}
+
+.tema-cafe .projeto-pessoa {
+    font-style: italic;
+}

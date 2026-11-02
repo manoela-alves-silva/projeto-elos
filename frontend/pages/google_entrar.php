@@ -11,7 +11,7 @@ declare(strict_types=1);
 use Elos\Frontend\Api;
 use Elos\Frontend\ApiException;
 
-require_once __DIR__ . '/../src/Api.php';
+require_once __DIR__ . '/../src/elos.php';
 
 \Elos\Frontend\iniciarSessao();
 
@@ -19,8 +19,8 @@ require_once __DIR__ . '/../src/Api.php';
 $_SESSION['_google_lembrar'] = ($_GET['lembrar'] ?? '') === '1';
 
 $https = \Elos\Frontend\emHttps();
-$pasta = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/pages/google_entrar.php')), '/');
-$retorno = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '127.0.0.1') . $pasta . '/google_retorno.php';
+// Endereço de volta cadastrado no Google: continua em pages/.
+$retorno = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '127.0.0.1') . \Elos\Frontend\raizDoSite() . '/pages/google_retorno.php';
 
 try {
     $url = (string) (Api::post('/api/login/google/inicio', ['redirect_uri' => $retorno])['url'] ?? '');
@@ -37,6 +37,6 @@ try {
         'texto' => $e->statusCode === 0 ? 'Não foi possível falar com o servidor do ELOS.' : $e->getMessage(),
     ];
 
-    header('Location: login.php');
+    header('Location: ' . \Elos\Frontend\raizDoSite() . '/entrar');
     exit();
 }

@@ -1,0 +1,15 @@
+{
+    "name": "ELOS — eventos que conectam",
+    "short_name": "ELOS",
+    "start_url": "../",
+    "scope": "../",
+    "display": "standalone",
+    "background_color": "#f5efe4",
+    "theme_color": "#123d59",
+    "lang": "pt-BR",
+    "icons": [
+        { "src": "img/icone-180.png", "sizes": "180x180", "type": "image/png" },
+        { "src": "img/icone-512.png", "sizes": "512x512", "type": "image/png" },
+        { "src": "img/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+    ]
+}

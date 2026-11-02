@@ -202,6 +202,12 @@ $authorizationFactory = static function () use ($sessionService): AuthorizationS
 // na tela Equipe vale sem precisar sair e entrar de novo).
 $usuarioControllerFactory()->sincronizarSessao();
 
+// Leituras não mudam a sessão: liberar o arquivo dela deixa o frontend
+// pedir várias coisas ao mesmo tempo (senão uma espera a outra).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 require dirname(__DIR__) . '/routes/api.php';
 
 handleApiRequest(
@@ -221,5 +227,6 @@ handleApiRequest(
     $transporteControllerFactory,
     $visitaControllerFactory,
     $anexoControllerFactory,
-    $historicoControllerFactory
+    $historicoControllerFactory,
+    static fn (): PDO => $pdo
 );

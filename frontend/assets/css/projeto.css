@@ -1,0 +1,497 @@
+/* =========================================================
+   PROJETOS DA GALERIA (Cine Clube, Café Cultural, Arte ao Ar
+   Livre, Amostra de Talentos): lista, novo evento e cabeçalho
+   do evento. As cores e a fonte vêm do tema de cada projeto
+   (cinema.css, cafe.css...), por estas variáveis:
+     --tema-cor     destaque (botões, datas, selos)
+     --tema-fundo   fundo do destaque e das capas vazias
+     --tema-tinta   texto sobre o fundo
+     --tema-fonte   fonte dos títulos
+   ========================================================= */
+
+:root {
+    --tema-cor: var(--turquoise);
+    --tema-fundo: var(--navy);
+    --tema-tinta: var(--white);
+    --tema-fonte: var(--font-display, "Poppins", sans-serif);
+}
+
+.projeto-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-12);
+}
+
+[class*="tema-"] .welcome-section h1 {
+    font-family: var(--tema-fonte);
+}
+
+[class*="tema-"] .eyebrow {
+    color: var(--tema-cor);
+}
+
+[class*="tema-"] .primary-button {
+    background: var(--tema-cor);
+    border-color: var(--tema-cor);
+}
+
+/* ---------- O PRÓXIMO, EM DESTAQUE ---------- */
+
+.projeto-destaque {
+    display: grid;
+
+    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) minmax(180px, 220px);
+    align-items: stretch;
+
+    gap: var(--sp-28);
+
+    margin-bottom: var(--sp-32);
+    padding: var(--sp-24);
+
+    border-radius: var(--radius-md);
+
+    background: var(--tema-fundo);
+
+    color: var(--tema-tinta);
+
+    box-shadow: var(--shadow-soft);
+
+    transition: transform 0.2s ease;
+}
+
+.projeto-destaque:hover {
+    transform: translateY(-2px);
+}
+
+.projeto-capa,
+.projeto-cartao-capa,
+.projeto-cabecalho-capa {
+    position: relative;
+
+    display: grid;
+    place-items: center;
+
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+
+    border-radius: var(--radius-sm);
+
+    background:
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.22), transparent 50%),
+        linear-gradient(160deg, var(--expo-cor, var(--tema-cor)), color-mix(in srgb, var(--expo-cor, var(--tema-cor)) 50%, #000));
+
+    color: #fff;
+}
+
+.projeto-capa img,
+.projeto-cartao-capa img,
+.projeto-cabecalho-capa img {
+    position: absolute;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.projeto-capa-vazia,
+.projeto-cartao-capa > span {
+    padding: var(--sp-16);
+
+    font-family: var(--tema-fonte);
+    font-size: var(--fs-20);
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.projeto-ficha {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    gap: var(--sp-8);
+}
+
+.projeto-sobretitulo {
+    color: var(--tema-cor);
+
+    font-size: var(--fs-12);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.projeto-ficha h2 {
+    font-family: var(--tema-fonte);
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    line-height: 1.1;
+}
+
+.projeto-tecnica {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    opacity: 0.85;
+
+    font-size: var(--fs-14);
+}
+
+.projeto-pessoa {
+    font-size: var(--fs-16);
+}
+
+.projeto-pessoa span {
+    opacity: 0.7;
+}
+
+.projeto-lineup {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 6px;
+
+    margin-top: var(--sp-4);
+    padding: 0;
+
+    list-style: none;
+}
+
+.projeto-lineup li {
+    padding: 4px 10px;
+
+    border: 1px solid currentColor;
+    border-radius: 999px;
+
+    font-size: var(--fs-13);
+}
+
+/* bilhete: o quando e o onde, como um ingresso destacável */
+.projeto-bilhete {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    gap: var(--sp-8);
+
+    padding: var(--sp-20);
+
+    border-left: 2px dashed color-mix(in srgb, var(--tema-tinta) 40%, transparent);
+}
+
+.bilhete-quando {
+    font-family: var(--tema-fonte);
+    font-size: var(--fs-20);
+    font-weight: 700;
+}
+
+.bilhete-local {
+    opacity: 0.85;
+}
+
+.bilhete-andamento {
+    margin-top: var(--sp-8);
+
+    font-size: var(--fs-13);
+    font-weight: 600;
+
+    opacity: 0.75;
+}
+
+/* selo de classificação indicativa */
+.selo {
+    display: inline-grid;
+    place-items: center;
+
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+
+    border-radius: 4px;
+
+    background: #555;
+
+    color: #fff;
+
+    font-size: var(--fs-12);
+    font-weight: 800;
+}
+
+.selo-l { background: #0a8a3a; }
+.selo-10 { background: #1f78c1; }
+.selo-12 { background: #e2b100; color: #222; }
+.selo-14 { background: #e06c00; }
+.selo-16 { background: #d0021b; }
+.selo-18 { background: #111; }
+
+/* ---------- EM BREVE (cartões) ---------- */
+
+.projeto-secao {
+    margin-bottom: var(--sp-32);
+}
+
+.projeto-secao-titulo {
+    margin-bottom: var(--sp-16);
+
+    color: var(--navy);
+
+    font-family: var(--tema-fonte);
+    font-size: var(--fs-20);
+}
+
+.projeto-cartoes {
+    display: grid;
+
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+
+    gap: var(--sp-20);
+}
+
+.projeto-cartao {
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    background: var(--white);
+
+    box-shadow: var(--shadow-card);
+
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.projeto-cartao:hover {
+    box-shadow: var(--shadow-soft);
+
+    transform: translateY(-2px);
+}
+
+.projeto-cartao-capa {
+    aspect-ratio: 3 / 2;
+
+    border-radius: 0;
+}
+
+.projeto-cartao-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    padding: var(--sp-16);
+}
+
+.projeto-cartao-quando {
+    color: var(--tema-cor);
+
+    font-size: var(--fs-12);
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.projeto-cartao-info strong {
+    color: var(--navy);
+
+    font-size: var(--fs-16);
+    line-height: 1.25;
+}
+
+.projeto-cartao-pessoa,
+.projeto-cartao-andamento {
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+}
+
+.com-atraso {
+    color: var(--red-dark) !important;
+
+    font-weight: 600;
+}
+
+/* ---------- ANTERIORES ---------- */
+
+.projeto-anteriores {
+    padding: 0;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    background: var(--white);
+
+    list-style: none;
+}
+
+.projeto-anteriores li + li {
+    border-top: 1px solid var(--cream-dark);
+}
+
+.projeto-anteriores a {
+    display: grid;
+
+    grid-template-columns: 170px minmax(0, 1fr) auto;
+    align-items: center;
+
+    gap: var(--sp-16);
+
+    padding: var(--sp-12) var(--sp-20);
+}
+
+.projeto-anteriores a:hover {
+    background: var(--cream-light);
+}
+
+.anterior-quando,
+.anterior-pessoa {
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+}
+
+/* ---------- NOVO EVENTO: checklist padrão ---------- */
+
+.passo-checklist {
+    display: block;
+}
+
+.opcao-checklist {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    font-weight: 600;
+}
+
+.opcao-checklist input {
+    width: auto;
+}
+
+.checklist-previa {
+    display: grid;
+
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+
+    gap: 6px var(--sp-20);
+
+    margin: var(--sp-12) 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+.checklist-previa li {
+    display: flex;
+    justify-content: space-between;
+
+    gap: var(--sp-12);
+
+    padding: 6px 0;
+
+    border-bottom: 1px dashed var(--cream-dark);
+
+    font-size: var(--fs-14);
+}
+
+.checklist-previa small {
+    flex: none;
+
+    color: var(--text-soft);
+}
+
+/* ---------- CABEÇALHO DO EVENTO DE PROJETO ---------- */
+
+.projeto-cabecalho {
+    display: grid;
+
+    grid-template-columns: 160px minmax(0, 1fr) minmax(220px, 300px);
+    align-items: center;
+
+    gap: var(--sp-28);
+
+    margin-bottom: var(--sp-28);
+    padding: var(--sp-24);
+
+    border-radius: var(--radius-md);
+
+    background: var(--white);
+
+    box-shadow: var(--shadow-soft);
+}
+
+.projeto-cabecalho-texto {
+    display: flex;
+    flex-direction: column;
+
+    gap: var(--sp-8);
+}
+
+.projeto-cabecalho-texto .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-12);
+}
+
+.projeto-cabecalho h1 {
+    color: var(--navy);
+
+    font-family: var(--tema-fonte);
+    font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+    line-height: 1.1;
+}
+
+.projeto-cabecalho .projeto-tecnica,
+.projeto-cabecalho .projeto-pessoa {
+    color: var(--text);
+}
+
+.projeto-cabecalho .expo-fatos {
+    margin-top: var(--sp-4);
+}
+
+.projeto-cabecalho .acoes-cabecalho {
+    margin-top: var(--sp-8);
+}
+
+.ficha-linhas {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.form-ficha .campo-largo {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 960px) {
+    .projeto-destaque,
+    .projeto-cabecalho {
+        grid-template-columns: 1fr;
+    }
+
+    .projeto-capa,
+    .projeto-cabecalho-capa {
+        max-width: 220px;
+    }
+
+    .projeto-bilhete {
+        border-top: 2px dashed color-mix(in srgb, var(--tema-tinta) 40%, transparent);
+        border-left: 0;
+    }
+
+    .projeto-anteriores a {
+        grid-template-columns: 1fr;
+
+        gap: 2px;
+    }
+}

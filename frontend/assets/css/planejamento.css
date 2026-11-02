@@ -575,3 +575,109 @@ summary::-webkit-details-marker {
     background: var(--red);
     color: var(--white);
 }
+
+/* =========================================================
+   IDENTIDADE VISUAL (capa e cor de cada exposição/evento)
+   style="--expo-cor: #...; --expo-capa: url(...)" vem de
+   Identidade::estilo(). A cor marca o card; a capa aparece à
+   direita e some num degradê, sem atrapalhar o texto.
+   ========================================================= */
+
+.identidade {
+    position: relative;
+
+    isolation: isolate;
+    overflow: hidden;
+
+    border-top: 4px solid var(--expo-cor, var(--turquoise));
+}
+
+.identidade > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* o círculo decorativo do card ganha a cor da exposição */
+.identidade::before {
+    background: color-mix(in srgb, var(--expo-cor, var(--turquoise)) 16%, transparent) !important;
+}
+
+.identidade.com-capa::after {
+    content: "";
+
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: 0;
+
+    width: min(55%, 520px);
+
+    background-image: var(--expo-capa);
+    background-position: center;
+    background-size: cover;
+
+    opacity: 0.9;
+
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 75%);
+    mask-image: linear-gradient(to right, transparent, #000 75%);
+
+    pointer-events: none;
+}
+
+/* sobre a capa, o texto ganha um fundo claro para continuar legível */
+.identidade.com-capa .expo-progresso,
+.identidade.com-capa .foco-numeros .numero {
+    background: rgba(255, 255, 255, 0.92);
+}
+
+/* cabeçalho da exposição vira um card quando tem identidade */
+.expo-cabecalho.identidade {
+    padding: var(--sp-28);
+
+    border-radius: var(--radius-md);
+
+    background: var(--white);
+
+    box-shadow: var(--shadow-soft);
+}
+
+.expo-cabecalho.identidade .expo-progresso {
+    padding: var(--sp-16);
+
+    border-radius: var(--radius-sm);
+}
+
+.expo-cartao.identidade .eyebrow {
+    color: var(--expo-cor, var(--turquoise));
+}
+
+@media (max-width: 720px) {
+    .identidade.com-capa::after {
+        width: 100%;
+        height: 120px;
+        inset: 0 0 auto 0;
+
+        opacity: 0.35;
+
+        -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+        mask-image: linear-gradient(to bottom, #000, transparent);
+    }
+}
+
+/* "Não precisa de prazo", embaixo do campo de data */
+.opcao-prazo {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    margin-top: var(--sp-8);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-13);
+    font-weight: 500;
+}
+
+.opcao-prazo input {
+    width: auto;
+}

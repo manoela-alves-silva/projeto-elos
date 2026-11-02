@@ -15,10 +15,12 @@ set -a
 . backend/.env
 set +a
 
-php -S 127.0.0.1:8000 -t backend/public &
+# Vários processos: o frontend pede várias coisas à API ao mesmo tempo.
+PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8000 -t backend/public &
 BACKEND=$!
 trap 'kill $BACKEND 2>/dev/null' EXIT
 
 echo "Backend:  http://127.0.0.1:8000"
 echo "Frontend: http://127.0.0.1:8081   (Ctrl+C para parar os dois)"
-php -S 127.0.0.1:8081 -t frontend
+# O roteador transforma os endereços curtos (/exposicoes...) nas páginas.
+PHP_CLI_SERVER_WORKERS=2 php -S 127.0.0.1:8081 -t frontend frontend/roteador.php

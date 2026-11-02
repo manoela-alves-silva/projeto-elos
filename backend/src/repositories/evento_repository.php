@@ -42,15 +42,20 @@ final class EventoRepository
                 e.id,
                 e.tipo_evento_id,
                 te.nome AS tipo_evento_nome,
+                te.cor AS tipo_evento_cor,
+                te.projeto AS tipo_evento_projeto,
                 e.responsavel_id,
                 r.nome AS responsavel_nome,
                 e.local_id,
                 l.nome AS local_nome,
                 e.titulo,
+                e.slug,
                 e.descricao,
                 e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
+                e.cor,
+                e.imagem_capa,
                 e.created_at,
                 e.updated_at
              FROM eventos e
@@ -66,8 +71,16 @@ final class EventoRepository
         );
 
         $statement->execute();
+        $eventos = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        return $statement->fetchAll(PDO::FETCH_ASSOC);
+        // Eventos de antes dos endereços gravados: ganham o seu agora.
+        foreach ($eventos as $i => $evento) {
+            if ($evento['slug'] === null) {
+                $eventos[$i]['slug'] = $this->atualizarEndereco((int) $evento['id'], (string) $evento['titulo']);
+            }
+        }
+
+        return $eventos;
     }
 
     /**
@@ -82,15 +95,20 @@ final class EventoRepository
                 e.id,
                 e.tipo_evento_id,
                 te.nome AS tipo_evento_nome,
+                te.cor AS tipo_evento_cor,
+                te.projeto AS tipo_evento_projeto,
                 e.responsavel_id,
                 r.nome AS responsavel_nome,
                 e.local_id,
                 l.nome AS local_nome,
                 e.titulo,
+                e.slug,
                 e.descricao,
                 e.prioridade,
                 ' . self::STATUS_CALCULADO . ' AS status,
                 e.observacoes,
+                e.cor,
+                e.imagem_capa,
                 e.created_at,
                 e.updated_at
              FROM eventos e
@@ -113,6 +131,90 @@ final class EventoRepository
         $evento = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $evento !== false ? $evento : null;
+    }
+
+    /**
+     * Endereço do evento a partir do nome ("Memórias do Rio" →
+     * "memorias-do-rio"). Se já é de outro evento (atual ou antigo), o id
+     * vai junto. O endereço anterior continua guardado em
+     * eventos_enderecos, então links antigos seguem valendo.
+     */
+    public function atualizarEndereco(int $id, string $titulo): string
+    {
+        $base = self::slug($titulo);
+        $slug = $base !== '' && !ctype_digit($base) ? $base : 'evento-' . $id;
+
+        $ocupado = $this->connection->prepare(
+            'SELECT 1 FROM eventos WHERE slug = :slug AND id <> :id
+             UNION SELECT 1 FROM eventos_enderecos WHERE slug = :slug2 AND evento_id <> :id2
+             LIMIT 1'
+        );
+        $ocupado->execute(['slug' => $slug, 'id' => $id, 'slug2' => $slug, 'id2' => $id]);
+
+        if ($ocupado->fetchColumn() !== false) {
+            $slug .= '-' . $id;
+        }
+
+        $this->connection
+            ->prepare('UPDATE eventos SET slug = :slug WHERE id = :id')
+            ->execute(['slug' => $slug, 'id' => $id]);
+        $this->connection
+            ->prepare('INSERT IGNORE INTO eventos_enderecos (slug, evento_id) VALUES (:slug, :id)')
+            ->execute(['slug' => $slug, 'id' => $id]);
+
+        return $slug;
+    }
+
+    /** Id do evento dono de um endereço (atual ou antigo), ou null. */
+    public function idDoEndereco(string $slug): ?int
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id FROM eventos WHERE slug = :slug
+             UNION SELECT evento_id FROM eventos_enderecos WHERE slug = :slug2
+             LIMIT 1'
+        );
+        $statement->execute(['slug' => $slug, 'slug2' => $slug]);
+        $id = $statement->fetchColumn();
+
+        return $id !== false ? (int) $id : null;
+    }
+
+    /** Mesma regra do frontend (slugDeTexto). */
+    public static function slug(string $texto): string
+    {
+        $texto = mb_strtolower(trim($texto));
+        $texto = strtr($texto, [
+            'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+            'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+            'ç' => 'c', 'ñ' => 'n',
+        ]);
+
+        return mb_substr(trim((string) preg_replace('/[^a-z0-9]+/', '-', $texto), '-'), 0, 200);
+    }
+
+    /**
+     * Troca a capa e a cor do evento. Devolve o nome da capa anterior
+     * (para o frontend apagar o arquivo antigo), ou false se o evento
+     * não existe.
+     */
+    public function atualizarIdentidade(int $id, ?string $imagemCapa, ?string $cor): string|false|null
+    {
+        $atual = $this->connection->prepare('SELECT imagem_capa FROM eventos WHERE id = :id LIMIT 1');
+        $atual->execute(['id' => $id]);
+        $linha = $atual->fetch(PDO::FETCH_ASSOC);
+
+        if ($linha === false) {
+            return false;
+        }
+
+        $this->connection
+            ->prepare('UPDATE eventos SET imagem_capa = :capa, cor = :cor WHERE id = :id')
+            ->execute(['capa' => $imagemCapa, 'cor' => $cor, 'id' => $id]);
+
+        return $linha['imagem_capa'] !== null ? (string) $linha['imagem_capa'] : null;
     }
 
     /**
@@ -170,6 +272,7 @@ final class EventoRepository
             'SELECT
                 e.id,
                 e.titulo,
+                e.slug,
                 ' . self::OCUPACAO_INICIO . ' AS ocupacao_inicio,
                 ' . self::OCUPACAO_FIM . ' AS ocupacao_fim
              FROM eventos e
@@ -241,8 +344,11 @@ final class EventoRepository
             'observacoes' => $observacoes,
         ]);
 
+        $novoId = (int) $this->connection->lastInsertId();
+        $this->atualizarEndereco($novoId, $titulo);
+
         return $this->findById(
-            (int) $this->connection->lastInsertId()
+            $novoId
         );
     }
 
@@ -293,6 +399,8 @@ final class EventoRepository
         ) {
             return null;
         }
+
+        $this->atualizarEndereco($id, $titulo);
 
         return $this->findById($id);
     }

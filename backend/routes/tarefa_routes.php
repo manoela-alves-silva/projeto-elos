@@ -166,6 +166,10 @@ function handleTarefaRequest(
             ]);
         }
 
+        if (array_key_exists('prazo_dispensado', $payload)) {
+            $tarefa = $tarefaController->definirPrazoDispensado((int) $tarefa['id'], (bool) $payload['prazo_dispensado']) ?? $tarefa;
+        }
+
         HistoricoService::registrar($eventoId, 'Item adicionado', (string) $tarefa['titulo']);
 
         sendJsonResponse(201, [
@@ -499,6 +503,12 @@ function handleTarefaByIdRequest(
                 'erro' => 'Não foi possível atualizar a tarefa.',
             ]);
         }
+
+        // Sem o campo, mantém a marca atual (mas uma data nova sempre a apaga).
+        $tarefa = $tarefaController->definirPrazoDispensado(
+            $id,
+            array_key_exists('prazo_dispensado', $payload) ? (bool) $payload['prazo_dispensado'] : !empty($tarefaAtual['prazo_dispensado'])
+        ) ?? $tarefa;
 
         HistoricoService::registrar($eventoId, 'Item editado', (string) $tarefa['titulo']);
 

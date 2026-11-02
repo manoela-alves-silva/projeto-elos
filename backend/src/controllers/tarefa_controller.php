@@ -122,6 +122,18 @@ final class TarefaController
     /**
      * Exclui uma tarefa.
      */
+    /**
+     * Grava "não precisa de prazo" e devolve a tarefa atualizada.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function definirPrazoDispensado(int $id, bool $dispensado): ?array
+    {
+        $this->repository->definirPrazoDispensado($id, $dispensado);
+
+        return $this->repository->findById($id);
+    }
+
     public function delete(int $id, int $eventoId): bool
     {
         return $this->repository->delete(

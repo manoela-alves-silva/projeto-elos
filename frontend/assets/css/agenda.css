@@ -374,3 +374,29 @@
         font-size: 0;
     }
 }
+
+/* Cor do tipo de evento (Exposição, Cine Clube...): uma faixa à
+   esquerda de cada marcação, para ver o que acontece ao mesmo tempo. */
+.marker-pill[style*="--cor-tipo"] {
+    border-left: 3px solid var(--cor-tipo);
+}
+
+.bolinha[style*="--cor-tipo"] {
+    box-shadow: 0 0 0 2px var(--white), 0 0 0 4px var(--cor-tipo);
+}
+
+.legenda-tipos {
+    margin-bottom: var(--sp-8);
+}
+
+.legenda-tipos li {
+    color: var(--text);
+
+    font-weight: 600;
+}
+
+.legenda-tipos li::before {
+    border-radius: 3px;
+
+    background: var(--cor-legenda);
+}

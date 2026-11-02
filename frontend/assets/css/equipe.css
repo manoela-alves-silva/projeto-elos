@@ -114,3 +114,24 @@
 
     user-select: all;
 }
+
+/* Cadastros esperando aprovação: destacados no topo. */
+.equipe-pendentes {
+    border-left: 4px solid var(--yellow);
+}
+
+.equipe-pendentes .lista-simples li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    gap: var(--sp-8) var(--sp-16);
+}
+
+.equipe-decisao {
+    display: flex;
+
+    gap: var(--sp-8);
+
+    margin-left: auto;
+}

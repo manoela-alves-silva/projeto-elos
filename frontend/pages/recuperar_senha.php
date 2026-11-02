@@ -18,7 +18,7 @@ require_once __DIR__ . '/../src/Api.php';
 $usuario = $_SESSION['usuario'] ?? null;
 
 if (is_array($usuario) && !empty($usuario['id'])) {
-    header('Location: ../index.php');
+    header('Location: ./');
     exit();
 }
 
@@ -95,13 +95,19 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
     <link
         rel="stylesheet"
-        href="../assets/css/base.css"
+        href="../assets/css/base.css?v=2026-11-01"
     >
 
     <link
         rel="stylesheet"
-        href="../assets/css/login.css"
+        href="../assets/css/login.css?v=2026-10-29"
     >
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 
 <body class="login-page">
@@ -116,7 +122,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
         <div class="sidebar-logo">
             <a
-                href="../index.php"
+                href="./"
                 aria-label="ELOS"
             >
                 <strong class="sidebar-logo-text">
@@ -220,7 +226,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
                 </div>
 
                 <a
-                    href="login.php"
+                    href="entrar"
                     class="login-submit login-submit-link"
                 >
                     Ir para o login
@@ -383,7 +389,7 @@ $emailInformado = escapar((string) ($_POST['email'] ?? ''));
 
                 <p class="login-signup">
                     Lembrou a senha?
-                    <a href="login.php">Entrar</a>
+                    <a href="entrar">Entrar</a>
                 </p>
 
             <?php endif; ?>

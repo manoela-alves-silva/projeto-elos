@@ -705,3 +705,359 @@ fieldset.campo {
         display: flex;
     }
 }
+
+/* =========================================================
+   CHECKLIST POR FASE: filtros e blocos
+   Cada fase tem a cor da etapa (--fase-cor, de Fases::estiloCor).
+   ========================================================= */
+
+.filtros-fase {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+
+    gap: var(--sp-12) var(--sp-16);
+
+    padding: var(--sp-16) var(--sp-24);
+
+    border-bottom: 1px solid var(--cream-dark);
+}
+
+.filtros-etapa {
+    display: flex;
+    flex-direction: column;
+
+    gap: 6px;
+}
+
+.filtros-etapa-nome {
+    color: var(--fase-cor);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.filtros-etapa-lista {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 6px;
+}
+
+.filtro {
+    display: inline-flex;
+    align-items: center;
+
+    gap: 6px;
+
+    padding: 6px 12px;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill, 999px);
+
+    background: var(--white);
+
+    color: var(--text);
+
+    font-size: var(--fs-13);
+    font-weight: 600;
+
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.filtro:hover {
+    border-color: var(--navy);
+}
+
+.filtro > span {
+    min-width: 20px;
+    padding: 0 6px;
+
+    border-radius: 999px;
+
+    background: var(--cream);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    text-align: center;
+}
+
+.filtro.ativo {
+    border-color: var(--navy);
+
+    background: var(--navy);
+
+    color: var(--white);
+}
+
+.filtro.ativo > span {
+    background: rgba(255, 255, 255, 0.2);
+
+    color: var(--white);
+}
+
+.filtro-fase i {
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: var(--fase-cor);
+}
+
+.filtro-fase.completa {
+    color: var(--text-soft);
+}
+
+.filtro-fase.completa > span {
+    background: var(--green-light);
+
+    color: var(--on-green);
+}
+
+.filtro-atrasadas {
+    border-color: var(--red-border);
+
+    color: var(--red-dark);
+}
+
+.filtro-atrasadas > span {
+    background: var(--red-light);
+
+    color: var(--red-dark);
+}
+
+.filtro-semana > span {
+    background: var(--yellow-light);
+
+    color: var(--on-yellow);
+}
+
+.bloco-fase {
+    border-left: 4px solid var(--fase-cor, var(--border));
+}
+
+.bloco-fase + .bloco-fase {
+    border-top: 1px solid var(--cream-dark);
+}
+
+.bloco-prazo {
+    border-left-color: var(--navy);
+}
+
+.fase-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+
+    gap: var(--sp-4) var(--sp-12);
+
+    padding: var(--sp-16) var(--sp-24) var(--sp-4);
+}
+
+.fase-etapa {
+    color: var(--fase-cor);
+
+    font-size: var(--fs-11);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.fase-nome {
+    color: var(--navy);
+
+    font-size: var(--fs-16);
+    font-weight: 750;
+}
+
+.fase-progresso {
+    display: inline-flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    margin-left: auto;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+    font-weight: 600;
+}
+
+.fase-barra {
+    width: 72px;
+    height: 6px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: var(--cream-dark);
+}
+
+.fase-barra > span {
+    display: block;
+
+    height: 100%;
+
+    background: var(--fase-cor, var(--turquoise));
+}
+
+.fase-completa {
+    padding: var(--sp-4) var(--sp-24) var(--sp-16);
+
+    color: var(--on-green);
+
+    font-size: var(--fs-14);
+    font-weight: 600;
+}
+
+.bloco-fase .grupo-feito {
+    margin: 0 var(--sp-24) var(--sp-12);
+}
+
+.historico-detalhe {
+    color: var(--text-soft);
+}
+
+/* =========================================================
+   CAPA E COR
+   ========================================================= */
+
+.painel-identidade {
+    margin-bottom: var(--sp-24);
+}
+
+.form-identidade {
+    padding: 0 var(--sp-24) var(--sp-24);
+}
+
+.identidade-campos {
+    display: grid;
+
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 280px);
+    align-items: start;
+
+    gap: var(--sp-20);
+}
+
+.form-identidade .dica {
+    margin-top: 6px;
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-12);
+}
+
+.form-identidade .opcao {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-8);
+
+    margin-top: var(--sp-8);
+
+    font-size: var(--fs-13);
+}
+
+.form-identidade .opcao input {
+    width: auto;
+}
+
+.cor-linha {
+    display: flex;
+    align-items: center;
+
+    gap: var(--sp-12);
+}
+
+.cor-linha input[type="color"] {
+    flex: none;
+
+    width: 56px;
+    height: 40px;
+    padding: 2px;
+
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+
+    background: var(--white);
+
+    cursor: pointer;
+}
+
+.cor-linha .dica {
+    margin: 0;
+}
+
+.identidade-previa {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    gap: var(--sp-8);
+
+    min-height: 140px;
+    padding: var(--sp-16);
+    overflow: hidden;
+
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--expo-cor);
+    border-radius: var(--radius-sm);
+
+    background-color: var(--white);
+    background-image: linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0.2)), var(--expo-capa, none);
+    background-position: center;
+    background-size: cover;
+}
+
+.previa-rotulo {
+    position: absolute;
+    top: var(--sp-8);
+    left: var(--sp-12);
+
+    color: var(--text-soft);
+
+    font-size: var(--fs-11);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.previa-titulo {
+    color: var(--navy);
+
+    font-size: var(--fs-16);
+    font-weight: 750;
+}
+
+.previa-numeros {
+    display: flex;
+
+    gap: 6px;
+}
+
+.previa-numeros i {
+    width: 36px;
+    height: 16px;
+
+    border-radius: 4px;
+
+    background: color-mix(in srgb, var(--expo-cor) 22%, #fff);
+}
+
+@media (max-width: 900px) {
+    .identidade-campos {
+        grid-template-columns: 1fr;
+    }
+
+    .fase-progresso {
+        margin-left: 0;
+    }
+}

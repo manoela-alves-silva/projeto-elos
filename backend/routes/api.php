@@ -19,6 +19,7 @@ require_once __DIR__ . '/visita_routes.php';
 require_once __DIR__ . '/anexo_routes.php';
 require_once __DIR__ . '/historico_routes.php';
 require_once __DIR__ . '/eventos_dispatcher_routes.php';
+require_once __DIR__ . '/projeto_routes.php';
 
 use Elos\Controllers\UsuarioController;
 use Elos\Services\AuthorizationService;
@@ -48,10 +49,16 @@ function handleApiRequest(
     callable $transporteControllerFactory,
     callable $visitaControllerFactory,
     callable $anexoControllerFactory,
-    callable $historicoControllerFactory
+    callable $historicoControllerFactory,
+    ?callable $pdoFactory = null
 ): void {
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+
+    // Capa e cor, fichas dos projetos e painel ao vivo.
+    if ($pdoFactory !== null) {
+        handleProjetoRequest($method, (string) $path, $pdoFactory, $authorizationFactory);
+    }
 
     if ($path === '/api/login') {
         handleLoginRequest($method, $controllerFactory);

@@ -418,3 +418,59 @@ tr.estado-concluido td:nth-child(3) { color: var(--text-soft); }
         break-before: page;
     }
 }
+
+/* Checklist agrupado por fase, com a cor da etapa (--fase-cor). */
+.tabela-checklist .fase-cabecalho th {
+    padding-top: 14px;
+
+    border-left: 4px solid var(--fase-cor, #999);
+
+    background: color-mix(in srgb, var(--fase-cor, #999) 10%, #fff);
+
+    text-align: left;
+}
+
+.tabela-checklist .fase-nome {
+    font-weight: 800;
+}
+
+.tabela-checklist .fase-etapa {
+    margin-left: 8px;
+
+    color: var(--fase-cor, #666);
+
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.tabela-checklist .fase-andamento {
+    float: right;
+
+    color: #555;
+
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.col-descricao .item-categoria {
+    color: #666;
+}
+
+.folha-projeto {
+    display: block;
+
+    color: #666;
+
+    font-size: 0.8em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+@media print {
+    .tabela-checklist .fase-cabecalho th {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

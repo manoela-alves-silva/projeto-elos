@@ -2,3 +2,17 @@
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
+
+# Endereços curtos (/exposicoes, /exposicao/nome...): tudo que não é
+# arquivo de verdade vai para o roteador. As páginas .php também passam
+# por ele (os endereços antigos redirecionam para os novos), menos a
+# volta do login com Google, que tem endereço cadastrado no Google.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^src/ - [F,L]
+    RewriteRule ^roteador\.php$ - [L]
+    RewriteRule ^pages/google_retorno\.php$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f [OR]
+    RewriteCond %{REQUEST_FILENAME} \.php$
+    RewriteRule ^ roteador.php [L,QSA]
+</IfModule>

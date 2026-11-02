@@ -12,7 +12,7 @@ require_once __DIR__ . '/../src/Api.php';
 $usuario = $_SESSION['usuario'] ?? null;
 
 if (is_array($usuario) && !empty($usuario['id'])) {
-    header('Location: ../index.php');
+    header('Location: ./');
     exit();
 }
 
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 \Elos\Frontend\lembrarLogin(($_POST['lembrar'] ?? '') === '1');
 
-                header('Location: ../index.php');
+                header('Location: ./');
                 exit();
             }
 
@@ -121,13 +121,19 @@ $emailInformado = escapar(
 
     <link
         rel="stylesheet"
-        href="../assets/css/base.css"
+        href="../assets/css/base.css?v=2026-11-01"
     >
 
     <link
         rel="stylesheet"
-        href="../assets/css/login.css"
+        href="../assets/css/login.css?v=2026-10-29"
     >
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 
 <body class="login-page">
@@ -142,7 +148,7 @@ $emailInformado = escapar(
 
         <div class="sidebar-logo">
             <a
-                href="../index.php"
+                href="./"
                 aria-label="ELOS"
             >
                 <strong class="sidebar-logo-text">
@@ -336,7 +342,7 @@ $emailInformado = escapar(
 
 
                     <a
-                        href="recuperar_senha.php"
+                        href="recuperar-senha"
                         class="forgot-password"
                     >
                         Esqueceu a senha?
@@ -369,7 +375,7 @@ $emailInformado = escapar(
 
 
             <a
-                href="google_entrar.php"
+                href="entrar-com-google"
                 class="google-button"
                 id="googleButton"
             >
@@ -387,7 +393,7 @@ $emailInformado = escapar(
 
             <p class="login-signup">
                 Ainda não tem conta?
-                <a href="cadastro.php">Criar conta</a>
+                <a href="criar-conta">Criar conta</a>
             </p>
 
 
@@ -434,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (lembrar && google) {
         google.addEventListener('click', function () {
-            google.href = 'google_entrar.php' + (lembrar.checked ? '?lembrar=1' : '');
+            google.href = 'entrar-com-google' + (lembrar.checked ? '?lembrar=1' : '');
         });
     }
 

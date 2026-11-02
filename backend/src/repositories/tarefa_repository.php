@@ -32,6 +32,7 @@ final class TarefaRepository
                 t.descricao,
                 t.prazo,
                 t.horario,
+                t.prazo_dispensado,
                 t.prioridade,
                 t.status,
                 t.observacoes,
@@ -84,6 +85,7 @@ final class TarefaRepository
                 t.descricao,
                 t.prazo,
                 t.horario,
+                t.prazo_dispensado,
                 t.prioridade,
                 t.status,
                 t.observacoes,
@@ -112,6 +114,17 @@ final class TarefaRepository
         $tarefa = $statement->fetch();
 
         return $tarefa !== false ? $tarefa : null;
+    }
+
+    /**
+     * Marca (ou desmarca) "não precisa de prazo". Só vale sem data:
+     * com prazo, a marca é sempre apagada.
+     */
+    public function definirPrazoDispensado(int $id, bool $dispensado): void
+    {
+        $this->pdo
+            ->prepare('UPDATE tarefas SET prazo_dispensado = CASE WHEN prazo IS NULL THEN :d ELSE 0 END WHERE id = :id')
+            ->execute(['d' => $dispensado ? 1 : 0, 'id' => $id]);
     }
 
     /**

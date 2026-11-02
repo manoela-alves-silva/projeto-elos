@@ -18,6 +18,7 @@ use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\avisoConflito;
 use function Elos\Frontend\conflitosNoLocal;
 use function Elos\Frontend\dataValida;
@@ -39,10 +40,10 @@ use const Elos\Frontend\PRIORIDADES;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 if (!$usuario['podeGerenciar']) {
-    redirecionar('eventos.php');
+    redirecionar('exposicoes');
 }
 
 const CAMPOS_LINHA = ['categoria_id', 'nova_categoria', 'titulo', 'prazo', 'horario', 'responsavel', 'prioridade'];
@@ -193,7 +194,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'horario' => preg_match('/^\d{2}:\d{2}$/', $linha['horario']) ? $linha['horario'] : null,
                         'prioridade' => in_array($linha['prioridade'], PRIORIDADES, true) ? $linha['prioridade'] : 'MEDIA',
                         'status' => 'PENDENTE',
-                        'etapa_id' => null,
                         'descricao' => null,
                         'observacoes' => null,
                     ] + resolverResponsavel($linha['responsavel'], $usuariosDoSistema));
@@ -210,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             flash('evento', $mensagem);
-            redirecionar('evento.php?id=' . $eventoId);
+            redirecionar(linkExposicao($eventoId));
         }
     }
 
@@ -219,7 +219,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$tipos = apiLista('/api/tipos-evento', 'tipos_evento') ?? [];
+// Só tipos de exposição (o Cine Clube cria as sessões na área dele).
+$tipos = array_values(array_filter(
+    apiLista('/api/tipos-evento', 'tipos_evento') ?? [],
+    static fn(array $t): bool => \Elos\Frontend\Projetos::doTipo($t) === \Elos\Frontend\Projetos::EXPOSICOES
+));
 $responsaveis = apiLista('/api/responsaveis', 'responsaveis') ?? [];
 $locais = apiLista('/api/locais', 'locais') ?? [];
 $cursos = apiLista('/api/cursos', 'cursos') ?? [];
@@ -281,14 +285,20 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
     <title>Nova exposição | ELOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/eventos.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/eventos.css?v=2026-10-29">
 </head>
 <body>
 
@@ -299,7 +309,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
     <main class="main-content">
 
         <header class="topbar">
-            <a href="eventos.php" class="text-link">← Exposições</a>
+            <a href="exposicoes" class="text-link">← Exposições</a>
             <div class="topbar-actions">
                 <div class="topbar-user">
                     <div class="user-avatar small"><?= esc(mb_strtoupper(mb_substr($usuario['nome'], 0, 1))) ?></div>
@@ -329,7 +339,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
                 <div class="aviso aviso-conflito" role="status">O local já está ocupado nessas datas. Veja o aviso no fim da página antes de criar.</div>
             <?php endif; ?>
 
-            <form method="post" action="evento_novo.php" class="form-elos passos">
+            <form method="post" action="nova-exposicao" class="form-elos passos">
                 <?= \Elos\Frontend\campoCsrf() ?>
 
                 <!-- 1. INFORMAÇÕES -->
@@ -441,7 +451,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
 
                 <div class="panel concluir-cadastro">
                     <p>Tudo entra como pendente. Você acompanha e marca o que for resolvido dentro da exposição.</p>
-                    <a href="eventos.php" class="text-link">Cancelar</a>
+                    <a href="exposicoes" class="text-link">Cancelar</a>
                     <button type="submit" class="primary-button">Criar exposição</button>
                 </div>
 
@@ -452,7 +462,7 @@ function linhaNecessidade(string $indice, array $v, array $categorias, array $us
 </div>
 
 <?php sugestoesDeResponsavel($usuarios); ?>
-<script src="../assets/js/elos.js"></script>
+<script src="../assets/js/elos.js?v=2026-10-29"></script>
 <script>
 (function () {
     const lista = document.getElementById('linhasNecessidades');

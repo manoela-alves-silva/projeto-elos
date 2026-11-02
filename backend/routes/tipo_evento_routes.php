@@ -41,7 +41,16 @@ function handleTipoEventoRequest(
             ]);
         }
 
-        $tipoEvento = $tipoEventoControllerFactory()->create($nome);
+        // Projeto da galeria (cine-clube...); sem ele, o tipo é de exposição.
+        $projeto = $payload['projeto'] ?? null;
+
+        if ($projeto !== null && (!is_string($projeto) || preg_match('/^[a-z-]{1,40}$/', $projeto) !== 1)) {
+            sendJsonResponse(400, [
+                'erro' => 'Projeto inválido.',
+            ]);
+        }
+
+        $tipoEvento = $tipoEventoControllerFactory()->create($nome, $projeto);
 
         if ($tipoEvento === null) {
             sendJsonResponse(409, [

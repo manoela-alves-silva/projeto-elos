@@ -11,6 +11,8 @@ namespace Elos\Frontend;
 
 require_once __DIR__ . '/Api.php';
 require_once __DIR__ . '/MenuLateral.php';
+require_once __DIR__ . '/Projetos.php';
+require_once __DIR__ . '/Fases.php';
 
 const PRIORIDADES = ['BAIXA', 'MEDIA', 'ALTA'];
 const STATUS_EVENTO = ['PLANEJAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO'];
@@ -32,8 +34,7 @@ function usuarioLogado(string $caminhoLogin): array
     $usuario = $_SESSION['usuario'] ?? null;
 
     if (!is_array($usuario) || empty($usuario['id'])) {
-        header('Location: ' . $caminhoLogin);
-        exit();
+        redirecionar($caminhoLogin);
     }
 
     // O perfil pode ter mudado na tela Equipe desde o login: confere
@@ -109,10 +110,178 @@ function flash(string $chave, ?string $mensagem = null): string
     return $valor;
 }
 
+/**
+ * Redireciona. Endereços relativos ("exposicoes", "./") valem a partir
+ * da raiz do site, em qualquer tela (mesmo em /exposicao/nome/...).
+ */
 function redirecionar(string $url): never
 {
+    if ($url === './' || $url === '.') {
+        $url = raizDoSite() . '/';
+    } elseif (!preg_match('#^(https?:)?/|^[?\#]#', $url)) {
+        $url = raizDoSite() . '/' . $url;
+    }
+
     header('Location: ' . $url);
     exit();
+}
+
+// ---------------------------------------------------------------
+// Endereços
+// ---------------------------------------------------------------
+
+/**
+ * Raiz do site ('' quando está na raiz do domínio; '/elos' numa pasta).
+ * O roteador define ELOS_RAIZ; sem ele, vem da pasta do script.
+ */
+function raizDoSite(): string
+{
+    if (defined('ELOS_RAIZ')) {
+        return (string) constant('ELOS_RAIZ');
+    }
+
+    $pasta = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
+
+    if (basename($pasta) === 'pages') {
+        $pasta = dirname($pasta);
+    }
+
+    return rtrim($pasta, '/.');
+}
+
+/** "Memórias do Rio Antigo" → "memorias-do-rio-antigo". */
+function slugDeTexto(string $texto): string
+{
+    $texto = mb_strtolower(trim($texto));
+    $semAcento = strtr($texto, [
+        'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+        'ç' => 'c', 'ñ' => 'n',
+    ]);
+
+    return trim((string) preg_replace('/[^a-z0-9]+/', '-', $semAcento), '-');
+}
+
+/**
+ * Busca os endereços na API ao mesmo tempo e guarda as respostas para
+ * esta página (os apiLista/apiGet seguintes não esperam de novo).
+ *
+ * @param list<string> $paths
+ */
+function preCarregar(array $paths): void
+{
+    iniciarSessao();
+
+    // Sem login, a API só responderia "não autenticado".
+    if (empty($_SESSION['usuario']['id'])) {
+        return;
+    }
+
+    Api::preCarregar($paths);
+}
+
+/**
+ * Eventos conhecidos (id => evento), da lista que a página já buscou.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function eventosPorId(): array
+{
+    $porId = [];
+
+    foreach (apiLista('/api/eventos', 'eventos') ?? [] as $evento) {
+        $porId[(int) $evento['id']] = $evento;
+    }
+
+    return $porId;
+}
+
+/**
+ * Endereço do evento (o "nome" em /exposicao/nome). Vem gravado do
+ * backend (eventos.slug); sem ele, só o id.
+ */
+function slugDaExposicao(int $id): string
+{
+    $slug = (string) (eventosPorId()[$id]['slug'] ?? '');
+
+    return $slug !== '' ? $slug : (string) $id;
+}
+
+/**
+ * Id do evento a partir do endereço (atual ou de um nome antigo) ou de
+ * um id. 0 = nenhum.
+ */
+function idDaExposicaoNoParametro(mixed $valor): int
+{
+    $valor = is_scalar($valor) ? trim((string) $valor) : '';
+
+    if ($valor === '') {
+        return 0;
+    }
+
+    if (ctype_digit($valor)) {
+        return (int) $valor;
+    }
+
+    foreach (eventosPorId() as $id => $evento) {
+        if ((string) ($evento['slug'] ?? '') === $valor) {
+            return $id;
+        }
+    }
+
+    // Nome antigo: o backend guarda todos os endereços que o evento já teve.
+    if (preg_match('/^[a-z0-9-]{1,220}$/', $valor) === 1) {
+        return (int) (apiGet('/api/eventos/endereco/' . $valor)['evento_id'] ?? 0);
+    }
+
+    return 0;
+}
+
+/**
+ * Evento da página: o nome no endereço (/exposicao/nome, definido pelo
+ * roteador) ou ?id= dos endereços antigos. 0 = não achou.
+ */
+function exposicaoDoEndereco(string $acao = ''): int
+{
+    if (defined('ELOS_SLUG_EXPOSICAO')) {
+        return idDaExposicaoNoParametro(constant('ELOS_SLUG_EXPOSICAO'));
+    }
+
+    return idDaExposicaoNoParametro($_GET['id'] ?? '');
+}
+
+/**
+ * Endereço de um evento: /exposicao/nome, /sessao/nome... com filtros
+ * (?fase=...), uma âncora (#datas) e, se preciso, uma ação
+ * (/exposicao/nome/apagar-exposicao).
+ *
+ * @param array<string, scalar> $params
+ */
+function linkExposicao(int $id, array $params = [], string $ancora = '', string $acao = ''): string
+{
+    $evento = eventosPorId()[$id] ?? null;
+    $pagina = Projetos::dados($evento !== null ? Projetos::doEvento($evento) : Projetos::EXPOSICOES)['pagina'];
+
+    $url = raizDoSite() . '/' . $pagina . '/' . rawurlencode(slugDaExposicao($id));
+
+    if ($acao !== '') {
+        $url .= '/' . rawurlencode($acao);
+    }
+
+    $params = array_filter($params, static fn (mixed $v): bool => $v !== null && $v !== '');
+
+    if ($params !== []) {
+        $url .= '?' . http_build_query($params);
+    }
+
+    if ($ancora !== '') {
+        $url .= str_starts_with($ancora, '#') ? $ancora : '#' . $ancora;
+    }
+
+    return $url;
 }
 
 // ---------------------------------------------------------------
@@ -330,7 +499,7 @@ function avisoConflito(array $conflitos, string $textoBotao = 'Salvar mesmo assi
         <ul>
             <?php foreach ($conflitos as $conflito): ?>
                 <li>
-                    <a href="evento.php?id=<?= (int) $conflito['id'] ?>"><?= esc($conflito['titulo']) ?></a>:
+                    <a href="<?= esc(linkExposicao((int) $conflito['id'])) ?>"><?= esc($conflito['titulo']) ?></a>:
                     <?= esc(dataBr($conflito['ocupacao_inicio'])) ?> a <?= esc(dataBr($conflito['ocupacao_fim'])) ?>
                 </li>
             <?php endforeach; ?>
@@ -494,15 +663,17 @@ function resolverCategoria(string $escolha, string $novaCategoria): array
  * Tipo, responsável e local de uma exposição, vindos do formulário
  * (cada um pode ter sido escrito como novo).
  *
+ * @param string $projeto Projeto do evento (para um tipo novo).
  * @return array{ids: array{tipo_evento_id: ?int, responsavel_id: ?int, local_id: ?int}, erro: string}
  */
-function resolverCadastrosDaExposicao(array $post): array
+function resolverCadastrosDaExposicao(array $post, string $projeto = Projetos::EXPOSICOES): array
 {
     $tipoResponsavel = (string) ($post['responsavel_tipo_novo'] ?? 'PESSOA');
     $tipoResponsavel = array_key_exists($tipoResponsavel, TIPOS_RESPONSAVEL) ? $tipoResponsavel : 'PESSOA';
 
     $campos = [
-        'tipo_evento_id' => ['tipo', []],
+        // Tipo novo escrito num evento de projeto já nasce desse projeto.
+        'tipo_evento_id' => ['tipo', $projeto !== Projetos::EXPOSICOES ? ['projeto' => $projeto] : []],
         'responsavel_id' => ['responsavel', ['tipo' => $tipoResponsavel]],
         'local_id' => ['local', []],
     ];

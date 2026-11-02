@@ -67,6 +67,29 @@ final class Planejamento
         );
     }
 
+    /**
+     * Vários eventos de uma vez: busca a agenda e o checklist de todos
+     * em paralelo e depois monta cada um.
+     *
+     * @param iterable<array<string, mixed>> $eventos
+     * @return list<self>
+     */
+    public static function carregarVarios(iterable $eventos): array
+    {
+        $eventos = array_values(is_array($eventos) ? $eventos : iterator_to_array($eventos, false));
+        $paths = [];
+
+        foreach ($eventos as $evento) {
+            $base = '/api/eventos/' . (int) ($evento['id'] ?? 0);
+            $paths[] = $base . '/agenda';
+            $paths[] = $base . '/tarefas';
+        }
+
+        preCarregar($paths);
+
+        return array_map(static fn (array $evento): self => self::carregar($evento), $eventos);
+    }
+
     public function id(): int
     {
         return (int) ($this->evento['id'] ?? 0);
@@ -178,7 +201,7 @@ final class Planejamento
     public function itensDatados(bool $incluirCancelados = false): array
     {
         $itens = [];
-        $base = 'evento.php?id=' . $this->id();
+        $base = linkExposicao($this->id());
 
         foreach (self::CAMPOS_AGENDA as $campo => [$rotulo, $grupo]) {
             if (!empty($this->agenda[$campo])) {

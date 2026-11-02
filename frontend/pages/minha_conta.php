@@ -21,7 +21,7 @@ use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
 
-$usuario = usuarioLogado('login.php');
+$usuario = usuarioLogado('entrar');
 
 $erro = '';
 $erroCodigo = '';
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'gerar_c
             ]);
 
             flash('conta', 'Senha alterada. Use a nova senha da próxima vez que entrar.');
-            redirecionar('minha_conta.php');
+            redirecionar('minha-conta');
         } catch (ApiException $e) {
             $erro = $e->getMessage();
         }
@@ -79,10 +79,16 @@ $mensagem = flash('conta');
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/conta.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/conta.css?v=2026-10-29">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 <body>
 

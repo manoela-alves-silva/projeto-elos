@@ -8,10 +8,12 @@ declare(strict_types=1);
  * Clicar abre a exposição, onde está tudo dela.
  */
 
+use Elos\Frontend\Identidade;
 use Elos\Frontend\MenuLateral;
 use Elos\Frontend\Planejamento;
 
 use function Elos\Frontend\apiLista;
+use function Elos\Frontend\linkExposicao;
 use function Elos\Frontend\classeStatusEvento;
 use function Elos\Frontend\diaMes;
 use function Elos\Frontend\esc;
@@ -20,21 +22,28 @@ use function Elos\Frontend\exposicaoAtiva;
 use function Elos\Frontend\intervaloBr;
 use function Elos\Frontend\redirecionar;
 use function Elos\Frontend\rotuloStatusEvento;
+use function Elos\Frontend\preCarregar;
 use function Elos\Frontend\usuarioLogado;
 
 require_once __DIR__ . '/../src/Planejamento.php';
+require_once __DIR__ . '/../src/Identidade.php';
 
-$usuario = usuarioLogado('login.php');
+preCarregar(['/api/eventos']);
+$usuario = usuarioLogado('entrar');
 
 // Endereço antigo do cadastro: agora é um fluxo próprio.
 if (($_GET['painel'] ?? '') === 'novo') {
-    redirecionar('evento_novo.php');
+    redirecionar('nova-exposicao');
 }
 
 $eventos = apiLista('/api/eventos', 'eventos');
+// Só as exposições: as sessões do Cine Clube têm a área delas.
+if ($eventos !== null) {
+    $eventos = \Elos\Frontend\Projetos::filtrar($eventos, \Elos\Frontend\Projetos::EXPOSICOES);
+}
 $apiIndisponivel = $eventos === null;
 
-$planos = array_map(static fn(array $evento): Planejamento => Planejamento::carregar($evento), $eventos ?? []);
+$planos = Planejamento::carregarVarios($eventos ?? []);
 
 $verEncerradas = ($_GET['ver'] ?? '') === 'encerradas';
 $ativas = array_values(array_filter($planos, static fn(Planejamento $p): bool => exposicaoAtiva($p->evento)));
@@ -65,10 +74,16 @@ $mensagem = flash('eventos');
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/base.css">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planejamento.css">
-    <link rel="stylesheet" href="../assets/css/eventos.css">
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=2026-11-01">
+    <link rel="stylesheet" href="../assets/css/planejamento.css?v=2026-10-29">
+    <link rel="stylesheet" href="../assets/css/eventos.css?v=2026-10-29">
+    <!-- Ícone do ELOS na aba do navegador, no celular e no app instalado. -->
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../assets/img/icone-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/img/icone-180.png">
+    <link rel="manifest" href="../assets/elos.webmanifest">
+    <meta name="theme-color" content="#123d59">
 </head>
 <body>
 
@@ -114,15 +129,15 @@ $mensagem = flash('eventos');
                 </div>
 
                 <?php if ($usuario['podeGerenciar']): ?>
-                    <a href="evento_novo.php" class="primary-button"><span>+</span> Nova exposição</a>
+                    <a href="nova-exposicao" class="primary-button"><span>+</span> Nova exposição</a>
                 <?php endif; ?>
             </section>
 
             <nav class="abas" aria-label="Filtrar exposições">
-                <a href="eventos.php" class="<?= $verEncerradas ? '' : 'ativa' ?>" <?= $verEncerradas ? '' : 'aria-current="page"' ?>>
+                <a href="exposicoes" class="<?= $verEncerradas ? '' : 'ativa' ?>" <?= $verEncerradas ? '' : 'aria-current="page"' ?>>
                     Em andamento e planejamento <span><?= count($ativas) ?></span>
                 </a>
-                <a href="eventos.php?ver=encerradas" class="<?= $verEncerradas ? 'ativa' : '' ?>" <?= $verEncerradas ? 'aria-current="page"' : '' ?>>
+                <a href="exposicoes?ver=encerradas" class="<?= $verEncerradas ? 'ativa' : '' ?>" <?= $verEncerradas ? 'aria-current="page"' : '' ?>>
                     Encerradas <span><?= count($encerradas) ?></span>
                 </a>
             </nav>
@@ -139,7 +154,7 @@ $mensagem = flash('eventos');
                             <h2>Nenhuma exposição em andamento</h2>
                             <p>Crie uma exposição e diga o que ela precisa: o ELOS organiza as datas e as pendências.</p>
                             <?php if ($usuario['podeGerenciar']): ?>
-                                <a href="evento_novo.php" class="primary-button"><span>+</span> Nova exposição</a>
+                                <a href="nova-exposicao" class="primary-button"><span>+</span> Nova exposição</a>
                             <?php endif; ?>
                         <?php endif; ?>
                     </div>
@@ -156,8 +171,9 @@ $mensagem = flash('eventos');
                         $proximo = $plano->proximasAtividades(1)[0] ?? null;
                         ?>
                         <a
-                            href="evento.php?id=<?= $plano->id() ?>"
-                            class="expo-cartao"
+                            href="<?= esc(linkExposicao($plano->id())) ?>"
+                            class="expo-cartao identidade<?= Identidade::urlCapa($evento) !== null ? ' com-capa' : '' ?>"
+                            style="<?= esc(Identidade::estilo($evento, 640)) ?>"
                             data-busca="<?= esc(mb_strtolower(($evento['titulo'] ?? '') . ' ' . ($evento['local_nome'] ?? '') . ' ' . ($evento['tipo_evento_nome'] ?? '') . ' ' . ($evento['responsavel_nome'] ?? ''))) ?>"
                         >
                             <div class="expo-cartao-topo">

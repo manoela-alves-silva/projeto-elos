@@ -1,0 +1,17 @@
+/* Cine Clube: sala escura, letreiro vermelho. */
+.tema-cinema {
+    --tema-cor: #b5462b;
+    --tema-fundo: #1d1a1f;
+    --tema-tinta: #f6efe6;
+    --tema-fonte: "Lora", Georgia, serif;
+}
+
+.tema-cinema .projeto-destaque {
+    background:
+        radial-gradient(circle at 85% 10%, rgba(181, 70, 43, 0.35), transparent 45%),
+        #1d1a1f;
+}
+
+.tema-cinema .projeto-sobretitulo {
+    color: #f4c542;
+}
